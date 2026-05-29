@@ -62,13 +62,13 @@ export function useDashboard() {
       const supervisorsPresent = (assignmentData || []).length;
 
       // Extract names of present supervisors
-      const supervisorNames = (assignmentData || [])
-        .map((a) => a.supervisor?.name)
-        .filter((name): name is string => typeof name === 'string');
+      const supervisorNames = ((assignmentData as any) || [])
+        .map((a: any) => a.supervisor?.name)
+        .filter((name: any): name is string => typeof name === 'string');
 
       // Construct breakdown string (e.g., "2 PPC 1, 1 PPC 2")
       const counts: Record<string, number> = {};
-      for (const item of assignmentData || []) {
+      for (const item of (assignmentData as any) || []) {
         const locName = item.location?.name || 'Unknown';
         counts[locName] = (counts[locName] || 0) + 1;
       }
