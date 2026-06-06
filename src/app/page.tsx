@@ -6,18 +6,8 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import EmptyState from '@/components/ui/EmptyState';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useLocations } from '@/hooks/useLocations';
-import { format, parseISO } from 'date-fns';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+
+
 
 export default function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -33,7 +23,7 @@ export default function DashboardPage() {
     return () => window.removeEventListener('themechange', checkTheme);
   }, []);
 
-  const { kpis, locationBreakdowns, processingTrend, loading, fetchDashboard } = useDashboard();
+  const { kpis, locationBreakdowns, loading, fetchDashboard } = useDashboard();
   const { locations, loading: locationsLoading } = useLocations();
 
   const today = new Date();
@@ -63,30 +53,6 @@ export default function DashboardPage() {
     fetchDashboard(selectedDate, selectedLocationId);
   }, [selectedDate, selectedLocationId, locationsLoading, fetchDashboard]);
 
-  // Prepare trend chart data: group by date and sum kg across locations
-  const trendChartData = useMemo(() => {
-    const dateMap = new Map<string, number>();
-    for (const entry of processingTrend) {
-      const existing = dateMap.get(entry.date) ?? 0;
-      dateMap.set(entry.date, existing + entry.kg);
-    }
-    return Array.from(dateMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, kg]) => ({
-        day: format(parseISO(date), 'EEE'),
-        kg: Math.round(kg * 10) / 10,
-      }));
-  }, [processingTrend]);
-
-  // Prepare location bar chart data
-  const locationChartData = useMemo(
-    () =>
-      locationBreakdowns.map((loc) => ({
-        name: loc.location.name,
-        kg: loc.processing,
-      })),
-    [locationBreakdowns]
-  );
 
   // Prepare workforce summary data
   const workforceData = useMemo(
@@ -288,70 +254,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Processing Trend Chart */}
-      <div className="px-4 mb-4">
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Processing Trend (Last 7 Days)</h3>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#1F2937' : '#F3F4F6'} />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} width={35} />
-                <Tooltip
-                  contentStyle={{
-                    background: isDark ? '#1F2937' : 'white',
-                    border: `1px solid ${isDark ? '#374151' : '#E5E7EB'}`,
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-                    fontSize: '12px',
-                  }}
-                  itemStyle={{ color: isDark ? '#F3F4F6' : '#111827' }}
-                  labelStyle={{ color: isDark ? '#9CA3AF' : '#6B7280' }}
-                  formatter={(value) => [`${value} kg`, 'Processed']}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="kg"
-                  stroke="#0D9488"
-                  strokeWidth={2.5}
-                  dot={{ fill: '#0D9488', r: 4, strokeWidth: 2, stroke: 'white' }}
-                  activeDot={{ r: 6, fill: '#0D9488', stroke: 'white', strokeWidth: 2 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Location Breakdown Chart */}
-      <div className="px-4 mb-4">
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Today&apos;s Processing by Location</h3>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={locationChartData} barCategoryGap="25%">
-                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#1F2937' : '#F3F4F6'} vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#9CA3AF' }} axisLine={false} tickLine={false} width={30} />
-                <Tooltip
-                  contentStyle={{
-                    background: isDark ? '#1F2937' : 'white',
-                    border: `1px solid ${isDark ? '#374151' : '#E5E7EB'}`,
-                    borderRadius: '12px',
-                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
-                    fontSize: '12px',
-                  }}
-                  itemStyle={{ color: isDark ? '#F3F4F6' : '#111827' }}
-                  labelStyle={{ color: isDark ? '#9CA3AF' : '#6B7280' }}
-                  formatter={(value) => [`${value} kg`, 'Processed']}
-                />
-                <Bar dataKey="kg" radius={[8, 8, 0, 0]} fill="#0D9488" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
 
       {/* Workforce Summary */}
       <div className="px-4 mb-6">
