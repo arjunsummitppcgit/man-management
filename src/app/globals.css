@@ -408,3 +408,37 @@ input:focus, select:focus, textarea:focus {
   color: #4b5563 !important;
 }
 
+/* ── Supervisor Dropdown ───────────────────────────────────────────────────── */
+/* Light mode */
+.supervisor-row-selected {
+  background-color: rgba(13, 148, 136, 0.08);
+}
+.supervisor-row-selected:hover {
+  background-color: rgba(13, 148, 136, 0.14);
+}
+.supervisor-row-unselected:hover {
+  background-color: #f9fafb;
+}
+.supervisor-footer {
+  background-color: #f9fafb;
+}
+.supervisor-trigger:hover {
+  background-color: #f9fafb;
+}
+
+/* Dark mode */
+.dark .supervisor-row-selected {
+  background-color: rgba(20, 184, 166, 0.18) !important;
+}
+.dark .supervisor-row-selected:hover {
+  background-color: rgba(20, 184, 166, 0.26) !important;
+}
+.dark .supervisor-row-unselected:hover {
+  background-color: #1f2937 !important;
+}
+.dark .supervisor-footer {
+  background-color: #0b0f19 !important;
+}
+.dark .supervisor-trigger:hover {
+  background-color: #1f2937 !important;
+}

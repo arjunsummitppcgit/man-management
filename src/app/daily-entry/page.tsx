@@ -31,7 +31,7 @@ function SupervisorDropdown({ supervisors, selected, onToggle }: SupervisorDropd
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors supervisor-trigger"
       >
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-xl bg-teal-50 flex items-center justify-center flex-shrink-0">
@@ -40,7 +40,7 @@ function SupervisorDropdown({ supervisors, selected, onToggle }: SupervisorDropd
             </svg>
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-800 text-left">Assign Supervisors</p>
+            <p className="text-sm font-semibold text-gray-700 text-left">Assign Supervisors</p>
             {selected.length === 0 ? (
               <p className="text-xs text-gray-400">None selected — tap to assign</p>
             ) : (
@@ -81,7 +81,7 @@ function SupervisorDropdown({ supervisors, selected, onToggle }: SupervisorDropd
                   type="button"
                   onClick={() => onToggle(sup.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 transition-colors border-b border-gray-50 last:border-0 ${
-                    isSelected ? 'bg-teal-50/60' : 'hover:bg-gray-50'
+                    isSelected ? 'supervisor-row-selected' : 'supervisor-row-unselected'
                   }`}
                 >
                   {/* Avatar */}
@@ -111,7 +111,7 @@ function SupervisorDropdown({ supervisors, selected, onToggle }: SupervisorDropd
             })
           )}
           {/* Done button */}
-          <div className="p-3 bg-gray-50 border-t border-gray-100">
+          <div className="p-3 supervisor-footer border-t border-gray-100">
             <button
               type="button"
               onClick={() => setOpen(false)}
