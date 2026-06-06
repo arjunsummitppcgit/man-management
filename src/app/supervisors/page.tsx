@@ -13,9 +13,10 @@ interface SupervisorModalProps {
   onClose: () => void;
   supervisor: Supervisor | null;
   onSave: (name: string, phone: string) => void;
+  onDelete?: (id: string) => void;
 }
 
-function SupervisorModal({ open, onClose, supervisor, onSave }: SupervisorModalProps) {
+function SupervisorModal({ open, onClose, supervisor, onSave, onDelete }: SupervisorModalProps) {
   const [name, setName] = useState(supervisor?.name || '');
   const [phone, setPhone] = useState(supervisor?.phone || '');
 
@@ -34,9 +35,30 @@ function SupervisorModal({ open, onClose, supervisor, onSave }: SupervisorModalP
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
-        <h2 className="text-lg font-bold text-gray-900 mb-4">
-          {supervisor ? 'Edit Supervisor' : 'Add Supervisor'}
-        </h2>
+
+        {/* Header row: title + delete icon (only when editing) */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-900">
+            {supervisor ? 'Edit Supervisor' : 'Add Supervisor'}
+          </h2>
+          {supervisor && onDelete && (
+            <button
+              onClick={() => {
+                if (window.confirm(`Delete supervisor "${supervisor.name}"?`)) {
+                  onDelete(supervisor.id);
+                  onClose();
+                }
+              }}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-50 hover:bg-red-100 text-red-500 transition-colors border border-red-100"
+              title="Delete Supervisor"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
+            </button>
+          )}
+        </div>
+
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
@@ -94,7 +116,7 @@ interface AttendanceByDateRecord {
 
 export default function SupervisorsPage() {
   const { showToast } = useToast();
-  const { supervisors, loading, fetchSupervisors, addSupervisor, updateSupervisor } = useSupervisors();
+  const { supervisors, loading, fetchSupervisors, addSupervisor, updateSupervisor, deactivateSupervisor } = useSupervisors();
   const [mainView, setMainView] = useState<'list' | 'attendance'>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -238,6 +260,15 @@ export default function SupervisorsPage() {
       showToast('Failed to save supervisor', 'error');
     }
     setEditingSupervisor(null);
+  };
+
+  const handleDeleteSupervisor = async (id: string) => {
+    try {
+      await deactivateSupervisor(id);
+      showToast('Supervisor deleted successfully', 'success');
+    } catch {
+      showToast('Failed to delete supervisor', 'error');
+    }
   };
 
   if (loading) {
@@ -516,6 +547,7 @@ export default function SupervisorsPage() {
         }}
         supervisor={editingSupervisor}
         onSave={handleSaveSupervisor}
+        onDelete={handleDeleteSupervisor}
       />
     </div>
   );
