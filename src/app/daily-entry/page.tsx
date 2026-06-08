@@ -189,7 +189,8 @@ export default function DailyEntryPage() {
   });
 
   // Processing form state
-  const [processedKg, setProcessedKg] = useState('');
+  const [honToHeadless, setHonToHeadless] = useState('');
+  const [headlessToVa, setHeadlessToVa] = useState('');
   const [notes, setNotes] = useState('');
 
   // Set default location when locations load
@@ -273,10 +274,12 @@ export default function DailyEntryPage() {
   // Pre-populate processing form from fetched data
   useEffect(() => {
     if (processingData) {
-      setProcessedKg(processingData.processed_kg?.toString() ?? '');
+      setHonToHeadless(processingData.hon_to_headless?.toString() ?? '0');
+      setHeadlessToVa(processingData.headless_to_va?.toString() ?? '0');
       setNotes(processingData.notes ?? '');
     } else {
-      setProcessedKg('');
+      setHonToHeadless('');
+      setHeadlessToVa('');
       setNotes('');
     }
   }, [processingData]);
@@ -331,7 +334,8 @@ export default function DailyEntryPage() {
         await saveSanitization(selectedDate, selectedLocation, sanitization);
       } else if (activeTab === 'processing') {
         await saveProcessing(selectedDate, selectedLocation, {
-          processed_kg: parseFloat(processedKg) || 0,
+          hon_to_headless: parseFloat(honToHeadless) || 0,
+          headless_to_va: parseFloat(headlessToVa) || 0,
           notes,
         });
       }
@@ -590,21 +594,61 @@ export default function DailyEntryPage() {
                   </div>
                 </div>
 
-                {/* Input */}
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Processed KGs
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={processedKg}
-                    onChange={(e) => setProcessedKg(e.target.value)}
-                    placeholder="Enter kg processed today"
-                    className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
-                  />
+                {/* Two processing category inputs */}
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-700">Processing KGs</h3>
+                    <span className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-bold">
+                      Total: {((parseFloat(honToHeadless) || 0) + (parseFloat(headlessToVa) || 0)).toFixed(1)} kg
+                    </span>
+                  </div>
+
+                  {/* HON to Headless */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      HON to Headless
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={honToHeadless}
+                        onChange={(e) => setHonToHeadless(e.target.value)}
+                        placeholder="0.0"
+                        className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 pr-12"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
+                    </div>
+                  </div>
+
+                  {/* Headless to VA */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Headless to VA
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={headlessToVa}
+                        onChange={(e) => setHeadlessToVa(e.target.value)}
+                        placeholder="0.0"
+                        className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 pr-12"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
+                    </div>
+                  </div>
+
+                  {/* Total banner */}
+                  <div className="flex items-center justify-between bg-orange-50 rounded-xl px-4 py-3">
+                    <span className="text-sm font-semibold text-orange-600">Total Processed KG</span>
+                    <span className="text-lg font-bold text-orange-700">
+                      {((parseFloat(honToHeadless) || 0) + (parseFloat(headlessToVa) || 0)).toFixed(1)} kg
+                    </span>
+                  </div>
                 </div>
 
+                {/* Notes */}
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Notes</label>
                   <textarea

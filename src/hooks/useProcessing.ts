@@ -64,7 +64,9 @@ export function useProcessing() {
           {
             work_date: date,
             location_id: locationId,
-            processed_kg: data.processed_kg,
+            hon_to_headless: data.hon_to_headless,
+            headless_to_va: data.headless_to_va,
+            // processed_kg is auto-computed by DB trigger
             notes: data.notes.trim() || null,
             updated_at: new Date().toISOString(),
           },

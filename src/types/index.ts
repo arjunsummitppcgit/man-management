@@ -80,6 +80,9 @@ export interface DailyProcessing {
   id: string;
   work_date: string;
   location_id: string;
+  // Sub-categories (auto-summed into processed_kg by DB trigger)
+  hon_to_headless: number;
+  headless_to_va: number;
   processed_kg: number;
   notes: string | null;
   created_at: string;
@@ -111,7 +114,9 @@ export interface SanitizationFormData {
 }
 
 export interface ProcessingFormData {
-  processed_kg: number;
+  // Sub-categories (processed_kg is derived automatically by DB trigger)
+  hon_to_headless: number;
+  headless_to_va: number;
   notes: string;
 }
 
