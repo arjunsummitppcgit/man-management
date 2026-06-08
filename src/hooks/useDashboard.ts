@@ -88,6 +88,35 @@ export function useDashboard() {
         .join(', ');
 
       // ──────────────────────────────────────────
+      // 2.5. Sanitization for selected date
+      // ──────────────────────────────────────────
+      let sanitizationQuery = supabase
+        .from('daily_sanitization')
+        .select('cleaning_labour, crates_cleaning, nets_cleaning, nmr_labour, washroom_cleaning, grading_machine_cleaning')
+        .eq('work_date', date);
+
+      if (locationFilter) {
+        sanitizationQuery = sanitizationQuery.eq('location_id', locationFilter);
+      }
+
+      const { data: sanitizationData, error: sanitizationError } = await sanitizationQuery;
+      if (sanitizationError) throw sanitizationError;
+
+      const sanitizationCleaningLabour = (sanitizationData || []).reduce((sum, row) => sum + (row.cleaning_labour || 0), 0);
+      const sanitizationCratesCleaning = (sanitizationData || []).reduce((sum, row) => sum + (row.crates_cleaning || 0), 0);
+      const sanitizationNetsCleaning = (sanitizationData || []).reduce((sum, row) => sum + (row.nets_cleaning || 0), 0);
+      const sanitizationNmrLabour = (sanitizationData || []).reduce((sum, row) => sum + (row.nmr_labour || 0), 0);
+      const sanitizationWashroomCleaning = (sanitizationData || []).reduce((sum, row) => sum + (row.washroom_cleaning || 0), 0);
+      const sanitizationGradingMachineCleaning = (sanitizationData || []).reduce((sum, row) => sum + (row.grading_machine_cleaning || 0), 0);
+      const sanitizationTotal =
+        sanitizationCleaningLabour +
+        sanitizationCratesCleaning +
+        sanitizationNetsCleaning +
+        sanitizationNmrLabour +
+        sanitizationWashroomCleaning +
+        sanitizationGradingMachineCleaning;
+
+      // ──────────────────────────────────────────
       // 3. Processing for selected date
       // ──────────────────────────────────────────
       let dailyProcessingQuery = supabase
@@ -193,6 +222,13 @@ export function useDashboard() {
         cleaningCount,
         qcCount,
         securityCount,
+        sanitizationCleaningLabour,
+        sanitizationCratesCleaning,
+        sanitizationNetsCleaning,
+        sanitizationNmrLabour,
+        sanitizationWashroomCleaning,
+        sanitizationGradingMachineCleaning,
+        sanitizationTotal,
         honToHeadless,
         headlessToVa,
         wipHonToHeadless,

@@ -155,6 +155,14 @@ export interface DashboardKPIs {
   cleaningCount: number;
   qcCount: number;
   securityCount: number;
+  // Sanitization headcount KPIs
+  sanitizationCleaningLabour: number;
+  sanitizationCratesCleaning: number;
+  sanitizationNetsCleaning: number;
+  sanitizationNmrLabour: number;
+  sanitizationWashroomCleaning: number;
+  sanitizationGradingMachineCleaning: number;
+  sanitizationTotal: number;
   // Processing sub-category totals (completed)
   honToHeadless: number;
   headlessToVa: number;

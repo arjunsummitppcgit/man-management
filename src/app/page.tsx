@@ -159,9 +159,11 @@ export default function DashboardPage() {
               <span className="text-2xl">👷</span>
               <span className="text-sm font-semibold text-gray-700">Total Workforce</span>
             </div>
-            <span className="text-3xl font-bold text-gray-900">{kpis?.totalWorkforce ?? 0}</span>
+            <span className="text-3xl font-bold text-gray-900">
+              {((kpis?.totalWorkforce ?? 0) + (kpis?.sanitizationTotal ?? 0))}
+            </span>
           </div>
-          <p className="text-xs text-gray-400 mb-3">Total headcount today</p>
+          <p className="text-xs text-gray-400 mb-3">Total headcount today (including labour, workforce & sanitization)</p>
 
           {/* Labour sub-categories */}
           <div className="border-t border-gray-100 pt-3">
@@ -228,6 +230,48 @@ export default function DashboardPage() {
               <div className="bg-teal-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center col-span-2">
                 <p className="text-[10px] text-teal-500 font-medium uppercase tracking-wide">Security</p>
                 <p className="text-xl font-bold text-teal-700 mt-0.5">{kpis?.securityCount ?? 0}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Sanitization Headcount */}
+          <div className="border-t border-gray-100 pt-3 mt-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">Sanitization Breakdown</p>
+              <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs font-bold">
+                {kpis?.sanitizationTotal ?? 0} total
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {/* Cleaning Labour */}
+              <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
+                <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Cleaning Labour</p>
+                <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationCleaningLabour ?? 0}</p>
+              </div>
+              {/* Crates Cleaning */}
+              <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
+                <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Crates Cleaning</p>
+                <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationCratesCleaning ?? 0}</p>
+              </div>
+              {/* Nets Cleaning */}
+              <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
+                <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Nets Cleaning</p>
+                <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationNetsCleaning ?? 0}</p>
+              </div>
+              {/* NMR Labour */}
+              <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
+                <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">NMR Labour</p>
+                <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationNmrLabour ?? 0}</p>
+              </div>
+              {/* Washroom Cleaning */}
+              <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
+                <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Washroom</p>
+                <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationWashroomCleaning ?? 0}</p>
+              </div>
+              {/* Grading Machine */}
+              <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
+                <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Grading M/C</p>
+                <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationGradingMachineCleaning ?? 0}</p>
               </div>
             </div>
           </div>
