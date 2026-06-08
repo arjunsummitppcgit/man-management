@@ -196,57 +196,68 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Row 2: Supervisors + Processing */}
-        <div className="grid grid-cols-2 gap-3">
-
-        {/* Supervisors */}
+        {/* Supervisors — Full-width big card with all names */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-2xl">👔</span>
-            <span className="text-xs font-medium text-gray-500">Supervisors</span>
-          </div>
-          
-          <div className="flex items-center gap-3 min-h-[40px]">
-            <p className="text-3xl font-bold text-teal-600">{kpis?.supervisorsPresent ?? 0}</p>
-            {selectedFilter !== 'All' && kpis?.supervisorNames && kpis.supervisorNames.length > 0 && (
-              <div className="flex-1 max-h-12 overflow-y-auto py-0.5 scrollbar-hide">
-                <div className="flex flex-wrap gap-1">
-                  {kpis.supervisorNames.map((name) => (
-                    <span
-                      key={name}
-                      className="px-2 py-0.5 bg-teal-50 text-teal-700 border border-teal-100 rounded-lg font-semibold text-[10px] whitespace-nowrap"
-                    >
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">👔</span>
+              <span className="text-sm font-semibold text-gray-700">Supervisors Present</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-3xl font-bold text-teal-600">{kpis?.supervisorsPresent ?? 0}</span>
+              {(kpis?.supervisorsPresent ?? 0) > 10 && (
+                <span className="px-2 py-0.5 bg-teal-50 text-teal-600 rounded-full text-[10px] font-bold">scroll ↕</span>
+              )}
+            </div>
           </div>
 
-          {selectedFilter === 'All' ? (
-            <p className="text-xs text-gray-400 mt-1 font-medium truncate" title={kpis?.supervisorBreakdown}>
-              {kpis?.supervisorBreakdown || 'None present today'}
-            </p>
+          {/* Names grid — scrollable after 10 supervisors */}
+          {(kpis?.supervisorNames ?? []).length === 0 ? (
+            <div className="flex items-center justify-center py-6 bg-gray-50 rounded-xl">
+              <p className="text-sm text-gray-400">No supervisors present today</p>
+            </div>
           ) : (
-            <p className="text-xs text-gray-400 mt-1">
-              {kpis?.supervisorsPresent === 0 ? 'No supervisors present' : 'Present today'}
+            <div
+              className="overflow-y-auto"
+              style={{ maxHeight: (kpis?.supervisorsPresent ?? 0) > 10 ? '220px' : 'none' }}
+            >
+              <div className="grid grid-cols-2 gap-2">
+                {(kpis?.supervisorNames ?? []).map((name, idx) => (
+                  <div
+                    key={`${name}-${idx}`}
+                    className="flex items-center gap-2.5 bg-teal-50 border border-teal-100 rounded-xl px-3 py-2.5"
+                  >
+                    {/* Avatar circle with initial */}
+                    <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                      {name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-sm font-semibold text-teal-800 truncate">{name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Location breakdown sub-line */}
+          {kpis?.supervisorBreakdown && (
+            <p className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100 font-medium">
+              📍 {kpis.supervisorBreakdown}
             </p>
           )}
         </div>
 
-        {/* Today's Processing */}
+        {/* Today's Processing — full width */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-2xl">📦</span>
-            <span className="text-xs font-medium text-gray-500">Processing</span>
+            <span className="text-xs font-medium text-gray-500">Processing Today</span>
           </div>
           <p className="text-3xl font-bold text-amber-600">
             {kpis?.todaysProcessing ?? 0}
             <span className="text-sm font-medium text-gray-400 ml-1">kg</span>
           </p>
-          <p className="text-xs text-gray-400 mt-1">Processed today</p>
-        </div>
+          <p className="text-xs text-gray-400 mt-1">Total kg processed today</p>
         </div>
 
         {/* Monthly Progress — full width */}
