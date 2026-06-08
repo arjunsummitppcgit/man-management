@@ -155,9 +155,12 @@ export interface DashboardKPIs {
   cleaningCount: number;
   qcCount: number;
   securityCount: number;
-  // Processing sub-category totals
+  // Processing sub-category totals (completed)
   honToHeadless: number;
   headlessToVa: number;
+  // Processing sub-category totals (WIP)
+  wipHonToHeadless: number;
+  wipHeadlessToVa: number;
 }
 
 export interface LocationBreakdown {
@@ -165,6 +168,11 @@ export interface LocationBreakdown {
   workforce: number;
   processing: number;
   supervisors: number;
+  // Processing sub-fields
+  wipHonToHeadless: number;
+  wipHeadlessToVa: number;
+  completedHonToHeadless: number;
+  completedHeadlessToVa: number;
 }
 
 export interface SupervisorAttendanceRecord {

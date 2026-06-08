@@ -92,7 +92,7 @@ export function useDashboard() {
       // ──────────────────────────────────────────
       let dailyProcessingQuery = supabase
         .from('daily_processing')
-        .select('processed_kg, hon_to_headless, headless_to_va')
+        .select('processed_kg, hon_to_headless, headless_to_va, wip_hon_to_headless, wip_headless_to_va')
         .eq('work_date', date);
 
       if (locationFilter) {
@@ -112,6 +112,14 @@ export function useDashboard() {
       );
       const headlessToVa = (dailyProcessingData || []).reduce(
         (sum, row) => sum + (row.headless_to_va || 0),
+        0
+      );
+      const wipHonToHeadless = (dailyProcessingData || []).reduce(
+        (sum, row) => sum + (row.wip_hon_to_headless || 0),
+        0
+      );
+      const wipHeadlessToVa = (dailyProcessingData || []).reduce(
+        (sum, row) => sum + (row.wip_headless_to_va || 0),
         0
       );
 
@@ -187,6 +195,8 @@ export function useDashboard() {
         securityCount,
         honToHeadless,
         headlessToVa,
+        wipHonToHeadless,
+        wipHeadlessToVa,
       });
 
       // ──────────────────────────────────────────
@@ -243,7 +253,7 @@ export function useDashboard() {
           // Processing for this location on this date
           const { data: locProcessing } = await supabase
             .from('daily_processing')
-            .select('processed_kg')
+            .select('processed_kg, wip_hon_to_headless, wip_headless_to_va, hon_to_headless, headless_to_va')
             .eq('work_date', date)
             .eq('location_id', location.id)
             .maybeSingle();
@@ -261,6 +271,10 @@ export function useDashboard() {
             workforce: locWorkforce?.total_headcount || 0,
             processing: locProcessing?.processed_kg || 0,
             supervisors: (locSupervisors || []).length,
+            wipHonToHeadless: locProcessing?.wip_hon_to_headless || 0,
+            wipHeadlessToVa: locProcessing?.wip_headless_to_va || 0,
+            completedHonToHeadless: locProcessing?.hon_to_headless || 0,
+            completedHeadlessToVa: locProcessing?.headless_to_va || 0,
           };
         })
       );
