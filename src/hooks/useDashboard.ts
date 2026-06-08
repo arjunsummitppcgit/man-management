@@ -28,7 +28,7 @@ export function useDashboard() {
       // ──────────────────────────────────────────
       let workforceQuery = supabase
         .from('daily_workforce')
-        .select('total_headcount, labour_kg_basic, labour_daily_wage, labour_company, labour_non_locals, labour_count, location_id')
+        .select('total_headcount, labour_kg_basic, labour_daily_wage, labour_company, labour_non_locals, labour_count, boys_count, checking_count, cleaning_count, qc_count, security_count, location_id')
         .eq('work_date', date);
 
       if (locationFilter) {
@@ -48,6 +48,11 @@ export function useDashboard() {
       const labourCompany = (workforceData || []).reduce((sum, row) => sum + (row.labour_company || 0), 0);
       const labourNonLocals = (workforceData || []).reduce((sum, row) => sum + (row.labour_non_locals || 0), 0);
       const labourTotal = labourKgBasic + labourDailyWage + labourCompany + labourNonLocals;
+      const boysCount = (workforceData || []).reduce((sum, row) => sum + (row.boys_count || 0), 0);
+      const checkingCount = (workforceData || []).reduce((sum, row) => sum + (row.checking_count || 0), 0);
+      const cleaningCount = (workforceData || []).reduce((sum, row) => sum + (row.cleaning_count || 0), 0);
+      const qcCount = (workforceData || []).reduce((sum, row) => sum + (row.qc_count || 0), 0);
+      const securityCount = (workforceData || []).reduce((sum, row) => sum + (row.security_count || 0), 0);
 
       // ──────────────────────────────────────────
       // 2. Supervisor assignments for selected date
@@ -175,6 +180,11 @@ export function useDashboard() {
         labourCompany,
         labourNonLocals,
         labourTotal,
+        boysCount,
+        checkingCount,
+        cleaningCount,
+        qcCount,
+        securityCount,
         honToHeadless,
         headlessToVa,
       });

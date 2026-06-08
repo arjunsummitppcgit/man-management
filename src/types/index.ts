@@ -147,6 +147,12 @@ export interface DashboardKPIs {
   labourCompany: number;
   labourNonLocals: number;
   labourTotal: number;
+  // Remaining workforce headcount KPIs
+  boysCount: number;
+  checkingCount: number;
+  cleaningCount: number;
+  qcCount: number;
+  securityCount: number;
   // Processing sub-category totals
   honToHeadless: number;
   headlessToVa: number;

@@ -194,6 +194,43 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* Remaining Workforce Headcount */}
+          <div className="border-t border-gray-100 pt-3 mt-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">Workforce Breakdown</p>
+              <span className="px-2 py-0.5 bg-teal-50 text-teal-700 rounded-full text-xs font-bold">
+                {((kpis?.boysCount ?? 0) + (kpis?.checkingCount ?? 0) + (kpis?.cleaningCount ?? 0) + (kpis?.qcCount ?? 0) + (kpis?.securityCount ?? 0))} total
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {/* Boys */}
+              <div className="bg-teal-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center">
+                <p className="text-[10px] text-teal-500 font-medium uppercase tracking-wide">Boys</p>
+                <p className="text-xl font-bold text-teal-700 mt-0.5">{kpis?.boysCount ?? 0}</p>
+              </div>
+              {/* Checking */}
+              <div className="bg-teal-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center">
+                <p className="text-[10px] text-teal-500 font-medium uppercase tracking-wide">Checking</p>
+                <p className="text-xl font-bold text-teal-700 mt-0.5">{kpis?.checkingCount ?? 0}</p>
+              </div>
+              {/* Cleaning */}
+              <div className="bg-teal-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center">
+                <p className="text-[10px] text-teal-500 font-medium uppercase tracking-wide">Cleaning</p>
+                <p className="text-xl font-bold text-teal-700 mt-0.5">{kpis?.cleaningCount ?? 0}</p>
+              </div>
+              {/* QC */}
+              <div className="bg-teal-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center">
+                <p className="text-[10px] text-teal-500 font-medium uppercase tracking-wide">QC</p>
+                <p className="text-xl font-bold text-teal-700 mt-0.5">{kpis?.qcCount ?? 0}</p>
+              </div>
+              {/* Security */}
+              <div className="bg-teal-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center col-span-2">
+                <p className="text-[10px] text-teal-500 font-medium uppercase tracking-wide">Security</p>
+                <p className="text-xl font-bold text-teal-700 mt-0.5">{kpis?.securityCount ?? 0}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Supervisors — Full-width big card with all names */}
