@@ -84,6 +84,8 @@ export interface DailyProcessing {
   hon_to_headless: number;
   headless_to_va: number;
   processed_kg: number;
+  // Standalone quantity field
+  work_in_process_qty: number;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -117,6 +119,8 @@ export interface ProcessingFormData {
   // Sub-categories (processed_kg is derived automatically by DB trigger)
   hon_to_headless: number;
   headless_to_va: number;
+  // Standalone quantity field
+  work_in_process_qty: number;
   notes: string;
 }
 

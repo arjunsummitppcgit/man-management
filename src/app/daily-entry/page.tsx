@@ -191,6 +191,7 @@ export default function DailyEntryPage() {
   // Processing form state
   const [honToHeadless, setHonToHeadless] = useState('');
   const [headlessToVa, setHeadlessToVa] = useState('');
+  const [workInProcessQty, setWorkInProcessQty] = useState('');
   const [notes, setNotes] = useState('');
 
   // Set default location when locations load
@@ -276,10 +277,12 @@ export default function DailyEntryPage() {
     if (processingData) {
       setHonToHeadless(processingData.hon_to_headless?.toString() ?? '0');
       setHeadlessToVa(processingData.headless_to_va?.toString() ?? '0');
+      setWorkInProcessQty(processingData.work_in_process_qty?.toString() ?? '0');
       setNotes(processingData.notes ?? '');
     } else {
       setHonToHeadless('');
       setHeadlessToVa('');
+      setWorkInProcessQty('');
       setNotes('');
     }
   }, [processingData]);
@@ -336,6 +339,7 @@ export default function DailyEntryPage() {
         await saveProcessing(selectedDate, selectedLocation, {
           hon_to_headless: parseFloat(honToHeadless) || 0,
           headless_to_va: parseFloat(headlessToVa) || 0,
+          work_in_process_qty: parseFloat(workInProcessQty) || 0,
           notes,
         });
       }
@@ -634,6 +638,24 @@ export default function DailyEntryPage() {
                         onChange={(e) => setHeadlessToVa(e.target.value)}
                         placeholder="0.0"
                         className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 pr-12"
+                      />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
+                    </div>
+                  </div>
+
+                  {/* Work In Process Quantity */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      Work In Process Qty
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={workInProcessQty}
+                        onChange={(e) => setWorkInProcessQty(e.target.value)}
+                        placeholder="0.0"
+                        className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-purple-400 focus:ring-2 focus:ring-purple-400/10 pr-12"
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
                     </div>
