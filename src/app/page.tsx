@@ -373,75 +373,88 @@ export default function DashboardPage() {
       {/* Processing Breakdown Cross-Tab Table */}
       {locationBreakdowns.length > 0 && (
         <div className="px-4 mb-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Processing Breakdown by Location</h3>
-          <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-100 bg-white">
+          <h3 className={`text-sm font-semibold mb-3 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+            Processing Breakdown by Location
+          </h3>
+          <div className={`rounded-2xl overflow-hidden shadow-sm border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-teal-600 text-white">
-                    <th className="text-left px-3 py-2.5 font-semibold min-w-[140px]">Category</th>
+                    <th className="text-left px-3 py-3 font-bold min-w-[170px] tracking-wide">Category</th>
                     {locationBreakdowns.map((lb) => (
-                      <th key={lb.location.id} className="text-center px-3 py-2.5 font-semibold whitespace-nowrap">
+                      <th key={lb.location.id} className="text-center px-3 py-3 font-bold whitespace-nowrap">
                         {lb.location.name}
                       </th>
                     ))}
-                    <th className="text-center px-3 py-2.5 font-semibold bg-teal-700">Total</th>
+                    <th className="text-center px-3 py-3 font-bold bg-teal-700 whitespace-nowrap">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {/* WIP — HON to Headless */}
-                  <tr className="bg-purple-50 border-b border-purple-100">
-                    <td className="px-3 py-2.5 font-semibold text-purple-700 whitespace-nowrap">
+                  <tr className={`border-b ${isDark ? 'bg-purple-900/60 border-purple-700' : 'bg-purple-100 border-purple-200'}`}>
+                    <td className={`px-3 py-3 font-bold whitespace-nowrap ${isDark ? 'text-purple-200' : 'text-purple-800'}`}>
                       🔄 WIP — HON to Headless
                     </td>
                     {locationBreakdowns.map((lb) => (
-                      <td key={lb.location.id} className="text-center px-3 py-2.5 font-bold text-purple-800">
-                        {lb.wipHonToHeadless > 0 ? lb.wipHonToHeadless.toFixed(1) : <span className="text-gray-300">—</span>}
+                      <td key={lb.location.id} className={`text-center px-3 py-3 font-bold ${isDark ? 'text-purple-100' : 'text-purple-900'}`}>
+                        {lb.wipHonToHeadless > 0
+                          ? lb.wipHonToHeadless.toFixed(1)
+                          : <span className={isDark ? 'text-purple-600' : 'text-purple-300'}>—</span>}
                       </td>
                     ))}
-                    <td className="text-center px-3 py-2.5 font-bold text-purple-900 bg-purple-100">
+                    <td className={`text-center px-3 py-3 font-extrabold ${isDark ? 'bg-purple-800 text-purple-100' : 'bg-purple-200 text-purple-900'}`}>
                       {locationBreakdowns.reduce((s, lb) => s + lb.wipHonToHeadless, 0).toFixed(1)}
                     </td>
                   </tr>
+
                   {/* WIP — Headless to VA */}
-                  <tr className="bg-purple-50/60 border-b border-purple-100">
-                    <td className="px-3 py-2.5 font-semibold text-purple-700 whitespace-nowrap">
+                  <tr className={`border-b ${isDark ? 'bg-purple-900/40 border-purple-700' : 'bg-purple-50 border-purple-200'}`}>
+                    <td className={`px-3 py-3 font-bold whitespace-nowrap ${isDark ? 'text-purple-200' : 'text-purple-800'}`}>
                       🔄 WIP — Headless to VA
                     </td>
                     {locationBreakdowns.map((lb) => (
-                      <td key={lb.location.id} className="text-center px-3 py-2.5 font-bold text-purple-800">
-                        {lb.wipHeadlessToVa > 0 ? lb.wipHeadlessToVa.toFixed(1) : <span className="text-gray-300">—</span>}
+                      <td key={lb.location.id} className={`text-center px-3 py-3 font-bold ${isDark ? 'text-purple-100' : 'text-purple-900'}`}>
+                        {lb.wipHeadlessToVa > 0
+                          ? lb.wipHeadlessToVa.toFixed(1)
+                          : <span className={isDark ? 'text-purple-600' : 'text-purple-300'}>—</span>}
                       </td>
                     ))}
-                    <td className="text-center px-3 py-2.5 font-bold text-purple-900 bg-purple-100">
+                    <td className={`text-center px-3 py-3 font-extrabold ${isDark ? 'bg-purple-800 text-purple-100' : 'bg-purple-200 text-purple-900'}`}>
                       {locationBreakdowns.reduce((s, lb) => s + lb.wipHeadlessToVa, 0).toFixed(1)}
                     </td>
                   </tr>
+
                   {/* Completed — HON to Headless */}
-                  <tr className="bg-orange-50 border-b border-orange-100">
-                    <td className="px-3 py-2.5 font-semibold text-orange-700 whitespace-nowrap">
+                  <tr className={`border-b ${isDark ? 'bg-orange-900/60 border-orange-700' : 'bg-orange-100 border-orange-200'}`}>
+                    <td className={`px-3 py-3 font-bold whitespace-nowrap ${isDark ? 'text-orange-200' : 'text-orange-800'}`}>
                       ✅ Completed — HON to Headless
                     </td>
                     {locationBreakdowns.map((lb) => (
-                      <td key={lb.location.id} className="text-center px-3 py-2.5 font-bold text-orange-800">
-                        {lb.completedHonToHeadless > 0 ? lb.completedHonToHeadless.toFixed(1) : <span className="text-gray-300">—</span>}
+                      <td key={lb.location.id} className={`text-center px-3 py-3 font-bold ${isDark ? 'text-orange-100' : 'text-orange-900'}`}>
+                        {lb.completedHonToHeadless > 0
+                          ? lb.completedHonToHeadless.toFixed(1)
+                          : <span className={isDark ? 'text-orange-600' : 'text-orange-300'}>—</span>}
                       </td>
                     ))}
-                    <td className="text-center px-3 py-2.5 font-bold text-orange-900 bg-orange-100">
+                    <td className={`text-center px-3 py-3 font-extrabold ${isDark ? 'bg-orange-800 text-orange-100' : 'bg-orange-200 text-orange-900'}`}>
                       {locationBreakdowns.reduce((s, lb) => s + lb.completedHonToHeadless, 0).toFixed(1)}
                     </td>
                   </tr>
+
                   {/* Completed — Headless to VA */}
-                  <tr className="bg-orange-50/60">
-                    <td className="px-3 py-2.5 font-semibold text-orange-700 whitespace-nowrap">
+                  <tr className={isDark ? 'bg-orange-900/40' : 'bg-orange-50'}>
+                    <td className={`px-3 py-3 font-bold whitespace-nowrap ${isDark ? 'text-orange-200' : 'text-orange-800'}`}>
                       ✅ Completed — Headless to VA
                     </td>
                     {locationBreakdowns.map((lb) => (
-                      <td key={lb.location.id} className="text-center px-3 py-2.5 font-bold text-orange-800">
-                        {lb.completedHeadlessToVa > 0 ? lb.completedHeadlessToVa.toFixed(1) : <span className="text-gray-300">—</span>}
+                      <td key={lb.location.id} className={`text-center px-3 py-3 font-bold ${isDark ? 'text-orange-100' : 'text-orange-900'}`}>
+                        {lb.completedHeadlessToVa > 0
+                          ? lb.completedHeadlessToVa.toFixed(1)
+                          : <span className={isDark ? 'text-orange-600' : 'text-orange-300'}>—</span>}
                       </td>
                     ))}
-                    <td className="text-center px-3 py-2.5 font-bold text-orange-900 bg-orange-100">
+                    <td className={`text-center px-3 py-3 font-extrabold ${isDark ? 'bg-orange-800 text-orange-100' : 'bg-orange-200 text-orange-900'}`}>
                       {locationBreakdowns.reduce((s, lb) => s + lb.completedHeadlessToVa, 0).toFixed(1)}
                     </td>
                   </tr>
