@@ -21,6 +21,12 @@ export interface DailyWorkforce {
   id: string;
   work_date: string;
   location_id: string;
+  // Labour sub-categories
+  labour_kg_basic: number;
+  labour_daily_wage: number;
+  labour_company: number;
+  labour_non_locals: number;
+  // Computed from sub-categories by DB trigger
   labour_count: number;
   boys_count: number;
   checking_count: number;
@@ -82,7 +88,11 @@ export interface DailyProcessing {
 
 // Form types
 export interface WorkforceFormData {
-  labour_count: number;
+  // Labour sub-categories (labour_count derived automatically by DB)
+  labour_kg_basic: number;
+  labour_daily_wage: number;
+  labour_company: number;
+  labour_non_locals: number;
   boys_count: number;
   checking_count: number;
   cleaning_count: number;

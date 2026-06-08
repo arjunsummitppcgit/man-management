@@ -165,13 +165,17 @@ export default function DailyEntryPage() {
 
   // Workforce form state
   const [workforce, setWorkforce] = useState({
-    labour_count: 0,
+    labour_kg_basic: 0,
+    labour_daily_wage: 0,
+    labour_company: 0,
+    labour_non_locals: 0,
     boys_count: 0,
     checking_count: 0,
     cleaning_count: 0,
     qc_count: 0,
     security_count: 0,
   });
+  const [labourExpanded, setLabourExpanded] = useState(true);
   const [selectedSupervisors, setSelectedSupervisors] = useState<string[]>([]);
 
   // Sanitization form state
@@ -213,7 +217,10 @@ export default function DailyEntryPage() {
   useEffect(() => {
     if (workforceData) {
       setWorkforce({
-        labour_count: workforceData.labour_count ?? 0,
+        labour_kg_basic: workforceData.labour_kg_basic ?? 0,
+        labour_daily_wage: workforceData.labour_daily_wage ?? 0,
+        labour_company: workforceData.labour_company ?? 0,
+        labour_non_locals: workforceData.labour_non_locals ?? 0,
         boys_count: workforceData.boys_count ?? 0,
         checking_count: workforceData.checking_count ?? 0,
         cleaning_count: workforceData.cleaning_count ?? 0,
@@ -222,7 +229,10 @@ export default function DailyEntryPage() {
       });
     } else {
       setWorkforce({
-        labour_count: 0,
+        labour_kg_basic: 0,
+        labour_daily_wage: 0,
+        labour_company: 0,
+        labour_non_locals: 0,
         boys_count: 0,
         checking_count: 0,
         cleaning_count: 0,
@@ -271,8 +281,14 @@ export default function DailyEntryPage() {
     }
   }, [processingData]);
 
+  const labourTotal =
+    workforce.labour_kg_basic +
+    workforce.labour_daily_wage +
+    workforce.labour_company +
+    workforce.labour_non_locals;
+
   const workforceTotal =
-    workforce.labour_count +
+    labourTotal +
     workforce.boys_count +
     workforce.checking_count +
     workforce.cleaning_count +
@@ -431,12 +447,75 @@ export default function DailyEntryPage() {
                       Total: {workforceTotal}
                     </span>
                   </div>
-                  <NumberStepper label="Labour" value={workforce.labour_count} onChange={(v) => updateWorkforce('labour_count', v)} />
-                  <NumberStepper label="Boys" value={workforce.boys_count} onChange={(v) => updateWorkforce('boys_count', v)} />
-                  <NumberStepper label="Checking" value={workforce.checking_count} onChange={(v) => updateWorkforce('checking_count', v)} />
-                  <NumberStepper label="Cleaning" value={workforce.cleaning_count} onChange={(v) => updateWorkforce('cleaning_count', v)} />
-                  <NumberStepper label="QC" value={workforce.qc_count} onChange={(v) => updateWorkforce('qc_count', v)} />
-                  <NumberStepper label="Security" value={workforce.security_count} onChange={(v) => updateWorkforce('security_count', v)} />
+
+                  {/* Labour — collapsible sub-categories */}
+                  <div className="mb-1">
+                    <button
+                      type="button"
+                      onClick={() => setLabourExpanded((v) => !v)}
+                      className="w-full flex items-center justify-between py-2.5 px-0 group"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-800">Labour</span>
+                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full text-[11px] font-bold">
+                          {labourTotal}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-gray-400 group-hover:text-teal-600 transition-colors">
+                        <span>{labourExpanded ? 'Collapse' : 'Expand'}</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none" viewBox="0 0 24 24"
+                          strokeWidth={2} stroke="currentColor"
+                          className={`w-3.5 h-3.5 transition-transform duration-200 ${labourExpanded ? 'rotate-180' : ''}`}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                        </svg>
+                      </div>
+                    </button>
+
+                    {/* Sub-category steppers */}
+                    {labourExpanded && (
+                      <div className="ml-3 pl-3 border-l-2 border-indigo-100 space-y-3 mb-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide">Labour Categories</p>
+                        </div>
+                        <NumberStepper
+                          label="KG Basic"
+                          value={workforce.labour_kg_basic}
+                          onChange={(v) => updateWorkforce('labour_kg_basic', v)}
+                        />
+                        <NumberStepper
+                          label="Daily Wage"
+                          value={workforce.labour_daily_wage}
+                          onChange={(v) => updateWorkforce('labour_daily_wage', v)}
+                        />
+                        <NumberStepper
+                          label="Company"
+                          value={workforce.labour_company}
+                          onChange={(v) => updateWorkforce('labour_company', v)}
+                        />
+                        <NumberStepper
+                          label="Non Locals"
+                          value={workforce.labour_non_locals}
+                          onChange={(v) => updateWorkforce('labour_non_locals', v)}
+                        />
+                        {/* Labour sub-total banner */}
+                        <div className="flex items-center justify-between bg-indigo-50 rounded-xl px-3 py-2">
+                          <span className="text-xs font-semibold text-indigo-600">Labour Sub-total</span>
+                          <span className="text-sm font-bold text-indigo-700">{labourTotal}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-gray-100 pt-2 space-y-3">
+                    <NumberStepper label="Boys" value={workforce.boys_count} onChange={(v) => updateWorkforce('boys_count', v)} />
+                    <NumberStepper label="Checking" value={workforce.checking_count} onChange={(v) => updateWorkforce('checking_count', v)} />
+                    <NumberStepper label="Cleaning" value={workforce.cleaning_count} onChange={(v) => updateWorkforce('cleaning_count', v)} />
+                    <NumberStepper label="QC" value={workforce.qc_count} onChange={(v) => updateWorkforce('qc_count', v)} />
+                    <NumberStepper label="Security" value={workforce.security_count} onChange={(v) => updateWorkforce('security_count', v)} />
+                  </div>
                 </div>
 
                 <button

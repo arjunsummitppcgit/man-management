@@ -55,7 +55,10 @@ export function useWorkforce() {
   ) => {
     try {
       const totalHeadcount =
-        data.labour_count +
+        data.labour_kg_basic +
+        data.labour_daily_wage +
+        data.labour_company +
+        data.labour_non_locals +
         data.boys_count +
         data.checking_count +
         data.cleaning_count +
@@ -69,7 +72,11 @@ export function useWorkforce() {
           {
             work_date: date,
             location_id: locationId,
-            labour_count: data.labour_count,
+            labour_kg_basic: data.labour_kg_basic,
+            labour_daily_wage: data.labour_daily_wage,
+            labour_company: data.labour_company,
+            labour_non_locals: data.labour_non_locals,
+            // labour_count is auto-computed by DB trigger
             boys_count: data.boys_count,
             checking_count: data.checking_count,
             cleaning_count: data.cleaning_count,
