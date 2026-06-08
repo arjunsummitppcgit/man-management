@@ -137,6 +137,12 @@ export interface DashboardKPIs {
   daysRemaining: number;
   supervisorNames?: string[];
   supervisorBreakdown?: string;
+  // Labour sub-category totals
+  labourKgBasic: number;
+  labourDailyWage: number;
+  labourCompany: number;
+  labourNonLocals: number;
+  labourTotal: number;
 }
 
 export interface LocationBreakdown {

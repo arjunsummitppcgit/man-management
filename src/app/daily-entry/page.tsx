@@ -495,7 +495,7 @@ export default function DailyEntryPage() {
                           onChange={(v) => updateWorkforce('labour_daily_wage', v)}
                         />
                         <NumberStepper
-                          label="Company"
+                          label="Company Ladies"
                           value={workforce.labour_company}
                           onChange={(v) => updateWorkforce('labour_company', v)}
                         />

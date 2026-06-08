@@ -28,7 +28,7 @@ export function useDashboard() {
       // ──────────────────────────────────────────
       let workforceQuery = supabase
         .from('daily_workforce')
-        .select('total_headcount, location_id')
+        .select('total_headcount, labour_kg_basic, labour_daily_wage, labour_company, labour_non_locals, labour_count, location_id')
         .eq('work_date', date);
 
       if (locationFilter) {
@@ -42,6 +42,12 @@ export function useDashboard() {
         (sum, row) => sum + (row.total_headcount || 0),
         0
       );
+
+      const labourKgBasic = (workforceData || []).reduce((sum, row) => sum + (row.labour_kg_basic || 0), 0);
+      const labourDailyWage = (workforceData || []).reduce((sum, row) => sum + (row.labour_daily_wage || 0), 0);
+      const labourCompany = (workforceData || []).reduce((sum, row) => sum + (row.labour_company || 0), 0);
+      const labourNonLocals = (workforceData || []).reduce((sum, row) => sum + (row.labour_non_locals || 0), 0);
+      const labourTotal = labourKgBasic + labourDailyWage + labourCompany + labourNonLocals;
 
       // ──────────────────────────────────────────
       // 2. Supervisor assignments for selected date
@@ -156,6 +162,11 @@ export function useDashboard() {
         daysRemaining,
         supervisorNames,
         supervisorBreakdown,
+        labourKgBasic,
+        labourDailyWage,
+        labourCompany,
+        labourNonLocals,
+        labourTotal,
       });
 
       // ──────────────────────────────────────────
