@@ -64,10 +64,11 @@ export function useProcessing() {
           {
             work_date: date,
             location_id: locationId,
+            wip_hon_to_headless: data.wip_hon_to_headless,
+            wip_headless_to_va: data.wip_headless_to_va,
             hon_to_headless: data.hon_to_headless,
             headless_to_va: data.headless_to_va,
-            work_in_process_qty: data.work_in_process_qty,
-            // processed_kg is auto-computed by DB trigger
+            // processed_kg is auto-computed by DB trigger from completed fields
             notes: data.notes.trim() || null,
             updated_at: new Date().toISOString(),
           },

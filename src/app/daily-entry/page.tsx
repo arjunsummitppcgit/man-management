@@ -189,9 +189,10 @@ export default function DailyEntryPage() {
   });
 
   // Processing form state
+  const [wipHonToHeadless, setWipHonToHeadless] = useState('');
+  const [wipHeadlessToVa, setWipHeadlessToVa] = useState('');
   const [honToHeadless, setHonToHeadless] = useState('');
   const [headlessToVa, setHeadlessToVa] = useState('');
-  const [workInProcessQty, setWorkInProcessQty] = useState('');
   const [notes, setNotes] = useState('');
 
   // Set default location when locations load
@@ -275,14 +276,16 @@ export default function DailyEntryPage() {
   // Pre-populate processing form from fetched data
   useEffect(() => {
     if (processingData) {
+      setWipHonToHeadless(processingData.wip_hon_to_headless?.toString() ?? '0');
+      setWipHeadlessToVa(processingData.wip_headless_to_va?.toString() ?? '0');
       setHonToHeadless(processingData.hon_to_headless?.toString() ?? '0');
       setHeadlessToVa(processingData.headless_to_va?.toString() ?? '0');
-      setWorkInProcessQty(processingData.work_in_process_qty?.toString() ?? '0');
       setNotes(processingData.notes ?? '');
     } else {
+      setWipHonToHeadless('');
+      setWipHeadlessToVa('');
       setHonToHeadless('');
       setHeadlessToVa('');
-      setWorkInProcessQty('');
       setNotes('');
     }
   }, [processingData]);
@@ -337,9 +340,10 @@ export default function DailyEntryPage() {
         await saveSanitization(selectedDate, selectedLocation, sanitization);
       } else if (activeTab === 'processing') {
         await saveProcessing(selectedDate, selectedLocation, {
+          wip_hon_to_headless: parseFloat(wipHonToHeadless) || 0,
+          wip_headless_to_va: parseFloat(wipHeadlessToVa) || 0,
           hon_to_headless: parseFloat(honToHeadless) || 0,
           headless_to_va: parseFloat(headlessToVa) || 0,
-          work_in_process_qty: parseFloat(workInProcessQty) || 0,
           notes,
         });
       }
@@ -598,7 +602,7 @@ export default function DailyEntryPage() {
                   </div>
                 </div>
 
-                {/* Two processing category inputs */}
+                {/* Processing KGs card — 4 fields in 2 groups */}
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-gray-700">Processing KGs</h3>
@@ -607,61 +611,89 @@ export default function DailyEntryPage() {
                     </span>
                   </div>
 
-                  {/* HON to Headless */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      HON to Headless
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={honToHeadless}
-                        onChange={(e) => setHonToHeadless(e.target.value)}
-                        placeholder="0.0"
-                        className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 pr-12"
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
+                  {/* ── Work In Process Group ── */}
+                  <div className="bg-purple-50 rounded-xl p-3 space-y-3">
+                    <p className="text-xs font-bold text-purple-600 uppercase tracking-wide">🔄 Work In Process</p>
+
+                    {/* WIP HON to Headless */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        WIP — HON to Headless
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={wipHonToHeadless}
+                          onChange={(e) => setWipHonToHeadless(e.target.value)}
+                          placeholder="0.0"
+                          className="w-full px-4 py-3.5 bg-white border border-purple-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-purple-400 focus:ring-2 focus:ring-purple-400/10 pr-12"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
+                      </div>
+                    </div>
+
+                    {/* WIP Headless to VA */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        WIP — Headless to VA
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={wipHeadlessToVa}
+                          onChange={(e) => setWipHeadlessToVa(e.target.value)}
+                          placeholder="0.0"
+                          className="w-full px-4 py-3.5 bg-white border border-purple-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-purple-400 focus:ring-2 focus:ring-purple-400/10 pr-12"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Headless to VA */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Headless to VA
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={headlessToVa}
-                        onChange={(e) => setHeadlessToVa(e.target.value)}
-                        placeholder="0.0"
-                        className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 pr-12"
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
+                  {/* ── Completed Group ── */}
+                  <div className="bg-orange-50 rounded-xl p-3 space-y-3">
+                    <p className="text-xs font-bold text-orange-600 uppercase tracking-wide">✅ Completed</p>
+
+                    {/* Completed HON to Headless */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Completed — HON to Headless
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={honToHeadless}
+                          onChange={(e) => setHonToHeadless(e.target.value)}
+                          placeholder="0.0"
+                          className="w-full px-4 py-3.5 bg-white border border-orange-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 pr-12"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
+                      </div>
+                    </div>
+
+                    {/* Completed Headless to VA */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Completed — Headless to VA
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={headlessToVa}
+                          onChange={(e) => setHeadlessToVa(e.target.value)}
+                          placeholder="0.0"
+                          className="w-full px-4 py-3.5 bg-white border border-orange-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 pr-12"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Work In Process Quantity */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Work In Process Qty
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={workInProcessQty}
-                        onChange={(e) => setWorkInProcessQty(e.target.value)}
-                        placeholder="0.0"
-                        className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-purple-400 focus:ring-2 focus:ring-purple-400/10 pr-12"
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
-                    </div>
-                  </div>
-
-                  {/* Total banner */}
+                  {/* Total Processed KG banner (completed only) */}
                   <div className="flex items-center justify-between bg-orange-50 rounded-xl px-4 py-3">
                     <span className="text-sm font-semibold text-orange-600">Total Processed KG</span>
                     <span className="text-lg font-bold text-orange-700">
