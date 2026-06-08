@@ -143,6 +143,9 @@ export interface DashboardKPIs {
   labourCompany: number;
   labourNonLocals: number;
   labourTotal: number;
+  // Processing sub-category totals
+  honToHeadless: number;
+  headlessToVa: number;
 }
 
 export interface LocationBreakdown {

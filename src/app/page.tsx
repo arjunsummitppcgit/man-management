@@ -247,17 +247,43 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Today's Processing — full width */}
+        {/* Today's Processing — full width with sub-categories */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-2xl">📦</span>
-            <span className="text-xs font-medium text-gray-500">Processing Today</span>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">📦</span>
+              <span className="text-sm font-semibold text-gray-700">Processing Today</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-3xl font-bold text-amber-600">{(kpis?.todaysProcessing ?? 0).toFixed(1)}</span>
+              <span className="text-sm font-medium text-gray-400">kg</span>
+            </div>
           </div>
-          <p className="text-3xl font-bold text-amber-600">
-            {kpis?.todaysProcessing ?? 0}
-            <span className="text-sm font-medium text-gray-400 ml-1">kg</span>
-          </p>
-          <p className="text-xs text-gray-400 mt-1">Total kg processed today</p>
+          <p className="text-xs text-gray-400 mb-3">Total kg processed today</p>
+
+          {/* Processing sub-categories */}
+          <div className="border-t border-gray-100 pt-3">
+            <p className="text-xs font-semibold text-orange-500 uppercase tracking-wide mb-2">Processing Breakdown</p>
+            <div className="grid grid-cols-2 gap-2">
+              {/* HON to Headless */}
+              <div className="bg-orange-50 rounded-xl px-3 py-2.5">
+                <p className="text-[10px] text-orange-500 font-medium uppercase tracking-wide">HON to Headless</p>
+                <p className="text-xl font-bold text-orange-700 mt-0.5">
+                  {(kpis?.honToHeadless ?? 0).toFixed(1)}
+                  <span className="text-xs font-medium text-orange-400 ml-1">kg</span>
+                </p>
+              </div>
+              {/* Headless to VA */}
+              <div className="bg-orange-50 rounded-xl px-3 py-2.5">
+                <p className="text-[10px] text-orange-500 font-medium uppercase tracking-wide">Headless to VA</p>
+                <p className="text-xl font-bold text-orange-700 mt-0.5">
+                  {(kpis?.headlessToVa ?? 0).toFixed(1)}
+                  <span className="text-xs font-medium text-orange-400 ml-1">kg</span>
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Monthly Progress — full width */}

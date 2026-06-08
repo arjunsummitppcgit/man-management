@@ -87,7 +87,7 @@ export function useDashboard() {
       // ──────────────────────────────────────────
       let dailyProcessingQuery = supabase
         .from('daily_processing')
-        .select('processed_kg')
+        .select('processed_kg, hon_to_headless, headless_to_va')
         .eq('work_date', date);
 
       if (locationFilter) {
@@ -99,6 +99,14 @@ export function useDashboard() {
 
       const todaysProcessing = (dailyProcessingData || []).reduce(
         (sum, row) => sum + (row.processed_kg || 0),
+        0
+      );
+      const honToHeadless = (dailyProcessingData || []).reduce(
+        (sum, row) => sum + (row.hon_to_headless || 0),
+        0
+      );
+      const headlessToVa = (dailyProcessingData || []).reduce(
+        (sum, row) => sum + (row.headless_to_va || 0),
         0
       );
 
@@ -167,6 +175,8 @@ export function useDashboard() {
         labourCompany,
         labourNonLocals,
         labourTotal,
+        honToHeadless,
+        headlessToVa,
       });
 
       // ──────────────────────────────────────────
