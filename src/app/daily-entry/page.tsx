@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import PageHeader from '@/components/layout/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import NumberStepper from '@/components/ui/NumberStepper';
@@ -21,16 +21,33 @@ interface SupervisorDropdownProps {
 
 function SupervisorDropdown({ supervisors, selected, onToggle }: SupervisorDropdownProps) {
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
   const selectedNames = supervisors
     .filter((s) => selected.includes(s.id))
     .map((s) => s.name.split(' ')[0]);
+
+  const filteredSupervisors = useMemo(() => {
+    return supervisors.filter((s) =>
+      s.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [supervisors, searchQuery]);
+
+  const handleToggleOpen = () => {
+    setOpen((v) => {
+      if (v) {
+        setSearchQuery(''); // clear query on close
+      }
+      return !v;
+    });
+  };
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
       {/* Trigger row */}
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleToggleOpen}
         className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors supervisor-trigger"
       >
         <div className="flex items-center gap-2.5 min-w-0">
@@ -69,52 +86,90 @@ function SupervisorDropdown({ supervisors, selected, onToggle }: SupervisorDropd
 
       {/* Checklist panel */}
       {open && (
-        <div className="border-t border-gray-100 max-h-64 overflow-y-auto">
-          {supervisors.length === 0 ? (
-            <p className="px-4 py-6 text-center text-sm text-gray-400">No supervisors available</p>
-          ) : (
-            supervisors.map((sup) => {
-              const isSelected = selected.includes(sup.id);
-              return (
+        <div className="border-t border-gray-100 flex flex-col max-h-[380px]">
+          {/* Search Input */}
+          <div className="p-3 border-b border-gray-100 bg-gray-50/50">
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-gray-400">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+              </span>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search supervisors..."
+                className="w-full pl-9 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-950 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+              />
+              {searchQuery && (
                 <button
-                  key={sup.id}
                   type="button"
-                  onClick={() => onToggle(sup.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 transition-colors border-b border-gray-50 last:border-0 ${
-                    isSelected ? 'supervisor-row-selected' : 'supervisor-row-unselected'
-                  }`}
+                  onClick={() => setSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-650"
                 >
-                  {/* Avatar */}
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-bold ${
-                    isSelected ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-500'
-                  }`}>
-                    {sup.name.charAt(0)}
-                  </div>
-                  {/* Name */}
-                  <span className={`flex-1 text-sm font-medium text-left truncate ${
-                    isSelected ? 'text-teal-700' : 'text-gray-700'
-                  }`}>
-                    {sup.name}
-                  </span>
-                  {/* Checkbox */}
-                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                    isSelected ? 'bg-teal-600 border-teal-600' : 'border-gray-300'
-                  }`}>
-                    {isSelected && (
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
-                        <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                      </svg>
-                    )}
-                  </div>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
-              );
-            })
-          )}
+              )}
+            </div>
+          </div>
+
+          {/* List area */}
+          <div className="overflow-y-auto max-h-56 flex-1">
+            {filteredSupervisors.length === 0 ? (
+              <p className="px-4 py-6 text-center text-sm text-gray-400">
+                {supervisors.length === 0 ? 'No supervisors available' : 'No supervisors match search'}
+              </p>
+            ) : (
+              filteredSupervisors.map((sup) => {
+                const isSelected = selected.includes(sup.id);
+                return (
+                  <button
+                    key={sup.id}
+                    type="button"
+                    onClick={() => onToggle(sup.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 transition-colors border-b border-gray-50 last:border-0 ${
+                      isSelected ? 'supervisor-row-selected' : 'supervisor-row-unselected'
+                    }`}
+                  >
+                    {/* Avatar */}
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-sm font-bold ${
+                      isSelected ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {sup.name.charAt(0)}
+                    </div>
+                    {/* Name */}
+                    <span className={`flex-1 text-sm font-medium text-left truncate ${
+                      isSelected ? 'text-teal-700' : 'text-gray-700'
+                    }`}>
+                      {sup.name}
+                    </span>
+                    {/* Checkbox */}
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                      isSelected ? 'bg-teal-600 border-teal-600' : 'border-gray-300'
+                    }`}>
+                      {isSelected && (
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-white">
+                          <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                        </svg>
+                      )}
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
           {/* Done button */}
-          <div className="p-3 supervisor-footer border-t border-gray-100">
+          <div className="p-3 supervisor-footer border-t border-gray-100 bg-white">
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                setSearchQuery('');
+              }}
               className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 text-white text-sm font-semibold rounded-xl transition-colors"
             >
               Done ({selected.length} selected)
