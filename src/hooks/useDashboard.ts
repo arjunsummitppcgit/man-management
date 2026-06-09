@@ -114,8 +114,6 @@ export function useDashboard() {
       const sanitizationGradingMachineCleaning = (sanitizationData || []).reduce((sum, row) => sum + (row.grading_machine_cleaning || 0), 0);
       const sanitizationTotal =
         sanitizationCleaningLabour +
-        sanitizationCratesCleaning +
-        sanitizationNetsCleaning +
         sanitizationNmrLabour +
         sanitizationWashroomCleaning +
         sanitizationGradingMachineCleaning;
