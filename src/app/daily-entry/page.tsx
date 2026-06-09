@@ -553,14 +553,20 @@ export default function DailyEntryPage() {
             {/* Sanitization Tab */}
             {activeTab === 'sanitization' && (
               <div className="animate-fade-in space-y-4">
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Sanitization Details</h3>
+                {/* Sanitization Labour (Headcount) */}
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Sanitization Labour (Headcount)</h3>
                   <NumberStepper label="Cleaning Labour" value={sanitization.cleaning_labour} onChange={(v) => updateSanitization('cleaning_labour', v)} />
-                  <NumberStepper label="Crates Cleaning" value={sanitization.crates_cleaning} onChange={(v) => updateSanitization('crates_cleaning', v)} />
-                  <NumberStepper label="Nets Cleaning" value={sanitization.nets_cleaning} onChange={(v) => updateSanitization('nets_cleaning', v)} />
                   <NumberStepper label="NMR Labour" value={sanitization.nmr_labour} onChange={(v) => updateSanitization('nmr_labour', v)} />
                   <NumberStepper label="Washroom Cleaning" value={sanitization.washroom_cleaning} onChange={(v) => updateSanitization('washroom_cleaning', v)} />
                   <NumberStepper label="Grading Machine" value={sanitization.grading_machine_cleaning} onChange={(v) => updateSanitization('grading_machine_cleaning', v)} />
+                </div>
+
+                {/* Cleaned Quantity */}
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Cleaned Quantity</h3>
+                  <NumberStepper label="Crates Cleaning" value={sanitization.crates_cleaning} onChange={(v) => updateSanitization('crates_cleaning', v)} />
+                  <NumberStepper label="Nets Cleaning" value={sanitization.nets_cleaning} onChange={(v) => updateSanitization('nets_cleaning', v)} />
                 </div>
 
                 <button
