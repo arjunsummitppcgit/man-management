@@ -328,21 +328,85 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Processing Breakdown Cross-Tab Table — transposed */}
+        {/* WIP Breakdown Table */}
         {locationBreakdowns.length > 0 && (
           <div className={`rounded-2xl overflow-hidden shadow-sm border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
-            <div className={`px-4 py-3 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'}`}>
+            <div className={`px-4 py-3 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'} flex items-center justify-between`}>
               <h3 className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
-                Processing Breakdown by Location
+                🔄 WIP Breakdown by Location
               </h3>
+              <span className="px-2.5 py-0.5 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 rounded-full text-[10px] font-bold">
+                Work In Process
+              </span>
+            </div>
+            <div className="overflow-x-auto scrollbar-hide">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-purple-600 text-white">
+                    <th className="text-left px-3 py-3 font-bold min-w-[80px] tracking-wide">Location</th>
+                    <th className="text-center px-2 py-3 font-bold whitespace-nowrap">WIP: HON→HL</th>
+                    <th className="text-center px-2 py-3 font-bold whitespace-nowrap">WIP: HL→VA</th>
+                    <th className="text-center px-3 py-3 font-bold bg-purple-700 whitespace-nowrap">Total WIP</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-800/50">
+                  {locationBreakdowns.map((lb, idx) => {
+                    const totalWIP = lb.wipHonToHeadless + lb.wipHeadlessToVa;
+                    const rowBg = idx % 2 === 0 
+                      ? (isDark ? 'bg-gray-800/30' : 'bg-white') 
+                      : (isDark ? 'bg-gray-800/10' : 'bg-gray-50/50');
+                    return (
+                      <tr key={lb.location.id} className={`${rowBg} hover:bg-purple-50/10 dark:hover:bg-purple-900/5 transition-colors`}>
+                        <td className={`px-3 py-3 font-semibold ${isDark ? 'text-gray-200' : 'text-gray-905'}`}>
+                          {lb.location.name}
+                        </td>
+                        <td className="text-center px-2 py-3 text-purple-650 dark:text-purple-400 font-semibold">
+                          {lb.wipHonToHeadless > 0 ? lb.wipHonToHeadless.toFixed(1) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
+                        </td>
+                        <td className="text-center px-2 py-3 text-purple-650 dark:text-purple-400 font-semibold">
+                          {lb.wipHeadlessToVa > 0 ? lb.wipHeadlessToVa.toFixed(1) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
+                        </td>
+                        <td className={`text-center px-3 py-3 font-extrabold ${isDark ? 'bg-purple-950/20 text-purple-300' : 'bg-purple-50/50 text-purple-750'}`}>
+                          {totalWIP > 0 ? totalWIP.toFixed(1) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* Totals Row */}
+                  <tr className={`font-bold border-t-2 ${isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-gray-100/70 border-gray-200 text-gray-900'}`}>
+                    <td className="px-3 py-3.5 font-bold">Total</td>
+                    <td className="text-center px-2 py-3.5 text-purple-750 dark:text-purple-400">
+                      {locationBreakdowns.reduce((s, lb) => s + lb.wipHonToHeadless, 0).toFixed(1)}
+                    </td>
+                    <td className="text-center px-2 py-3.5 text-purple-750 dark:text-purple-400">
+                      {locationBreakdowns.reduce((s, lb) => s + lb.wipHeadlessToVa, 0).toFixed(1)}
+                    </td>
+                    <td className="text-center px-3 py-3.5 font-black bg-purple-600 text-white">
+                      {locationBreakdowns.reduce((s, lb) => s + lb.wipHonToHeadless + lb.wipHeadlessToVa, 0).toFixed(1)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Completed Breakdown Table */}
+        {locationBreakdowns.length > 0 && (
+          <div className={`rounded-2xl overflow-hidden shadow-sm border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+            <div className={`px-4 py-3 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'} flex items-center justify-between`}>
+              <h3 className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+                ✅ Completed Breakdown by Location
+              </h3>
+              <span className="px-2.5 py-0.5 bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 rounded-full text-[10px] font-bold">
+                Completed Qty
+              </span>
             </div>
             <div className="overflow-x-auto scrollbar-hide">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-teal-600 text-white">
                     <th className="text-left px-3 py-3 font-bold min-w-[80px] tracking-wide">Location</th>
-                    <th className="text-center px-2 py-3 font-bold whitespace-nowrap">WIP: HON→HL</th>
-                    <th className="text-center px-2 py-3 font-bold whitespace-nowrap">WIP: HL→VA</th>
                     <th className="text-center px-2 py-3 font-bold whitespace-nowrap">Comp: HON→HL</th>
                     <th className="text-center px-2 py-3 font-bold whitespace-nowrap">Comp: HL→VA</th>
                     <th className="text-center px-3 py-3 font-bold bg-teal-700 whitespace-nowrap">Total Comp</th>
@@ -359,23 +423,12 @@ export default function DashboardPage() {
                         <td className={`px-3 py-3 font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
                           {lb.location.name}
                         </td>
-                        {/* WIP — HON to Headless */}
-                        <td className="text-center px-2 py-3 text-purple-650 dark:text-purple-400 font-semibold">
-                          {lb.wipHonToHeadless > 0 ? lb.wipHonToHeadless.toFixed(1) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
-                        </td>
-                        {/* WIP — Headless to VA */}
-                        <td className="text-center px-2 py-3 text-purple-650 dark:text-purple-400 font-semibold">
-                          {lb.wipHeadlessToVa > 0 ? lb.wipHeadlessToVa.toFixed(1) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
-                        </td>
-                        {/* Completed — HON to Headless */}
                         <td className="text-center px-2 py-3 text-orange-650 dark:text-orange-450 font-semibold">
                           {lb.completedHonToHeadless > 0 ? lb.completedHonToHeadless.toFixed(1) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
                         </td>
-                        {/* Completed — Headless to VA */}
                         <td className="text-center px-2 py-3 text-orange-650 dark:text-orange-450 font-semibold">
                           {lb.completedHeadlessToVa > 0 ? lb.completedHeadlessToVa.toFixed(1) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
                         </td>
-                        {/* Total completed */}
                         <td className={`text-center px-3 py-3 font-extrabold ${isDark ? 'bg-teal-950/20 text-teal-350' : 'bg-teal-50/50 text-teal-700'}`}>
                           {totalComp > 0 ? totalComp.toFixed(1) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
                         </td>
@@ -385,23 +438,12 @@ export default function DashboardPage() {
                   {/* Totals Row */}
                   <tr className={`font-bold border-t-2 ${isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-gray-100/70 border-gray-200 text-gray-900'}`}>
                     <td className="px-3 py-3.5 font-bold">Total</td>
-                    {/* Total WIP HON->HL */}
-                    <td className="text-center px-2 py-3.5 text-purple-750 dark:text-purple-400">
-                      {locationBreakdowns.reduce((s, lb) => s + lb.wipHonToHeadless, 0).toFixed(1)}
-                    </td>
-                    {/* Total WIP HL->VA */}
-                    <td className="text-center px-2 py-3.5 text-purple-750 dark:text-purple-400">
-                      {locationBreakdowns.reduce((s, lb) => s + lb.wipHeadlessToVa, 0).toFixed(1)}
-                    </td>
-                    {/* Total Completed HON->HL */}
-                    <td className="text-center px-2 py-3.5 text-orange-750 dark:text-orange-400">
+                    <td className="text-center px-2 py-3.5 text-orange-750 dark:text-orange-450">
                       {locationBreakdowns.reduce((s, lb) => s + lb.completedHonToHeadless, 0).toFixed(1)}
                     </td>
-                    {/* Total Completed HL->VA */}
-                    <td className="text-center px-2 py-3.5 text-orange-750 dark:text-orange-400">
+                    <td className="text-center px-2 py-3.5 text-orange-750 dark:text-orange-450">
                       {locationBreakdowns.reduce((s, lb) => s + lb.completedHeadlessToVa, 0).toFixed(1)}
                     </td>
-                    {/* Grand Total Completed */}
                     <td className="text-center px-3 py-3.5 font-black bg-teal-650 dark:bg-teal-700 text-white">
                       {locationBreakdowns.reduce((s, lb) => s + lb.completedHonToHeadless + lb.completedHeadlessToVa, 0).toFixed(1)}
                     </td>
