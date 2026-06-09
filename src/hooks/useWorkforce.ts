@@ -107,7 +107,7 @@ export function useWorkforce() {
           work_date: date,
           location_id: locationId,
           supervisor_id: supervisorId,
-          is_present: true,
+          is_present: 1.0,
         }));
 
         const { error: insertError } = await supabase

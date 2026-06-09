@@ -122,15 +122,15 @@ export default function SettingsPage() {
           .select('work_date, is_present, supervisor:supervisors(name), location:locations(name)')
           .gte('work_date', dateFrom)
           .lte('work_date', dateTo)
-          .eq('is_present', true)
+          .gt('is_present', 0)
           .order('work_date', { ascending: true });
 
-        headers = ['Date', 'Supervisor', 'Location', 'Present'];
+        headers = ['Date', 'Supervisor', 'Location', 'Attendance Value'];
         rows = (data || []).map((a: Record<string, unknown>) => [
           a.work_date as string,
           (a.supervisor as { name: string } | null)?.name || '',
           (a.location as { name: string } | null)?.name || '',
-          (a.is_present as boolean) ? 'Yes' : 'No',
+          typeof a.is_present === 'boolean' ? (a.is_present ? 1.0 : 0.0) : (Number(a.is_present) || 0),
         ]);
 
       } else if (reportType === 'Processing Report') {

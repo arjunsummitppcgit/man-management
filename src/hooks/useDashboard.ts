@@ -59,9 +59,9 @@ export function useDashboard() {
       // ──────────────────────────────────────────
       let assignmentQuery = supabase
         .from('daily_supervisor_assignments')
-        .select('id, location_id, location:locations(name), supervisor:supervisors(name)')
+        .select('id, location_id, is_present, location:locations(name), supervisor:supervisors(name)')
         .eq('work_date', date)
-        .eq('is_present', true);
+        .gt('is_present', 0);
 
       if (locationFilter) {
         assignmentQuery = assignmentQuery.eq('location_id', locationFilter);
@@ -70,7 +70,10 @@ export function useDashboard() {
       const { data: assignmentData, error: assignmentError } = await assignmentQuery;
       if (assignmentError) throw assignmentError;
 
-      const supervisorsPresent = (assignmentData || []).length;
+      const supervisorsPresent = (assignmentData || []).reduce(
+        (sum, row) => sum + (Number((row as any).is_present) || 0),
+        0
+      );
 
       // Extract names of present supervisors
       const supervisorNames = ((assignmentData as any) || [])
@@ -297,16 +300,19 @@ export function useDashboard() {
           // Supervisors for this location on this date
           const { data: locSupervisors } = await supabase
             .from('daily_supervisor_assignments')
-            .select('id')
+            .select('is_present')
             .eq('work_date', date)
             .eq('location_id', location.id)
-            .eq('is_present', true);
+            .gt('is_present', 0);
 
           return {
             location,
             workforce: locWorkforce?.total_headcount || 0,
             processing: locProcessing?.processed_kg || 0,
-            supervisors: (locSupervisors || []).length,
+            supervisors: (locSupervisors || []).reduce(
+              (sum, row) => sum + (Number(row.is_present) || 0),
+              0
+            ),
             wipHonToHeadless: locProcessing?.wip_hon_to_headless || 0,
             wipHeadlessToVa: locProcessing?.wip_headless_to_va || 0,
             completedHonToHeadless: locProcessing?.hon_to_headless || 0,

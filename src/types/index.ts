@@ -43,7 +43,7 @@ export interface DailySupervisorAssignment {
   work_date: string;
   location_id: string;
   supervisor_id: string;
-  is_present: boolean;
+  is_present: number;
   created_at: string;
   // Joined fields
   supervisor?: Supervisor;
@@ -186,7 +186,7 @@ export interface LocationBreakdown {
 export interface SupervisorAttendanceRecord {
   date: string;
   locations: Location[];
-  is_present: boolean;
+  is_present: number;
 }
 
 export type TabType = 'workforce' | 'sanitization' | 'processing';

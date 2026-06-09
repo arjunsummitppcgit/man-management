@@ -106,12 +106,14 @@ function SupervisorModal({ open, onClose, supervisor, onSave, onDelete }: Superv
 interface AttendanceBySupervisorRecord {
   work_date: string;
   location: { name: string } | null;
+  is_present: number | boolean;
 }
 
 interface AttendanceByDateRecord {
   supervisor_id: string;
   supervisor: { name: string } | null;
   location: { name: string } | null;
+  is_present: number | boolean;
 }
 
 export default function SupervisorsPage() {
@@ -155,7 +157,7 @@ export default function SupervisorsPage() {
           .from('daily_supervisor_assignments')
           .select('*, location:locations(name)')
           .eq('supervisor_id', selectedSupervisorId)
-          .eq('is_present', true)
+          .gt('is_present', 0)
           .order('work_date', { ascending: false })
           .limit(30);
 
@@ -183,7 +185,7 @@ export default function SupervisorsPage() {
           .from('daily_supervisor_assignments')
           .select('*, supervisor:supervisors(name), location:locations(name)')
           .eq('work_date', attendanceDate)
-          .eq('is_present', true);
+          .gt('is_present', 0);
 
         if (error) throw error;
         setDateAttendance(data || []);
@@ -223,12 +225,13 @@ export default function SupervisorsPage() {
 
   // Group date attendance by supervisor for the table view
   const dateAttendanceMap = useMemo(() => {
-    const map = new Map<string, Set<string>>();
+    const map = new Map<string, Map<string, number>>();
     for (const record of dateAttendance) {
       const supId = record.supervisor_id;
-      if (!map.has(supId)) map.set(supId, new Set());
+      if (!map.has(supId)) map.set(supId, new Map());
       if (record.location?.name) {
-        map.get(supId)!.add(record.location.name);
+        const val = typeof record.is_present === 'boolean' ? (record.is_present ? 1.0 : 0.0) : (Number(record.is_present) || 0.0);
+        map.get(supId)!.set(record.location.name, val);
       }
     }
     return map;
@@ -496,19 +499,20 @@ export default function SupervisorsPage() {
                             <div className="text-xs font-medium text-gray-700 truncate pr-1">
                               {sup.name.split(' ')[0]}
                             </div>
-                            {allLocationNames.map((loc) => (
-                              <div key={loc} className="text-center">
-                                {supLocations?.has(loc) ? (
-                                  <span className="text-emerald-500">
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 inline">
-                                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                                    </svg>
-                                  </span>
-                                ) : (
-                                  <span className="text-gray-200">—</span>
-                                )}
-                              </div>
-                            ))}
+                            {allLocationNames.map((loc) => {
+                              const val = supLocations?.get(loc);
+                              return (
+                                <div key={loc} className="text-center font-semibold text-xs">
+                                  {val !== undefined && val > 0 ? (
+                                    <span className="text-emerald-600 dark:text-emerald-400">
+                                      {val}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-200 dark:text-gray-800">—</span>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })}
