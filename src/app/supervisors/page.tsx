@@ -6,7 +6,7 @@ import { useToast } from '@/components/ui/Toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useSupervisors } from '@/hooks/useSupervisors';
 import { supabase } from '@/lib/supabase/client';
-import type { Supervisor, AttendanceViewType } from '@/types';
+import type { Supervisor } from '@/types';
 
 interface SupervisorModalProps {
   open: boolean;
@@ -125,13 +125,10 @@ export default function SupervisorsPage() {
   const [editingSupervisor, setEditingSupervisor] = useState<Supervisor | null>(null);
 
   // Attendance state
-  const [attendanceView, setAttendanceView] = useState<AttendanceViewType>('supervisor');
   const [selectedSupervisorId, setSelectedSupervisorId] = useState('');
-  const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Attendance data from Supabase
   const [supervisorAttendance, setSupervisorAttendance] = useState<AttendanceBySupervisorRecord[]>([]);
-  const [dateAttendance, setDateAttendance] = useState<AttendanceByDateRecord[]>([]);
   const [attendanceLoading, setAttendanceLoading] = useState(false);
 
   // Fetch supervisors on mount
@@ -148,7 +145,7 @@ export default function SupervisorsPage() {
 
   // Fetch attendance by supervisor
   useEffect(() => {
-    if (!selectedSupervisorId || attendanceView !== 'supervisor') return;
+    if (!selectedSupervisorId) return;
 
     const fetchAttendance = async () => {
       setAttendanceLoading(true);
@@ -172,33 +169,7 @@ export default function SupervisorsPage() {
     };
 
     fetchAttendance();
-  }, [selectedSupervisorId, attendanceView]);
-
-  // Fetch attendance by date
-  useEffect(() => {
-    if (!attendanceDate || attendanceView !== 'date') return;
-
-    const fetchAttendance = async () => {
-      setAttendanceLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('daily_supervisor_assignments')
-          .select('*, supervisor:supervisors(name), location:locations(name)')
-          .eq('work_date', attendanceDate)
-          .gt('is_present', 0);
-
-        if (error) throw error;
-        setDateAttendance(data || []);
-      } catch (error) {
-        console.error('Error fetching date attendance:', error);
-        setDateAttendance([]);
-      } finally {
-        setAttendanceLoading(false);
-      }
-    };
-
-    fetchAttendance();
-  }, [attendanceDate, attendanceView]);
+  }, [selectedSupervisorId]);
 
   const filteredSupervisors = useMemo(
     () =>
@@ -222,33 +193,6 @@ export default function SupervisorsPage() {
       .map(([date, locations]) => ({ date, locations }))
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [supervisorAttendance]);
-
-  // Group date attendance by supervisor for the table view
-  const dateAttendanceMap = useMemo(() => {
-    const map = new Map<string, Map<string, number>>();
-    for (const record of dateAttendance) {
-      const supId = record.supervisor_id;
-      if (!map.has(supId)) map.set(supId, new Map());
-      if (record.location?.name) {
-        const val = typeof record.is_present === 'boolean' ? (record.is_present ? 1.0 : 0.0) : (Number(record.is_present) || 0.0);
-        map.get(supId)!.set(record.location.name, val);
-      }
-    }
-    return map;
-  }, [dateAttendance]);
-
-  // Derive unique location names for the date-view table columns
-  const allLocationNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const record of dateAttendance) {
-      if (record.location?.name) names.add(record.location.name);
-    }
-    // Also add any location names from supervisor attendance
-    for (const record of supervisorAttendance) {
-      if (record.location?.name) names.add(record.location.name);
-    }
-    return Array.from(names).sort();
-  }, [dateAttendance, supervisorAttendance]);
 
   const handleSaveSupervisor = async (name: string, phone: string) => {
     try {
@@ -385,142 +329,51 @@ export default function SupervisorsPage() {
       {/* Attendance View */}
       {mainView === 'attendance' && (
         <div className="px-4 space-y-3 animate-fade-in">
-          {/* Attendance Sub-Toggle */}
-          <div className="flex bg-gray-100 rounded-xl p-1">
-            <button
-              onClick={() => setAttendanceView('supervisor')}
-              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                attendanceView === 'supervisor'
-                  ? 'bg-white text-teal-600 shadow-sm'
-                  : 'text-gray-500'
-              }`}
-            >
-              By Supervisor
-            </button>
-            <button
-              onClick={() => setAttendanceView('date')}
-              className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                attendanceView === 'date'
-                  ? 'bg-white text-teal-600 shadow-sm'
-                  : 'text-gray-500'
-              }`}
-            >
-              By Date
-            </button>
-          </div>
+          <select
+            value={selectedSupervisorId}
+            onChange={(e) => setSelectedSupervisorId(e.target.value)}
+            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 appearance-none"
+          >
+            {supervisors.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
 
-          {/* By Supervisor */}
-          {attendanceView === 'supervisor' && (
-            <div className="space-y-3 animate-fade-in">
-              <select
-                value={selectedSupervisorId}
-                onChange={(e) => setSelectedSupervisorId(e.target.value)}
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 appearance-none"
-              >
-                {supervisors.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-
-              {attendanceLoading ? (
-                <LoadingSpinner />
+          {attendanceLoading ? (
+            <LoadingSpinner />
+          ) : (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              {groupedSupervisorAttendance.length === 0 ? (
+                <div className="p-6 text-center text-gray-400 text-sm">No attendance records</div>
               ) : (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                  {groupedSupervisorAttendance.length === 0 ? (
-                    <div className="p-6 text-center text-gray-400 text-sm">No attendance records</div>
-                  ) : (
-                    groupedSupervisorAttendance.map((record, i) => (
-                      <div
-                        key={i}
-                        className="px-4 py-3 border-b border-gray-50 last:border-0 flex items-center justify-between"
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {new Date(record.date).toLocaleDateString('en-IN', {
-                              weekday: 'short',
-                              day: 'numeric',
-                              month: 'short',
-                            })}
-                          </p>
-                        </div>
-                        <div className="flex gap-1.5">
-                          {record.locations.map((loc) => (
-                            <span
-                              key={loc}
-                              className="px-2 py-0.5 bg-teal-50 text-teal-700 rounded-md text-[10px] font-semibold"
-                            >
-                              {loc}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* By Date */}
-          {attendanceView === 'date' && (
-            <div className="space-y-3 animate-fade-in">
-              <input
-                type="date"
-                value={attendanceDate}
-                onChange={(e) => setAttendanceDate(e.target.value)}
-                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500"
-              />
-
-              {attendanceLoading ? (
-                <LoadingSpinner />
-              ) : (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                  {/* Table Header */}
-                  {allLocationNames.length > 0 ? (
-                    <>
-                      <div className={`grid bg-gray-50 px-3 py-2`} style={{ gridTemplateColumns: `1fr repeat(${allLocationNames.length}, 1fr)` }}>
-                        <div className="text-[10px] font-semibold text-gray-500 uppercase">
-                          Name
-                        </div>
-                        {allLocationNames.map((loc) => (
-                          <div key={loc} className="text-center text-[10px] font-semibold text-gray-500 uppercase">
-                            {loc.replace('PPC ', 'P')}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Table Body */}
-                      {supervisors.map((sup) => {
-                        const supLocations = dateAttendanceMap.get(sup.id);
-                        return (
-                          <div key={sup.id} className={`grid px-3 py-3 border-t border-gray-50 items-center`} style={{ gridTemplateColumns: `1fr repeat(${allLocationNames.length}, 1fr)` }}>
-                            <div className="text-xs font-medium text-gray-700 truncate pr-1">
-                              {sup.name.split(' ')[0]}
-                            </div>
-                            {allLocationNames.map((loc) => {
-                              const val = supLocations?.get(loc);
-                              return (
-                                <div key={loc} className="text-center font-semibold text-xs">
-                                  {val !== undefined && val > 0 ? (
-                                    <span className="text-emerald-600 dark:text-emerald-400">
-                                      {val}
-                                    </span>
-                                  ) : (
-                                    <span className="text-gray-200 dark:text-gray-800">—</span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })}
-                    </>
-                  ) : (
-                    <div className="p-6 text-center text-gray-400 text-sm">No attendance records for this date</div>
-                  )}
-                </div>
+                groupedSupervisorAttendance.map((record, i) => (
+                  <div
+                    key={i}
+                    className="px-4 py-3 border-b border-gray-50 last:border-0 flex items-center justify-between"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {new Date(record.date).toLocaleDateString('en-IN', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex gap-1.5">
+                      {record.locations.map((loc) => (
+                        <span
+                          key={loc}
+                          className="px-2 py-0.5 bg-teal-50 text-teal-700 rounded-md text-[10px] font-semibold"
+                        >
+                          {loc}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           )}

@@ -193,4 +193,3 @@ export interface SupervisorAttendanceRecord {
 }
 
 export type TabType = 'workforce' | 'sanitization' | 'processing';
-export type AttendanceViewType = 'supervisor' | 'date';
