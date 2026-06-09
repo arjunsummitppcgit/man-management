@@ -22,6 +22,7 @@ export function useDashboard() {
       const month = parsedDate.getMonth() + 1; // 1-indexed
       const monthStart = format(startOfMonth(parsedDate), 'yyyy-MM-dd');
       const monthEnd = format(endOfMonth(parsedDate), 'yyyy-MM-dd');
+      const yesterdayDate = format(subDays(parsedDate, 1), 'yyyy-MM-dd');
 
       // ──────────────────────────────────────────
       // 1. Workforce for selected date
@@ -120,29 +121,38 @@ export function useDashboard() {
         sanitizationGradingMachineCleaning;
 
       // ──────────────────────────────────────────
-      // 3. Processing for selected date
+      // 3. Processing for selected date (WIP) and yesterday (Completed)
       // ──────────────────────────────────────────
       let dailyProcessingQuery = supabase
         .from('daily_processing')
-        .select('processed_kg, hon_to_headless, headless_to_va, wip_hon_to_headless, wip_headless_to_va')
+        .select('wip_hon_to_headless, wip_headless_to_va')
         .eq('work_date', date);
+
+      let yesterdayProcessingQuery = supabase
+        .from('daily_processing')
+        .select('processed_kg, hon_to_headless, headless_to_va')
+        .eq('work_date', yesterdayDate);
 
       if (locationFilter) {
         dailyProcessingQuery = dailyProcessingQuery.eq('location_id', locationFilter);
+        yesterdayProcessingQuery = yesterdayProcessingQuery.eq('location_id', locationFilter);
       }
 
       const { data: dailyProcessingData, error: dailyProcessingError } = await dailyProcessingQuery;
       if (dailyProcessingError) throw dailyProcessingError;
 
-      const todaysProcessing = (dailyProcessingData || []).reduce(
+      const { data: yesterdayProcessingData, error: yesterdayProcessingError } = await yesterdayProcessingQuery;
+      if (yesterdayProcessingError) throw yesterdayProcessingError;
+
+      const todaysProcessing = (yesterdayProcessingData || []).reduce(
         (sum, row) => sum + (row.processed_kg || 0),
         0
       );
-      const honToHeadless = (dailyProcessingData || []).reduce(
+      const honToHeadless = (yesterdayProcessingData || []).reduce(
         (sum, row) => sum + (row.hon_to_headless || 0),
         0
       );
-      const headlessToVa = (dailyProcessingData || []).reduce(
+      const headlessToVa = (yesterdayProcessingData || []).reduce(
         (sum, row) => sum + (row.headless_to_va || 0),
         0
       );
@@ -236,6 +246,7 @@ export function useDashboard() {
         headlessToVa,
         wipHonToHeadless,
         wipHeadlessToVa,
+        yesterdayDate,
       });
 
       // ──────────────────────────────────────────
@@ -289,11 +300,19 @@ export function useDashboard() {
             .eq('location_id', location.id)
             .maybeSingle();
 
-          // Processing for this location on this date
-          const { data: locProcessing } = await supabase
+          // WIP Processing for this location on today's date
+          const { data: locProcessingToday } = await supabase
             .from('daily_processing')
-            .select('processed_kg, wip_hon_to_headless, wip_headless_to_va, hon_to_headless, headless_to_va')
+            .select('wip_hon_to_headless, wip_headless_to_va')
             .eq('work_date', date)
+            .eq('location_id', location.id)
+            .maybeSingle();
+
+          // Completed Processing for this location on yesterday's date
+          const { data: locProcessingYesterday } = await supabase
+            .from('daily_processing')
+            .select('processed_kg, hon_to_headless, headless_to_va')
+            .eq('work_date', yesterdayDate)
             .eq('location_id', location.id)
             .maybeSingle();
 
@@ -308,15 +327,15 @@ export function useDashboard() {
           return {
             location,
             workforce: locWorkforce?.total_headcount || 0,
-            processing: locProcessing?.processed_kg || 0,
+            processing: locProcessingYesterday?.processed_kg || 0,
             supervisors: (locSupervisors || []).reduce(
               (sum, row) => sum + (Number(row.is_present) || 0),
               0
             ),
-            wipHonToHeadless: locProcessing?.wip_hon_to_headless || 0,
-            wipHeadlessToVa: locProcessing?.wip_headless_to_va || 0,
-            completedHonToHeadless: locProcessing?.hon_to_headless || 0,
-            completedHeadlessToVa: locProcessing?.headless_to_va || 0,
+            wipHonToHeadless: locProcessingToday?.wip_hon_to_headless || 0,
+            wipHeadlessToVa: locProcessingToday?.wip_headless_to_va || 0,
+            completedHonToHeadless: locProcessingYesterday?.hon_to_headless || 0,
+            completedHeadlessToVa: locProcessingYesterday?.headless_to_va || 0,
           };
         })
       );

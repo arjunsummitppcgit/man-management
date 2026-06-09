@@ -169,6 +169,7 @@ export interface DashboardKPIs {
   // Processing sub-category totals (WIP)
   wipHonToHeadless: number;
   wipHeadlessToVa: number;
+  yesterdayDate?: string;
 }
 
 export interface LocationBreakdown {

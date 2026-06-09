@@ -75,6 +75,21 @@ export default function DashboardPage() {
   const dailyNeeded = kpis?.dailyAverageNeeded ?? 0;
   const daysRemaining = kpis?.daysRemaining ?? 0;
 
+  const yesterdayFormatted = useMemo(() => {
+    if (!kpis?.yesterdayDate) return '';
+    try {
+      const dateParts = kpis.yesterdayDate.split('-');
+      const dateObj = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]));
+      return dateObj.toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+    } catch (e) {
+      return kpis.yesterdayDate;
+    }
+  }, [kpis?.yesterdayDate]);
+
   const statusColor =
     dailyNeeded <= 40 ? 'text-emerald-600' : dailyNeeded <= 50 ? 'text-amber-600' : 'text-rose-600';
   const statusBg =
@@ -396,7 +411,7 @@ export default function DashboardPage() {
           <div className={`rounded-2xl overflow-hidden shadow-sm border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
             <div className={`px-4 py-3 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'} flex items-center justify-between`}>
               <h3 className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
-                ✅ Completed Breakdown by Location
+                ✅ Completed Breakdown by Location {yesterdayFormatted && `(Yesterday: ${yesterdayFormatted})`}
               </h3>
               <span className="px-2.5 py-0.5 bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 rounded-full text-[10px] font-bold">
                 Completed Qty
