@@ -133,9 +133,15 @@ export function useDashboard() {
         .select('processed_kg, hon_to_headless, headless_to_va')
         .eq('work_date', yesterdayDate);
 
+      let yesterdaySanitizationQuery = supabase
+        .from('daily_sanitization')
+        .select('crates_cleaning, nets_cleaning')
+        .eq('work_date', yesterdayDate);
+
       if (locationFilter) {
         dailyProcessingQuery = dailyProcessingQuery.eq('location_id', locationFilter);
         yesterdayProcessingQuery = yesterdayProcessingQuery.eq('location_id', locationFilter);
+        yesterdaySanitizationQuery = yesterdaySanitizationQuery.eq('location_id', locationFilter);
       }
 
       const { data: dailyProcessingData, error: dailyProcessingError } = await dailyProcessingQuery;
@@ -143,6 +149,12 @@ export function useDashboard() {
 
       const { data: yesterdayProcessingData, error: yesterdayProcessingError } = await yesterdayProcessingQuery;
       if (yesterdayProcessingError) throw yesterdayProcessingError;
+
+      const { data: yesterdaySanitizationData, error: yesterdaySanitizationError } = await yesterdaySanitizationQuery;
+      if (yesterdaySanitizationError) throw yesterdaySanitizationError;
+
+      const yesterdayCratesCleaning = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.crates_cleaning || 0), 0);
+      const yesterdayNetsCleaning = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.nets_cleaning || 0), 0);
 
       const todaysProcessing = (yesterdayProcessingData || []).reduce(
         (sum, row) => sum + (row.processed_kg || 0),
@@ -246,6 +258,8 @@ export function useDashboard() {
         headlessToVa,
         wipHonToHeadless,
         wipHeadlessToVa,
+        yesterdayCratesCleaning,
+        yesterdayNetsCleaning,
         yesterdayDate,
       });
 

@@ -343,6 +343,29 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* Cleaned Quantity (Yesterday) */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-2xl">🧹</span>
+            <span className="text-sm font-semibold text-gray-700">
+              Cleaned Quantity {yesterdayFormatted && `(Yesterday: ${yesterdayFormatted})`}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {/* Crates Cleaning */}
+            <div className="bg-purple-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center text-center">
+              <p className="text-[10px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Crates Cleaning</p>
+              <p className="text-xl font-bold text-purple-700 mt-0.5">{kpis?.yesterdayCratesCleaning ?? 0}</p>
+            </div>
+            {/* Nets Cleaning */}
+            <div className="bg-purple-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center text-center">
+              <p className="text-[10px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Nets Cleaning</p>
+              <p className="text-xl font-bold text-purple-700 mt-0.5">{kpis?.yesterdayNetsCleaning ?? 0}</p>
+            </div>
+          </div>
+        </div>
+
         {/* Supervisors — Full-width big card with all names */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
           {/* Header */}

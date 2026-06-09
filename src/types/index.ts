@@ -169,6 +169,8 @@ export interface DashboardKPIs {
   // Processing sub-category totals (WIP)
   wipHonToHeadless: number;
   wipHeadlessToVa: number;
+  yesterdayCratesCleaning?: number;
+  yesterdayNetsCleaning?: number;
   yesterdayDate?: string;
 }
 
