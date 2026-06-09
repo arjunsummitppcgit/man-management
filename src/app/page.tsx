@@ -97,26 +97,12 @@ export default function DashboardPage() {
   }, [selectedDate, selectedLocationId, locationsLoading, fetchDashboard]);
 
 
-  // Prepare workforce summary data
-  const workforceData = useMemo(
-    () =>
-      locationBreakdowns.map((loc) => ({
-        name: loc.location.name,
-        headcount: loc.workforce,
-        supervisors: loc.supervisors,
-      })),
-    [locationBreakdowns]
-  );
-
   // KPI derived values with null safety
   const progress = kpis
     ? kpis.monthlyTarget > 0
       ? Math.round(kpis.monthlyProgress)
       : 0
     : 0;
-
-  const dailyNeeded = kpis?.dailyAverageNeeded ?? 0;
-  const daysRemaining = kpis?.daysRemaining ?? 0;
 
   const yesterdayFormatted = useMemo(() => {
     if (!kpis?.yesterdayDate) return '';
@@ -132,15 +118,6 @@ export default function DashboardPage() {
       return kpis.yesterdayDate;
     }
   }, [kpis?.yesterdayDate]);
-
-  const statusColor =
-    dailyNeeded <= 40 ? 'text-emerald-600' : dailyNeeded <= 50 ? 'text-amber-600' : 'text-rose-600';
-  const statusBg =
-    dailyNeeded <= 40
-      ? 'from-emerald-50 to-emerald-100/50 border-emerald-200'
-      : dailyNeeded <= 50
-      ? 'from-amber-50 to-amber-100/50 border-amber-200'
-      : 'from-rose-50 to-rose-100/50 border-rose-200';
 
   if (loading || locationsLoading) {
     return (
@@ -574,54 +551,7 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* Daily Average Needed Card */}
-      <div className="px-4 mb-4">
-        <div className={`bg-gradient-to-br ${statusBg} rounded-2xl p-5 border`}>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Daily Avg Needed</p>
-              <p className={`text-4xl font-bold mt-1 ${statusColor}`}>
-                {dailyNeeded.toFixed(1)}
-                <span className="text-base font-medium ml-1">kg/day</span>
-              </p>
-              <p className="text-xs text-gray-500 mt-1">
-                {daysRemaining} days remaining to reach target
-              </p>
-            </div>
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-              dailyNeeded <= 40 ? 'bg-emerald-100' : dailyNeeded <= 50 ? 'bg-amber-100' : 'bg-rose-100'
-            }`}>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-7 h-7 ${statusColor}`}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" />
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Workforce Summary */}
-      <div className="px-4 mb-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Workforce by Location</h3>
-        <div className="space-y-2">
-          {workforceData.map((loc) => (
-            <div key={loc.name} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center">
-                  <span className="text-sm font-bold text-teal-600">{loc.name.replace('PPC ', '')}</span>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{loc.name}</p>
-                  <p className="text-xs text-gray-400">{loc.supervisors} supervisors</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-gray-900">{loc.headcount}</p>
-                <p className="text-xs text-gray-400">workers</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
