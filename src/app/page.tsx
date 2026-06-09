@@ -34,6 +34,49 @@ export default function DashboardPage() {
     year: 'numeric',
   });
 
+  const selectedDateFormatted = useMemo(() => {
+    try {
+      const dateParts = selectedDate.split('-');
+      const dateObj = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]));
+      return dateObj.toLocaleDateString('en-IN', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch (e) {
+      return selectedDate;
+    }
+  }, [selectedDate]);
+
+  const handlePreviousDay = () => {
+    try {
+      const dateParts = selectedDate.split('-');
+      const dateObj = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]));
+      dateObj.setDate(dateObj.getDate() - 1);
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      setSelectedDate(`${y}-${m}-${d}`);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleNextDay = () => {
+    try {
+      const dateParts = selectedDate.split('-');
+      const dateObj = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]));
+      dateObj.setDate(dateObj.getDate() + 1);
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      setSelectedDate(`${y}-${m}-${d}`);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Build location filter list from live data
   const locationFilters = useMemo(
     () => ['All', ...locations.map((l) => l.name)],
@@ -112,6 +155,31 @@ export default function DashboardPage() {
     return (
       <div className="animate-fade-in">
         <PageHeader title="Dashboard" subtitle={formattedDate} />
+        {/* Date Navigation Bar */}
+        <div className="px-4 mb-3 flex items-center justify-between gap-3">
+          <button
+            onClick={handlePreviousDay}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 transition-all shadow-sm active:scale-95 min-h-[38px]"
+          >
+            <span>◀</span>
+            <span>Previous</span>
+          </button>
+
+          <div className="flex-1 text-center py-2 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800 shadow-inner min-h-[38px] flex items-center justify-center">
+            <span className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate max-w-[200px]">
+              {selectedDateFormatted}
+            </span>
+          </div>
+
+          <button
+            onClick={handleNextDay}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 transition-all shadow-sm active:scale-95 min-h-[38px]"
+          >
+            <span>Next</span>
+            <span>▶</span>
+          </button>
+        </div>
+
         {/* Date Picker */}
         <div className="px-4 mb-3">
           <input
@@ -133,6 +201,31 @@ export default function DashboardPage() {
   return (
     <div className="animate-fade-in">
       <PageHeader title="Dashboard" subtitle={formattedDate} />
+
+      {/* Date Navigation Bar */}
+      <div className="px-4 mb-3 flex items-center justify-between gap-3">
+        <button
+          onClick={handlePreviousDay}
+          className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 transition-all shadow-sm active:scale-95 min-h-[38px]"
+        >
+          <span>◀</span>
+          <span>Previous</span>
+        </button>
+
+        <div className="flex-1 text-center py-2 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800 shadow-inner min-h-[38px] flex items-center justify-center">
+          <span className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate max-w-[200px]">
+            {selectedDateFormatted}
+          </span>
+        </div>
+
+        <button
+          onClick={handleNextDay}
+          className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 transition-all shadow-sm active:scale-95 min-h-[38px]"
+        >
+          <span>Next</span>
+          <span>▶</span>
+        </button>
+      </div>
 
       {/* Date Picker */}
       <div className="px-4 mb-3">
