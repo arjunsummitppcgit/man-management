@@ -421,7 +421,7 @@ export default function DashboardPage() {
                       : (isDark ? 'bg-gray-800/10' : 'bg-gray-50/50');
                     return (
                       <tr key={lb.location.id} className={`${rowBg} hover:bg-purple-50/10 dark:hover:bg-purple-900/5 transition-colors`}>
-                        <td className={`px-3 py-3 font-semibold ${isDark ? 'text-gray-200' : 'text-gray-905'}`}>
+                        <td className={`px-3 py-3 font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                           {lb.location.name}
                         </td>
                         <td className="text-center px-2 py-3 text-purple-650 dark:text-purple-400 font-semibold">
@@ -476,7 +476,7 @@ export default function DashboardPage() {
                       : (isDark ? 'bg-gray-800/10' : 'bg-gray-50/50');
                     return (
                       <tr key={lb.location.id} className={`${rowBg} hover:bg-teal-50/10 dark:hover:bg-teal-900/5 transition-colors`}>
-                        <td className={`px-3 py-3 font-semibold ${isDark ? 'text-gray-200' : 'text-gray-900'}`}>
+                        <td className={`px-3 py-3 font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                           {lb.location.name}
                         </td>
                         <td className="text-center px-2 py-3 text-orange-650 dark:text-orange-450 font-semibold">
