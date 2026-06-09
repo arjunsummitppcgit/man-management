@@ -143,7 +143,7 @@ export default function DashboardPage() {
           </button>
 
           <div className="flex-1 text-center py-2 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800 shadow-inner min-h-[38px] flex items-center justify-center">
-            <span className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate max-w-[200px]">
+            <span className="text-xs font-bold text-gray-800 dark:text-white truncate max-w-[200px]">
               {selectedDateFormatted}
             </span>
           </div>
@@ -190,7 +190,7 @@ export default function DashboardPage() {
         </button>
 
         <div className="flex-1 text-center py-2 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800 shadow-inner min-h-[38px] flex items-center justify-center">
-          <span className="text-xs font-bold text-gray-800 dark:text-gray-200 truncate max-w-[200px]">
+          <span className="text-xs font-bold text-gray-800 dark:text-white truncate max-w-[200px]">
             {selectedDateFormatted}
           </span>
         </div>
@@ -398,7 +398,7 @@ export default function DashboardPage() {
         {locationBreakdowns.length > 0 && (
           <div className={`rounded-2xl overflow-hidden shadow-sm border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
             <div className={`px-4 py-3 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'} flex items-center justify-between`}>
-              <h3 className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+              <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-700'}`}>
                 🔄 WIP Breakdown by Location
               </h3>
               <span className="px-2.5 py-0.5 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 rounded-full text-[10px] font-bold">
@@ -453,7 +453,7 @@ export default function DashboardPage() {
         {locationBreakdowns.length > 0 && (
           <div className={`rounded-2xl overflow-hidden shadow-sm border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
             <div className={`px-4 py-3 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'} flex items-center justify-between`}>
-              <h3 className={`text-sm font-semibold ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>
+              <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-700'}`}>
                 ✅ Completed Breakdown by Location {yesterdayFormatted && `(Yesterday: ${yesterdayFormatted})`}
               </h3>
               <span className="px-2.5 py-0.5 bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-400 rounded-full text-[10px] font-bold">
