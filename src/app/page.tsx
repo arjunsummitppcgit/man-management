@@ -258,22 +258,13 @@ export default function DashboardPage() {
 
       {/* KPI Cards Grid */}
       <div className="px-4 mb-4 space-y-3">
-
-        {/* Workforce KPI — Full-width expanded card with labour breakdown */}
+        {/* Workforce KPI — Full-width expanded card with breakdowns */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-          {/* Header row */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">👷</span>
-              <span className="text-sm font-semibold text-gray-700">Total Workforce</span>
-            </div>
-            <span className="text-3xl font-bold text-gray-900">
-              {((kpis?.totalWorkforce ?? 0) + (kpis?.sanitizationTotal ?? 0))}
-            </span>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-2xl">👷</span>
+            <span className="text-sm font-semibold text-gray-700">Workforce & Sanitization Breakdown</span>
           </div>
-          <p className="text-xs text-gray-400 mb-3">Total headcount today (including labour, workforce & sanitization)</p>
 
-          {/* Labour sub-categories */}
           <div className="border-t border-gray-100 pt-3">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Labour Breakdown</p>
