@@ -318,21 +318,11 @@ export default function DashboardPage() {
                 {kpis?.sanitizationTotal ?? 0} total
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {/* Cleaning Labour */}
               <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
                 <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Cleaning Labour</p>
                 <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationCleaningLabour ?? 0}</p>
-              </div>
-              {/* Crates Cleaning */}
-              <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
-                <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Crates Cleaning</p>
-                <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationCratesCleaning ?? 0}</p>
-              </div>
-              {/* Nets Cleaning */}
-              <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
-                <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Nets Cleaning</p>
-                <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationNetsCleaning ?? 0}</p>
               </div>
               {/* NMR Labour */}
               <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
