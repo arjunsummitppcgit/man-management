@@ -69,6 +69,7 @@ export default function MonthlyAttendancePage() {
         const { data: activeSups, error: supError } = await supabase
           .from('supervisors')
           .select('id, name, is_active')
+          .eq('is_active', true)
           .order('name');
 
         if (supError) throw supError;
