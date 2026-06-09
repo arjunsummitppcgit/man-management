@@ -422,12 +422,10 @@ export default function DashboardPage() {
                     <th className="text-left px-3 py-3 font-bold min-w-[80px] tracking-wide">Location</th>
                     <th className="text-center px-2 py-3 font-bold whitespace-nowrap">WIP: HON→HL</th>
                     <th className="text-center px-2 py-3 font-bold whitespace-nowrap">WIP: HL→VA</th>
-                    <th className="text-center px-3 py-3 font-bold bg-purple-700 whitespace-nowrap">Total WIP</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800/50">
                   {locationBreakdowns.map((lb, idx) => {
-                    const totalWIP = lb.wipHonToHeadless + lb.wipHeadlessToVa;
                     const rowBg = idx % 2 === 0 
                       ? (isDark ? 'bg-gray-800/30' : 'bg-white') 
                       : (isDark ? 'bg-gray-800/10' : 'bg-gray-50/50');
@@ -442,9 +440,6 @@ export default function DashboardPage() {
                         <td className="text-center px-2 py-3 text-purple-650 dark:text-purple-400 font-semibold">
                           {lb.wipHeadlessToVa > 0 ? lb.wipHeadlessToVa.toFixed(1) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
                         </td>
-                        <td className={`text-center px-3 py-3 font-extrabold ${isDark ? 'bg-purple-950/20 text-purple-300' : 'bg-purple-50/50 text-purple-750'}`}>
-                          {totalWIP > 0 ? totalWIP.toFixed(1) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
-                        </td>
                       </tr>
                     );
                   })}
@@ -457,15 +452,12 @@ export default function DashboardPage() {
                     <td className="text-center px-2 py-3.5 text-purple-750 dark:text-purple-400">
                       {locationBreakdowns.reduce((s, lb) => s + lb.wipHeadlessToVa, 0).toFixed(1)}
                     </td>
-                    <td className="text-center px-3 py-3.5 font-black bg-purple-600 text-white">
-                      {locationBreakdowns.reduce((s, lb) => s + lb.wipHonToHeadless + lb.wipHeadlessToVa, 0).toFixed(1)}
-                    </td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
-        )}
+        )/* WIP Breakdown Table */ }
 
         {/* Completed Breakdown Table */}
         {locationBreakdowns.length > 0 && (
@@ -485,12 +477,10 @@ export default function DashboardPage() {
                     <th className="text-left px-3 py-3 font-bold min-w-[80px] tracking-wide">Location</th>
                     <th className="text-center px-2 py-3 font-bold whitespace-nowrap">Comp: HON→HL</th>
                     <th className="text-center px-2 py-3 font-bold whitespace-nowrap">Comp: HL→VA</th>
-                    <th className="text-center px-3 py-3 font-bold bg-teal-700 whitespace-nowrap">Total Comp</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800/50">
                   {locationBreakdowns.map((lb, idx) => {
-                    const totalComp = lb.completedHonToHeadless + lb.completedHeadlessToVa;
                     const rowBg = idx % 2 === 0 
                       ? (isDark ? 'bg-gray-800/30' : 'bg-white') 
                       : (isDark ? 'bg-gray-800/10' : 'bg-gray-50/50');
@@ -505,9 +495,6 @@ export default function DashboardPage() {
                         <td className="text-center px-2 py-3 text-orange-650 dark:text-orange-450 font-semibold">
                           {lb.completedHeadlessToVa > 0 ? lb.completedHeadlessToVa.toFixed(1) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
                         </td>
-                        <td className={`text-center px-3 py-3 font-extrabold ${isDark ? 'bg-teal-950/20 text-teal-350' : 'bg-teal-50/50 text-teal-700'}`}>
-                          {totalComp > 0 ? totalComp.toFixed(1) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
-                        </td>
                       </tr>
                     );
                   })}
@@ -520,15 +507,12 @@ export default function DashboardPage() {
                     <td className="text-center px-2 py-3.5 text-orange-750 dark:text-orange-450">
                       {locationBreakdowns.reduce((s, lb) => s + lb.completedHeadlessToVa, 0).toFixed(1)}
                     </td>
-                    <td className="text-center px-3 py-3.5 font-black bg-teal-650 dark:bg-teal-700 text-white">
-                      {locationBreakdowns.reduce((s, lb) => s + lb.completedHonToHeadless + lb.completedHeadlessToVa, 0).toFixed(1)}
-                    </td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
-        )}
+        )/* Completed Breakdown Table */}
 
         {/* Monthly Progress — full width */}
         <div className="bg-gradient-to-br from-teal-50 to-teal-100/50 rounded-2xl p-4 shadow-sm border border-teal-200 hover:shadow-md transition-shadow">
