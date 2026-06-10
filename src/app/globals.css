@@ -231,6 +231,11 @@ input:focus, select:focus, textarea:focus {
   background-color: rgba(245, 158, 11, 0.15) !important;
 }
 
+.dark .bg-orange-50 {
+  background-color: rgba(249, 115, 22, 0.12) !important;
+}
+
+
 .dark .bg-rose-50 {
   background-color: rgba(244, 63, 94, 0.15) !important;
 }
@@ -295,6 +300,17 @@ input:focus, select:focus, textarea:focus {
   color: #fbbf24 !important;
 }
 
+.dark .text-orange-650,
+.dark .text-orange-600 {
+  color: #fb923c !important; /* orange-400 */
+}
+
+.dark .text-orange-750,
+.dark .text-orange-700 {
+  color: #ffedd5 !important; /* orange-100 */
+}
+
+
 .dark .text-rose-600 {
   color: #fb7185 !important;
 }
@@ -339,6 +355,18 @@ input:focus, select:focus, textarea:focus {
   border-color: rgba(244, 63, 94, 0.3) !important;
 }
 
+.dark .border-orange-200 {
+  border-color: rgba(249, 115, 22, 0.3) !important;
+}
+
+.dark .from-orange-50,
+.dark .bg-gradient-to-br.from-orange-50.to-orange-100\/50 {
+  background-image: none !important;
+  background-color: #24120a !important; /* solid, deep dark orange-slate */
+  border-color: rgba(249, 115, 22, 0.3) !important;
+}
+
+
 /* Ensure teal and other colored text has high visibility in dark mode */
 .dark .text-teal-700 {
   color: #2dd4bf !important;
@@ -367,6 +395,14 @@ input:focus, select:focus, textarea:focus {
 .dark .from-rose-50 .text-gray-500 {
   color: #e5e7eb !important; /* bright light gray, 100% visible */
 }
+
+.dark .bg-orange-50 .text-gray-500,
+.dark .bg-orange-50 .text-gray-700,
+.dark .bg-purple-50 .text-gray-500,
+.dark .bg-purple-50 .text-gray-700 {
+  color: #e5e7eb !important;
+}
+
 
 .dark .from-teal-50 .text-teal-600,
 .dark .from-teal-50 .text-teal-500,
@@ -404,8 +440,9 @@ input:focus, select:focus, textarea:focus {
 
 .dark input::placeholder,
 .dark textarea::placeholder {
-  color: #6b7280 !important;
+  color: #9ca3af !important;
 }
+
 
 /* Modals & Sheets */
 .dark .bg-white.rounded-t-3xl,
