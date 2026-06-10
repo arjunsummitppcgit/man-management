@@ -5,6 +5,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import NumberStepper from '@/components/ui/NumberStepper';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import Modal from '@/components/ui/Modal';
 import { useLocations } from '@/hooks/useLocations';
 import { useWorkforce } from '@/hooks/useWorkforce';
 import { useSanitization } from '@/hooks/useSanitization';
@@ -188,6 +189,8 @@ export default function DailyEntryPage() {
   const [selectedLocation, setSelectedLocation] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('workforce');
   const [saving, setSaving] = useState(false);
+  const [isConfirmSaveModalOpen, setIsConfirmSaveModalOpen] = useState(false);
+
 
   // Hooks
   const { locations, loading: locationsLoading } = useLocations();
@@ -382,7 +385,12 @@ export default function DailyEntryPage() {
     });
   }, [supervisors, allDailyAssignments, selectedLocation]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
+    if (!selectedLocation) return;
+    setIsConfirmSaveModalOpen(true);
+  };
+
+  const executeSave = async () => {
     if (!selectedLocation) return;
     setSaving(true);
     try {
@@ -406,12 +414,14 @@ export default function DailyEntryPage() {
         `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} data saved successfully!`,
         'success'
       );
+      setIsConfirmSaveModalOpen(false);
     } catch {
       showToast('Failed to save. Please try again.', 'error');
     } finally {
       setSaving(false);
     }
   };
+
 
   const tabs: { key: TabType; label: string }[] = [
     { key: 'workforce', label: 'Workforce' },
@@ -800,6 +810,56 @@ export default function DailyEntryPage() {
 
       {/* Bottom spacing */}
       <div className="h-6" />
+
+      {/* Save Confirmation Modal */}
+      <Modal
+        isOpen={isConfirmSaveModalOpen}
+        onClose={() => !saving && setIsConfirmSaveModalOpen(false)}
+        title="Confirm Save Date"
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-teal-50 text-teal-800 text-sm rounded-xl border border-teal-100 font-medium dark:bg-teal-950/20 dark:text-teal-300 dark:border-teal-900/30">
+            You are saving <strong>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</strong> data for the following date:
+            <div className="text-lg font-bold text-teal-650 dark:text-teal-400 mt-1">
+              {new Date(selectedDate).toLocaleDateString(undefined, {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </div>
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Please confirm that this is the correct date for your entries before saving.
+          </p>
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => setIsConfirmSaveModalOpen(false)}
+              disabled={saving}
+              className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-sm rounded-xl transition-colors disabled:opacity-50 min-h-[44px] dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={executeSave}
+              disabled={saving}
+              className="flex-1 py-2.5 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white font-semibold text-sm rounded-xl transition-colors disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-1.5"
+            >
+              {saving ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                'Confirm & Save'
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
