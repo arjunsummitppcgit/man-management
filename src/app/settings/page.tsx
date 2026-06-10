@@ -7,6 +7,8 @@ import { useToast } from '@/components/ui/Toast';
 import { useLocations } from '@/hooks/useLocations';
 import { supabase } from '@/lib/supabase/client';
 import { exportToPDF, exportToExcel } from '@/lib/export';
+import Modal from '@/components/ui/Modal';
+
 
 const REPORT_TYPES = [
   'Daily Summary',
@@ -34,6 +36,10 @@ export default function SettingsPage() {
     });
     setIsDarkMode(document.documentElement.classList.contains('dark'));
   }, []);
+
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
 
   const handleToggleDarkMode = () => {
     const nextDark = !isDarkMode;
@@ -181,6 +187,55 @@ export default function SettingsPage() {
       showToast('Export failed. Please try again.', 'error');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleResetData = async () => {
+    setResetting(true);
+    try {
+      // 1. Delete monthly targets
+      const { error: targetsErr } = await supabase
+        .from('monthly_targets')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+
+      // 2. Delete daily processing
+      const { error: processingErr } = await supabase
+        .from('daily_processing')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+
+      // 3. Delete daily sanitization
+      const { error: sanitizationErr } = await supabase
+        .from('daily_sanitization')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+
+      // 4. Delete daily supervisor assignments
+      const { error: assignmentsErr } = await supabase
+        .from('daily_supervisor_assignments')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+
+      // 5. Delete daily workforce
+      const { error: workforceErr } = await supabase
+        .from('daily_workforce')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+
+      if (targetsErr || processingErr || sanitizationErr || assignmentsErr || workforceErr) {
+        console.error({ targetsErr, processingErr, sanitizationErr, assignmentsErr, workforceErr });
+        showToast('Reset failed or partially failed. Check console for details.', 'error');
+      } else {
+        showToast('All entry data reset successfully!', 'success');
+        setIsResetModalOpen(false);
+        router.refresh();
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('An unexpected error occurred during reset.', 'error');
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -375,6 +430,27 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Danger Zone */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-rose-100">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4.5 h-4.5 text-rose-600">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
+            </div>
+            <h3 className="text-sm font-semibold text-rose-600">Danger Zone</h3>
+          </div>
+          <p className="text-xs text-gray-500 mb-4">
+            Delete all entry data (daily workforce, supervisor attendance, processing records, targets, and sanitization logs) to start fresh. Supervisor profiles and locations will not be deleted.
+          </p>
+          <button
+            onClick={() => setIsResetModalOpen(true)}
+            className="w-full py-3 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 text-rose-600 font-semibold text-sm rounded-xl transition-colors border border-rose-200 min-h-[44px] flex items-center justify-center gap-1.5"
+          >
+            Reset All Entry Data
+          </button>
+        </div>
+
         {/* Logout Button */}
         <button
           onClick={handleLogout}
@@ -385,6 +461,49 @@ export default function SettingsPage() {
           </svg>
           Sign Out
         </button>
+
+        {/* Reset Confirmation Modal */}
+        <Modal
+          isOpen={isResetModalOpen}
+          onClose={() => !resetting && setIsResetModalOpen(false)}
+          title="Reset Application Data"
+        >
+          <div className="space-y-4">
+            <div className="p-3 bg-rose-50 text-rose-700 text-xs rounded-xl border border-rose-100 font-medium">
+              ⚠️ Warning: This action is irreversible. All workforce records, supervisor attendance logs, processing data, sanitization logs, and monthly targets will be deleted permanently.
+            </div>
+            <p className="text-sm text-gray-600">
+              Locations and Supervisor names/profiles will be kept intact.
+            </p>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setIsResetModalOpen(false)}
+                disabled={resetting}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-sm rounded-xl transition-colors disabled:opacity-50 min-h-[44px]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetData}
+                disabled={resetting}
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-semibold text-sm rounded-xl transition-colors disabled:opacity-50 min-h-[44px] flex items-center justify-center gap-1.5"
+              >
+                {resetting ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Resetting...
+                  </>
+                ) : (
+                  'Yes, Reset All'
+                )}
+              </button>
+            </div>
+          </div>
+        </Modal>
+
 
         {/* Bottom spacing */}
         <div className="h-4" />
