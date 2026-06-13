@@ -92,6 +92,30 @@ export function useDashboard() {
         .join(', ');
 
       // ──────────────────────────────────────────
+      // 2.3. Fetch all active and unassigned supervisors for selected date
+      // ──────────────────────────────────────────
+      const { data: activeSupervisorsData, error: activeSupervisorsError } = await supabase
+        .from('supervisors')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+
+      if (activeSupervisorsError) throw activeSupervisorsError;
+
+      const { data: allAssignmentsData, error: allAssignmentsError } = await supabase
+        .from('daily_supervisor_assignments')
+        .select('supervisor_id')
+        .eq('work_date', date)
+        .gt('is_present', 0);
+
+      if (allAssignmentsError) throw allAssignmentsError;
+
+      const assignedSupervisorIds = new Set((allAssignmentsData || []).map((a) => a.supervisor_id));
+      const unassignedSupervisorNames = (activeSupervisorsData || [])
+        .filter((s) => !assignedSupervisorIds.has(s.id))
+        .map((s) => s.name);
+
+      // ──────────────────────────────────────────
       // 2.5. Sanitization for selected date
       // ──────────────────────────────────────────
       let sanitizationQuery = supabase
@@ -235,6 +259,7 @@ export function useDashboard() {
         daysRemaining,
         supervisorNames,
         supervisorBreakdown,
+        unassignedSupervisorNames,
         labourKgBasic,
         labourDailyWage,
         labourCompany,

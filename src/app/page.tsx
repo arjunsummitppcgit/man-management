@@ -411,10 +411,44 @@ export default function DashboardPage() {
 
           {/* Location breakdown sub-line */}
           {kpis?.supervisorBreakdown && (
-            <p className="text-xs text-gray-400 mt-3 pt-3 border-t border-gray-100 font-medium">
+            <p className="text-xs text-gray-450 mt-3 pt-3 border-t border-gray-100 font-medium">
               📍 {kpis.supervisorBreakdown}
             </p>
           )}
+
+          {/* Unassigned Supervisors Section */}
+          <div className="border-t border-gray-100 mt-3.5 pt-3.5">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">💤</span>
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Unassigned Today</span>
+              </div>
+              <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full text-[10px] font-bold">
+                {kpis?.unassignedSupervisorNames?.length ?? 0} standby
+              </span>
+            </div>
+
+            {(kpis?.unassignedSupervisorNames ?? []).length === 0 ? (
+              <div className="flex items-center justify-center py-4 bg-gray-50 rounded-xl">
+                <p className="text-xs text-gray-400">All supervisors are assigned today</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {(kpis?.unassignedSupervisorNames ?? []).map((name, idx) => (
+                  <div
+                    key={`${name}-${idx}`}
+                    className="flex items-center gap-2 bg-amber-50/40 border border-amber-100/60 rounded-xl px-2.5 py-2"
+                  >
+                    {/* Avatar circle with initial */}
+                    <div className="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold shadow-sm shadow-amber-500/20">
+                      {name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-xs font-semibold text-amber-800 truncate">{name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* WIP Breakdown Table */}
