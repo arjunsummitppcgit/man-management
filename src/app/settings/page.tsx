@@ -456,43 +456,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Manage Locations */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4.5 h-4.5 text-blue-600">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-              </svg>
-            </div>
-            <h3 className="text-sm font-semibold text-gray-700">Manage Locations</h3>
-          </div>
-
-          <div className="space-y-1">
-            {locations.map((loc) => (
-              <div
-                key={loc.id}
-                className="flex items-center justify-between px-3 py-3 rounded-xl hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center">
-                    <span className="text-xs font-bold text-teal-600">
-                      {loc.name.replace('PPC ', '')}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{loc.name}</p>
-                    <p className="text-[10px] text-gray-400">{loc.code}</p>
-                  </div>
-                </div>
-                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-semibold rounded-full">
-                  Active
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* App Info */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-3">
