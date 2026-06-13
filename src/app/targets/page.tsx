@@ -175,7 +175,7 @@ export default function TargetsPage() {
   const { locations } = useLocations();
 
   // Processing data
-  const [processingData, setProcessingData] = useState<{ processed_kg: number; location_id: string }[]>([]);
+  const [processingData, setProcessingData] = useState<{ headless_to_va: number; location_id: string }[]>([]);
   const [processingLoading, setProcessingLoading] = useState(false);
 
   // Monthly history
@@ -198,7 +198,7 @@ export default function TargetsPage() {
 
         const { data, error } = await supabase
           .from('daily_processing')
-          .select('processed_kg, location_id')
+          .select('headless_to_va, location_id')
           .gte('work_date', monthStart)
           .lte('work_date', monthEnd);
 
@@ -240,18 +240,18 @@ export default function TargetsPage() {
           // Fetch processing sum
           const { data: procData } = await supabase
             .from('daily_processing')
-            .select('processed_kg')
+            .select('headless_to_va')
             .gte('work_date', mStart)
             .lte('work_date', mEnd);
 
           const target = targetData?.target_kg || 0;
-          const actual = procData?.reduce((sum: number, r: { processed_kg: number }) => sum + r.processed_kg, 0) || 0;
+          const actual = procData?.reduce((sum: number, r: { headless_to_va: number }) => sum + (r.headless_to_va || 0), 0) || 0;
           const pct = target > 0 ? Math.round((actual / target) * 1000) / 10 : 0;
 
           rows.push({
             month: `${MONTHS[m - 1].slice(0, 3)} ${y}`,
             target,
-            actual: Math.round(actual * 10) / 10,
+            actual: Math.round(actual * 100) / 100,
             pct,
           });
         }
@@ -270,7 +270,7 @@ export default function TargetsPage() {
   // Calculate KPIs
   const monthlyTarget = combinedTarget?.target_kg || 0;
   const monthlyProcessed = useMemo(
-    () => processingData.reduce((sum, r) => sum + r.processed_kg, 0),
+    () => processingData.reduce((sum, r) => sum + (r.headless_to_va || 0), 0),
     [processingData]
   );
   const daysRemaining = getDaysRemainingInMonth(currentYear, currentMonth);
@@ -282,12 +282,12 @@ export default function TargetsPage() {
     return locations.map((loc) => {
       const locProcessed = processingData
         .filter((p) => p.location_id === loc.id)
-        .reduce((sum, p) => sum + p.processed_kg, 0);
+        .reduce((sum, p) => sum + (p.headless_to_va || 0), 0);
       const locTarget = locationTargets.find((t) => t.location_id === loc.id);
       return {
         id: loc.id,
         name: loc.name,
-        processed: Math.round(locProcessed * 10) / 10,
+        processed: Math.round(locProcessed * 100) / 100,
         target: locTarget?.target_kg || 0,
       };
     });
@@ -335,7 +335,7 @@ export default function TargetsPage() {
             </div>
             <div className="bg-white/10 rounded-xl p-3">
               <p className="text-teal-200 text-[10px] font-medium uppercase">Processed</p>
-              <p className="text-xl font-bold">{Math.round(monthlyProcessed)} kg</p>
+              <p className="text-xl font-bold">{monthlyProcessed.toFixed(2)} kg</p>
             </div>
             <div className="bg-white/10 rounded-xl p-3">
               <p className="text-teal-200 text-[10px] font-medium uppercase">Days Left</p>
@@ -343,7 +343,7 @@ export default function TargetsPage() {
             </div>
             <div className="bg-white/10 rounded-xl p-3">
               <p className="text-teal-200 text-[10px] font-medium uppercase">Avg Needed</p>
-              <p className="text-xl font-bold">{dailyAverage.toFixed(1)} kg</p>
+              <p className="text-xl font-bold">{dailyAverage.toFixed(2)} kg</p>
             </div>
           </div>
 
@@ -372,7 +372,7 @@ export default function TargetsPage() {
                     <span className="text-sm font-semibold text-gray-900">{loc.name}</span>
                   </div>
                   <span className="text-sm font-bold text-gray-700">
-                    {loc.processed}
+                    {loc.processed.toFixed(2)}
                     <span className="text-gray-400 font-normal">/{loc.target} kg</span>
                   </span>
                 </div>

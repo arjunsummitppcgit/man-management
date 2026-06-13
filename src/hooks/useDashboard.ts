@@ -152,7 +152,7 @@ export function useDashboard() {
 
       let yesterdayProcessingQuery = supabase
         .from('daily_processing')
-        .select('processed_kg, hon_to_headless, headless_to_va')
+        .select('headless_to_va, hon_to_headless')
         .eq('work_date', yesterdayDate);
 
       let yesterdaySanitizationQuery = supabase
@@ -178,10 +178,10 @@ export function useDashboard() {
       const yesterdayCratesCleaning = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.crates_cleaning || 0), 0);
       const yesterdayNetsCleaning = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.nets_cleaning || 0), 0);
 
-      const todaysProcessing = (yesterdayProcessingData || []).reduce(
-        (sum, row) => sum + (row.processed_kg || 0),
+      const todaysProcessing = Number(((yesterdayProcessingData || []).reduce(
+        (sum, row) => sum + (row.headless_to_va || 0),
         0
-      );
+      )).toFixed(2));
       const honToHeadless = (yesterdayProcessingData || []).reduce(
         (sum, row) => sum + (row.hon_to_headless || 0),
         0
@@ -219,7 +219,7 @@ export function useDashboard() {
       // ──────────────────────────────────────────
       let monthlyProcessingQuery = supabase
         .from('daily_processing')
-        .select('processed_kg')
+        .select('headless_to_va')
         .gte('work_date', monthStart)
         .lte('work_date', monthEnd);
 
@@ -231,10 +231,10 @@ export function useDashboard() {
         await monthlyProcessingQuery;
       if (monthlyProcessingError) throw monthlyProcessingError;
 
-      const monthlyProcessed = (monthlyProcessingData || []).reduce(
-        (sum, row) => sum + (row.processed_kg || 0),
+      const monthlyProcessed = Number(((monthlyProcessingData || []).reduce(
+        (sum, row) => sum + (row.headless_to_va || 0),
         0
-      );
+      )).toFixed(2));
 
       // ──────────────────────────────────────────
       // 6. Calculate derived KPIs
@@ -293,7 +293,7 @@ export function useDashboard() {
 
       let trendQuery = supabase
         .from('daily_processing')
-        .select('work_date, processed_kg, location:locations(name)')
+        .select('work_date, headless_to_va, location:locations(name)')
         .gte('work_date', sevenDaysAgo)
         .lte('work_date', date)
         .order('work_date', { ascending: true });
@@ -309,7 +309,7 @@ export function useDashboard() {
         const locationObj = row.location as { name: string } | null;
         return {
           date: row.work_date as string,
-          kg: row.processed_kg as number,
+          kg: Number((row.headless_to_va as number || 0).toFixed(2)),
           location: locationObj?.name || 'Unknown',
         };
       });
@@ -348,7 +348,7 @@ export function useDashboard() {
           // Completed Processing for this location on yesterday's date
           const { data: locProcessingYesterday } = await supabase
             .from('daily_processing')
-            .select('processed_kg, hon_to_headless, headless_to_va')
+            .select('headless_to_va, hon_to_headless')
             .eq('work_date', yesterdayDate)
             .eq('location_id', location.id)
             .maybeSingle();
@@ -364,7 +364,7 @@ export function useDashboard() {
           return {
             location,
             workforce: locWorkforce?.total_headcount || 0,
-            processing: locProcessingYesterday?.processed_kg || 0,
+            processing: Number((locProcessingYesterday?.headless_to_va || 0).toFixed(2)),
             supervisors: (locSupervisors || []).reduce(
               (sum, row) => sum + (Number(row.is_present) || 0),
               0
