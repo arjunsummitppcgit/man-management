@@ -668,7 +668,7 @@ export default function DailyEntryPage() {
                     </div>
                     <div>
                       <p className="text-xs text-teal-600">Processed So Far</p>
-                      <p className="text-lg font-bold text-teal-800">{monthlyTotal.toFixed(1)} kg</p>
+                      <p className="text-lg font-bold text-teal-800">{monthlyTotal.toFixed(3)} kg</p>
                     </div>
                   </div>
                 </div>
@@ -678,7 +678,7 @@ export default function DailyEntryPage() {
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-gray-700">Processing KGs</h3>
                     <span className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-bold">
-                      Total: {((parseFloat(honToHeadless) || 0) + (parseFloat(headlessToVa) || 0)).toFixed(1)} kg
+                      Total: {((parseFloat(honToHeadless) || 0) + (parseFloat(headlessToVa) || 0)).toFixed(3)} kg
                     </span>
                   </div>
 
@@ -694,10 +694,10 @@ export default function DailyEntryPage() {
                       <div className="relative">
                         <input
                           type="number"
-                          step="0.1"
+                          step="any"
                           value={wipHonToHeadless}
                           onChange={(e) => setWipHonToHeadless(e.target.value)}
-                          placeholder="0.0"
+                          placeholder="0.000"
                           className="w-full px-4 py-3.5 bg-white border border-purple-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-purple-400 focus:ring-2 focus:ring-purple-400/10 pr-12"
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
@@ -712,10 +712,10 @@ export default function DailyEntryPage() {
                       <div className="relative">
                         <input
                           type="number"
-                          step="0.1"
+                          step="any"
                           value={wipHeadlessToVa}
                           onChange={(e) => setWipHeadlessToVa(e.target.value)}
-                          placeholder="0.0"
+                          placeholder="0.000"
                           className="w-full px-4 py-3.5 bg-white border border-purple-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-purple-400 focus:ring-2 focus:ring-purple-400/10 pr-12"
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
@@ -735,10 +735,10 @@ export default function DailyEntryPage() {
                       <div className="relative">
                         <input
                           type="number"
-                          step="0.1"
+                          step="any"
                           value={honToHeadless}
                           onChange={(e) => setHonToHeadless(e.target.value)}
-                          placeholder="0.0"
+                          placeholder="0.000"
                           className="w-full px-4 py-3.5 bg-white border border-orange-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 pr-12"
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
@@ -753,10 +753,10 @@ export default function DailyEntryPage() {
                       <div className="relative">
                         <input
                           type="number"
-                          step="0.1"
+                          step="any"
                           value={headlessToVa}
                           onChange={(e) => setHeadlessToVa(e.target.value)}
-                          placeholder="0.0"
+                          placeholder="0.000"
                           className="w-full px-4 py-3.5 bg-white border border-orange-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 pr-12"
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
@@ -768,7 +768,7 @@ export default function DailyEntryPage() {
                   <div className="flex items-center justify-between bg-orange-50 rounded-xl px-4 py-3">
                     <span className="text-sm font-semibold text-orange-600">Total Processed KG</span>
                     <span className="text-lg font-bold text-orange-700">
-                      {((parseFloat(honToHeadless) || 0) + (parseFloat(headlessToVa) || 0)).toFixed(1)} kg
+                      {((parseFloat(honToHeadless) || 0) + (parseFloat(headlessToVa) || 0)).toFixed(3)} kg
                     </span>
                   </div>
                 </div>

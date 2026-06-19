@@ -181,7 +181,7 @@ export function useDashboard() {
       const todaysProcessing = Number(((yesterdayProcessingData || []).reduce(
         (sum, row) => sum + (row.headless_to_va || 0),
         0
-      )).toFixed(2));
+      )).toFixed(3));
       const honToHeadless = (yesterdayProcessingData || []).reduce(
         (sum, row) => sum + (row.hon_to_headless || 0),
         0
@@ -234,7 +234,7 @@ export function useDashboard() {
       const monthlyProcessed = Number(((monthlyProcessingData || []).reduce(
         (sum, row) => sum + (row.headless_to_va || 0),
         0
-      )).toFixed(2));
+      )).toFixed(3));
 
       // ──────────────────────────────────────────
       // 6. Calculate derived KPIs
@@ -309,7 +309,7 @@ export function useDashboard() {
         const locationObj = row.location as { name: string } | null;
         return {
           date: row.work_date as string,
-          kg: Number((row.headless_to_va as number || 0).toFixed(2)),
+          kg: Number((row.headless_to_va as number || 0).toFixed(3)),
           location: locationObj?.name || 'Unknown',
         };
       });
@@ -364,7 +364,7 @@ export function useDashboard() {
           return {
             location,
             workforce: locWorkforce?.total_headcount || 0,
-            processing: Number((locProcessingYesterday?.headless_to_va || 0).toFixed(2)),
+            processing: Number((locProcessingYesterday?.headless_to_va || 0).toFixed(3)),
             supervisors: (locSupervisors || []).reduce(
               (sum, row) => sum + (Number(row.is_present) || 0),
               0

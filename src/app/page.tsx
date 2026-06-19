@@ -482,10 +482,10 @@ export default function DashboardPage() {
                           {lb.location.name}
                         </td>
                         <td className="text-center px-2 py-3 text-purple-650 dark:text-purple-400 font-semibold">
-                          {lb.wipHonToHeadless > 0 ? lb.wipHonToHeadless.toFixed(2) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
+                          {lb.wipHonToHeadless > 0 ? lb.wipHonToHeadless.toFixed(3) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
                         </td>
                         <td className="text-center px-2 py-3 text-purple-650 dark:text-purple-400 font-semibold">
-                          {lb.wipHeadlessToVa > 0 ? lb.wipHeadlessToVa.toFixed(2) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
+                          {lb.wipHeadlessToVa > 0 ? lb.wipHeadlessToVa.toFixed(3) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
                         </td>
                       </tr>
                     );
@@ -494,10 +494,10 @@ export default function DashboardPage() {
                   <tr className={`font-bold border-t-2 ${isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-gray-100/70 border-gray-200 text-gray-900'}`}>
                     <td className="px-3 py-3.5 font-bold">Total</td>
                     <td className="text-center px-2 py-3.5 text-purple-750 dark:text-purple-400">
-                      {locationBreakdowns.reduce((s, lb) => s + lb.wipHonToHeadless, 0).toFixed(2)}
+                      {locationBreakdowns.reduce((s, lb) => s + lb.wipHonToHeadless, 0).toFixed(3)}
                     </td>
                     <td className="text-center px-2 py-3.5 text-purple-750 dark:text-purple-400">
-                      {locationBreakdowns.reduce((s, lb) => s + lb.wipHeadlessToVa, 0).toFixed(2)}
+                      {locationBreakdowns.reduce((s, lb) => s + lb.wipHeadlessToVa, 0).toFixed(3)}
                     </td>
                   </tr>
                 </tbody>
@@ -537,10 +537,10 @@ export default function DashboardPage() {
                           {lb.location.name}
                         </td>
                         <td className="text-center px-2 py-3 text-orange-650 dark:text-orange-450 font-semibold">
-                          {lb.completedHonToHeadless > 0 ? lb.completedHonToHeadless.toFixed(2) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
+                          {lb.completedHonToHeadless > 0 ? lb.completedHonToHeadless.toFixed(3) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
                         </td>
                         <td className="text-center px-2 py-3 text-orange-650 dark:text-orange-450 font-semibold">
-                          {lb.completedHeadlessToVa > 0 ? lb.completedHeadlessToVa.toFixed(2) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
+                          {lb.completedHeadlessToVa > 0 ? lb.completedHeadlessToVa.toFixed(3) : <span className="text-gray-300 dark:text-gray-700 font-normal">—</span>}
                         </td>
                       </tr>
                     );
@@ -549,10 +549,10 @@ export default function DashboardPage() {
                   <tr className={`font-bold border-t-2 ${isDark ? 'bg-gray-800 border-gray-700 text-gray-100' : 'bg-gray-100/70 border-gray-200 text-gray-900'}`}>
                     <td className="px-3 py-3.5 font-bold">Total</td>
                     <td className="text-center px-2 py-3.5 text-orange-750 dark:text-orange-450">
-                      {locationBreakdowns.reduce((s, lb) => s + lb.completedHonToHeadless, 0).toFixed(2)}
+                      {locationBreakdowns.reduce((s, lb) => s + lb.completedHonToHeadless, 0).toFixed(3)}
                     </td>
                     <td className="text-center px-2 py-3.5 text-orange-750 dark:text-orange-450">
-                      {locationBreakdowns.reduce((s, lb) => s + lb.completedHeadlessToVa, 0).toFixed(2)}
+                      {locationBreakdowns.reduce((s, lb) => s + lb.completedHeadlessToVa, 0).toFixed(3)}
                     </td>
                   </tr>
                 </tbody>
@@ -568,7 +568,7 @@ export default function DashboardPage() {
             <span className="text-xs font-medium text-teal-600">Monthly Progress</span>
           </div>
           <p className="text-2xl font-bold text-teal-700">
-            {typeof kpis?.monthlyProcessed === 'number' ? kpis.monthlyProcessed.toFixed(2) : (kpis?.monthlyProcessed ?? 0)}
+            {typeof kpis?.monthlyProcessed === 'number' ? kpis.monthlyProcessed.toFixed(3) : (kpis?.monthlyProcessed ?? 0)}
             <span className="text-sm font-medium text-teal-500">/{kpis?.monthlyTarget ?? 0} kg</span>
           </p>
           <div className="mt-2 bg-teal-200/50 rounded-full h-2 overflow-hidden">

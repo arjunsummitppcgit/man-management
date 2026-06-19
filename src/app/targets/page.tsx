@@ -87,6 +87,7 @@ function SetTargetModal({ open, onClose, onSave, locations }: SetTargetModalProp
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Target (kg)</label>
             <input
               type="number"
+              step="any"
               value={targetKg}
               onChange={(e) => setTargetKg(e.target.value)}
               placeholder="Enter target in kg"
@@ -335,7 +336,7 @@ export default function TargetsPage() {
             </div>
             <div className="bg-white/10 rounded-xl p-3">
               <p className="text-teal-200 text-[10px] font-medium uppercase">Processed</p>
-              <p className="text-xl font-bold">{monthlyProcessed.toFixed(2)} kg</p>
+              <p className="text-xl font-bold">{monthlyProcessed.toFixed(3)} kg</p>
             </div>
             <div className="bg-white/10 rounded-xl p-3">
               <p className="text-teal-200 text-[10px] font-medium uppercase">Days Left</p>
@@ -343,7 +344,7 @@ export default function TargetsPage() {
             </div>
             <div className="bg-white/10 rounded-xl p-3">
               <p className="text-teal-200 text-[10px] font-medium uppercase">Avg Needed</p>
-              <p className="text-xl font-bold">{dailyAverage.toFixed(2)} kg</p>
+              <p className="text-xl font-bold">{dailyAverage.toFixed(3)} kg</p>
             </div>
           </div>
 
@@ -372,7 +373,7 @@ export default function TargetsPage() {
                     <span className="text-sm font-semibold text-gray-900">{loc.name}</span>
                   </div>
                   <span className="text-sm font-bold text-gray-700">
-                    {loc.processed.toFixed(2)}
+                    {loc.processed.toFixed(3)}
                     <span className="text-gray-400 font-normal">/{loc.target} kg</span>
                   </span>
                 </div>
