@@ -157,7 +157,7 @@ export function useDashboard() {
 
       let yesterdaySanitizationQuery = supabase
         .from('daily_sanitization')
-        .select('crates_cleaning, nets_cleaning')
+        .select('crates_cleaning, nets_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, gloves, head_cap, masks')
         .eq('work_date', yesterdayDate);
 
       if (locationFilter) {
@@ -177,6 +177,18 @@ export function useDashboard() {
 
       const yesterdayCratesCleaning = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.crates_cleaning || 0), 0);
       const yesterdayNetsCleaning = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.nets_cleaning || 0), 0);
+      
+      const yesterdayChlorinePpc = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.chlorine_ppc || 0), 0);
+      const yesterdayChlorineCrates = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.chlorine_crates || 0), 0);
+      const yesterdayChlorineWashrooms = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.chlorine_washrooms || 0), 0);
+      
+      const yesterdaySoapOilPpc = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.soap_oil_ppc || 0), 0);
+      const yesterdaySoapOilCrates = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.soap_oil_crates || 0), 0);
+      const yesterdaySoapOilWashrooms = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.soap_oil_washrooms || 0), 0);
+      
+      const yesterdayGloves = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.gloves || 0), 0);
+      const yesterdayHeadCap = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.head_cap || 0), 0);
+      const yesterdayMasks = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.masks || 0), 0);
 
       const todaysProcessing = Number(((yesterdayProcessingData || []).reduce(
         (sum, row) => sum + (row.headless_to_va || 0),
@@ -283,6 +295,15 @@ export function useDashboard() {
         wipHeadlessToVa,
         yesterdayCratesCleaning,
         yesterdayNetsCleaning,
+        yesterdayChlorinePpc,
+        yesterdayChlorineCrates,
+        yesterdayChlorineWashrooms,
+        yesterdaySoapOilPpc,
+        yesterdaySoapOilCrates,
+        yesterdaySoapOilWashrooms,
+        yesterdayGloves,
+        yesterdayHeadCap,
+        yesterdayMasks,
         yesterdayDate,
       });
 

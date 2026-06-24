@@ -190,6 +190,15 @@ export interface DashboardKPIs {
   wipHeadlessToVa: number;
   yesterdayCratesCleaning?: number;
   yesterdayNetsCleaning?: number;
+  yesterdayChlorinePpc?: number;
+  yesterdayChlorineCrates?: number;
+  yesterdayChlorineWashrooms?: number;
+  yesterdaySoapOilPpc?: number;
+  yesterdaySoapOilCrates?: number;
+  yesterdaySoapOilWashrooms?: number;
+  yesterdayGloves?: number;
+  yesterdayHeadCap?: number;
+  yesterdayMasks?: number;
   yesterdayDate?: string;
 }
 
