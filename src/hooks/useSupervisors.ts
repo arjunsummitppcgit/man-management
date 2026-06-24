@@ -27,13 +27,20 @@ export function useSupervisors() {
     }
   }, []);
 
-  const addSupervisor = useCallback(async (name: string, phone: string) => {
+  const addSupervisor = useCallback(async (
+    name: string,
+    phone: string,
+    joiningDate: string | null = null,
+    salary: number | null = null
+  ) => {
     try {
       const { error } = await supabase
         .from('supervisors')
         .insert({
           name: name.trim(),
           phone: phone.trim() || null,
+          joining_date: joiningDate,
+          salary: salary,
           is_active: true,
         });
 

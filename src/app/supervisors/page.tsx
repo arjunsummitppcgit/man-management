@@ -12,17 +12,21 @@ interface SupervisorModalProps {
   open: boolean;
   onClose: () => void;
   supervisor: Supervisor | null;
-  onSave: (name: string, phone: string) => void;
+  onSave: (name: string, phone: string, joiningDate: string | null, salary: number | null) => void;
   onDelete?: (id: string) => void;
 }
 
 function SupervisorModal({ open, onClose, supervisor, onSave, onDelete }: SupervisorModalProps) {
   const [name, setName] = useState(supervisor?.name || '');
   const [phone, setPhone] = useState(supervisor?.phone || '');
+  const [joiningDate, setJoiningDate] = useState(supervisor?.joining_date || '');
+  const [salary, setSalary] = useState(supervisor?.salary?.toString() || '');
 
   React.useEffect(() => {
     setName(supervisor?.name || '');
     setPhone(supervisor?.phone || '');
+    setJoiningDate(supervisor?.joining_date || '');
+    setSalary(supervisor?.salary?.toString() || '');
   }, [supervisor]);
 
   if (!open) return null;
@@ -80,6 +84,30 @@ function SupervisorModal({ open, onClose, supervisor, onSave, onDelete }: Superv
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500"
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Date of Joining</label>
+            <input
+              type="date"
+              value={joiningDate}
+              onChange={(e) => setJoiningDate(e.target.value)}
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Salary (Monthly)</label>
+            <input
+              type="number"
+              step="any"
+              min="0"
+              value={salary}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setSalary(isNaN(val) ? '' : Math.max(0, val).toString());
+              }}
+              placeholder="Enter salary amount"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500"
+            />
+          </div>
           <div className="flex gap-3 pt-2">
             <button
               onClick={onClose}
@@ -89,7 +117,8 @@ function SupervisorModal({ open, onClose, supervisor, onSave, onDelete }: Superv
             </button>
             <button
               onClick={() => {
-                onSave(name, phone);
+                const parsedSalary = salary ? parseFloat(salary) : null;
+                onSave(name, phone, joiningDate || null, parsedSalary);
                 onClose();
               }}
               className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl shadow-lg shadow-teal-600/25 transition-all min-h-[48px]"
@@ -194,13 +223,18 @@ export default function SupervisorsPage() {
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [supervisorAttendance]);
 
-  const handleSaveSupervisor = async (name: string, phone: string) => {
+  const handleSaveSupervisor = async (
+    name: string,
+    phone: string,
+    joiningDate: string | null,
+    salary: number | null
+  ) => {
     try {
       if (editingSupervisor) {
-        await updateSupervisor(editingSupervisor.id, { name, phone });
+        await updateSupervisor(editingSupervisor.id, { name, phone, joining_date: joiningDate, salary });
         showToast('Supervisor updated successfully', 'success');
       } else {
-        await addSupervisor(name, phone);
+        await addSupervisor(name, phone, joiningDate, salary);
         showToast('Supervisor added successfully', 'success');
       }
     } catch {
@@ -301,7 +335,37 @@ export default function SupervisorsPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-900 truncate">{supervisor.name}</p>
-                <p className="text-xs text-gray-400 mt-0.5">📞 {supervisor.phone}</p>
+                <p className="text-xs text-gray-400 mt-0.5">📞 {supervisor.phone || 'No phone'}</p>
+                {(supervisor.joining_date || supervisor.salary !== null) && (
+                  <div className="flex flex-wrap gap-x-2.5 gap-y-0.5 mt-1 text-[10px] font-medium text-gray-400">
+                    {supervisor.joining_date && (
+                      <span className="flex items-center gap-0.5">
+                        <span>📅</span>
+                        <span>
+                          {(() => {
+                            try {
+                              const dParts = supervisor.joining_date.split('-');
+                              const dObj = new Date(Number(dParts[0]), Number(dParts[1]) - 1, Number(dParts[2]));
+                              return dObj.toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              });
+                            } catch {
+                              return supervisor.joining_date;
+                            }
+                          })()}
+                        </span>
+                      </span>
+                    )}
+                    {supervisor.salary !== null && (
+                      <span className="flex items-center gap-0.5 text-teal-650 dark:text-teal-400 font-semibold">
+                        <span>💰</span>
+                        <span>₹{Number(supervisor.salary).toLocaleString('en-IN')}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               <span
                 className={`px-2.5 py-1 rounded-full text-[10px] font-semibold ${

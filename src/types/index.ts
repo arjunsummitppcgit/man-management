@@ -15,6 +15,8 @@ export interface Supervisor {
   phone: string | null;
   is_active: boolean;
   created_at: string;
+  joining_date: string | null;
+  salary: number | null;
 }
 
 export interface DailyWorkforce {
