@@ -511,3 +511,36 @@ input:focus, select:focus, textarea:focus {
 .dark .supervisor-trigger:hover {
   background-color: #1f2937 !important;
 }
+
+/* ── Chemicals Dashboard Cards Dark Mode Overrides ────────────────────────── */
+.dark .chemical-container-ppc {
+  background-color: rgba(13, 148, 136, 0.15) !important;
+  border-color: rgba(20, 184, 166, 0.25) !important;
+}
+.dark .chemical-container-crates {
+  background-color: rgba(249, 115, 22, 0.15) !important;
+  border-color: rgba(249, 115, 22, 0.25) !important;
+}
+.dark .chemical-container-washrooms {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+  border-color: rgba(99, 102, 241, 0.25) !important;
+}
+
+/* Inner cards inside chemical sections in dark mode */
+.dark .chemical-container-ppc .bg-white,
+.dark .chemical-container-crates .bg-white,
+.dark .chemical-container-washrooms .bg-white {
+  background-color: #111827 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Label text inside inner cards in dark mode */
+.dark .chemical-label {
+  color: #d1d5db !important; /* bright light gray for excellent readability */
+}
+
+/* Ensure text-teal-650 is bright and highly visible in dark mode */
+.dark .text-teal-650 {
+  color: #2dd4bf !important;
+}
+

@@ -367,56 +367,56 @@ export default function DashboardPage() {
         </div>
 
         {/* Chemicals Used (Yesterday) */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-2xl">🧪</span>
-            <span className="text-sm font-semibold text-gray-700">
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-305">
               Chemicals Used {yesterdayFormatted && `(Yesterday: ${yesterdayFormatted})`}
             </span>
           </div>
 
           <div className="space-y-3">
             {/* PPC */}
-            <div className="bg-teal-50/50 rounded-xl p-2.5">
-              <p className="text-[10px] font-bold text-teal-650 uppercase tracking-wide mb-1.5">🏢 PPC</p>
+            <div className="bg-teal-50/50 dark:bg-teal-950/20 rounded-xl p-2.5 chemical-container-ppc">
+              <p className="text-[10px] font-bold text-teal-650 dark:text-teal-400 uppercase tracking-wide mb-1.5">🏢 PPC</p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white rounded-lg p-2 text-center border border-teal-100/50">
-                  <p className="text-[9px] text-gray-500 font-medium uppercase">Chlorine</p>
-                  <p className="text-sm font-bold text-teal-800 mt-0.5">{(kpis?.yesterdayChlorinePpc ?? 0).toFixed(2)} kg</p>
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-teal-100/50 dark:border-teal-900/30">
+                  <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Chlorine</p>
+                  <p className="text-sm font-bold text-teal-800 dark:text-teal-300 mt-0.5">{(kpis?.yesterdayChlorinePpc ?? 0).toFixed(2)} kg</p>
                 </div>
-                <div className="bg-white rounded-lg p-2 text-center border border-teal-100/50">
-                  <p className="text-[9px] text-gray-500 font-medium uppercase">Soap Oil</p>
-                  <p className="text-sm font-bold text-teal-800 mt-0.5">{(kpis?.yesterdaySoapOilPpc ?? 0).toFixed(2)} L</p>
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-teal-100/50 dark:border-teal-900/30">
+                  <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Soap Oil</p>
+                  <p className="text-sm font-bold text-teal-800 dark:text-teal-300 mt-0.5">{(kpis?.yesterdaySoapOilPpc ?? 0).toFixed(2)} L</p>
                 </div>
               </div>
             </div>
 
             {/* Crates */}
-            <div className="bg-orange-50/50 rounded-xl p-2.5">
-              <p className="text-[10px] font-bold text-orange-650 uppercase tracking-wide mb-1.5">📦 Crates</p>
+            <div className="bg-orange-50/50 dark:bg-orange-950/20 rounded-xl p-2.5 chemical-container-crates">
+              <p className="text-[10px] font-bold text-orange-650 dark:text-orange-450 uppercase tracking-wide mb-1.5">📦 Crates</p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white rounded-lg p-2 text-center border border-orange-100/50">
-                  <p className="text-[9px] text-gray-500 font-medium uppercase">Chlorine</p>
-                  <p className="text-sm font-bold text-orange-850 mt-0.5">{(kpis?.yesterdayChlorineCrates ?? 0).toFixed(2)} kg</p>
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-orange-100/50 dark:border-orange-900/30">
+                  <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Chlorine</p>
+                  <p className="text-sm font-bold text-orange-850 dark:text-orange-350 mt-0.5">{(kpis?.yesterdayChlorineCrates ?? 0).toFixed(2)} kg</p>
                 </div>
-                <div className="bg-white rounded-lg p-2 text-center border border-orange-100/50">
-                  <p className="text-[9px] text-gray-500 font-medium uppercase">Soap Oil</p>
-                  <p className="text-sm font-bold text-orange-850 mt-0.5">{(kpis?.yesterdaySoapOilCrates ?? 0).toFixed(2)} L</p>
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-orange-100/50 dark:border-orange-900/30">
+                  <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Soap Oil</p>
+                  <p className="text-sm font-bold text-orange-850 dark:text-orange-350 mt-0.5">{(kpis?.yesterdaySoapOilCrates ?? 0).toFixed(2)} L</p>
                 </div>
               </div>
             </div>
 
             {/* Washrooms */}
-            <div className="bg-indigo-50/50 rounded-xl p-2.5">
-              <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wide mb-1.5">🚾 Washrooms</p>
+            <div className="bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl p-2.5 chemical-container-washrooms">
+              <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wide mb-1.5">🚾 Washrooms</p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-white rounded-lg p-2 text-center border border-indigo-100/50">
-                  <p className="text-[9px] text-gray-500 font-medium uppercase">Chlorine</p>
-                  <p className="text-sm font-bold text-indigo-850 mt-0.5">{(kpis?.yesterdayChlorineWashrooms ?? 0).toFixed(2)} kg</p>
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-indigo-100/50 dark:border-indigo-900/30">
+                  <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Chlorine</p>
+                  <p className="text-sm font-bold text-indigo-850 dark:text-indigo-350 mt-0.5">{(kpis?.yesterdayChlorineWashrooms ?? 0).toFixed(2)} kg</p>
                 </div>
-                <div className="bg-white rounded-lg p-2 text-center border border-indigo-100/50">
-                  <p className="text-[9px] text-gray-500 font-medium uppercase">Soap Oil</p>
-                  <p className="text-sm font-bold text-indigo-850 mt-0.5">{(kpis?.yesterdaySoapOilWashrooms ?? 0).toFixed(2)} L</p>
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-indigo-100/50 dark:border-indigo-900/30">
+                  <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Soap Oil</p>
+                  <p className="text-sm font-bold text-indigo-850 dark:text-indigo-350 mt-0.5">{(kpis?.yesterdaySoapOilWashrooms ?? 0).toFixed(2)} L</p>
                 </div>
               </div>
             </div>
@@ -424,29 +424,29 @@ export default function DashboardPage() {
         </div>
 
         {/* Essentials Used (Yesterday) */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-2xl">🧤</span>
-            <span className="text-sm font-semibold text-gray-700">
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-305">
               Essentials Used {yesterdayFormatted && `(Yesterday: ${yesterdayFormatted})`}
             </span>
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             {/* Gloves */}
-            <div className="bg-purple-50 rounded-xl px-2 py-3 flex flex-col items-center justify-center text-center">
-              <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Gloves</p>
-              <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.yesterdayGloves ?? 0} pairs</p>
+            <div className="bg-purple-50 dark:bg-purple-950/20 rounded-xl px-2 py-3 flex flex-col items-center justify-center text-center">
+              <p className="text-[9px] text-purple-500 dark:text-purple-400 font-medium uppercase tracking-wide leading-tight">Gloves</p>
+              <p className="text-lg font-bold text-purple-700 dark:text-purple-300 mt-0.5">{kpis?.yesterdayGloves ?? 0} pairs</p>
             </div>
             {/* Head Cap */}
-            <div className="bg-purple-50 rounded-xl px-2 py-3 flex flex-col items-center justify-center text-center">
-              <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Head Caps</p>
-              <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.yesterdayHeadCap ?? 0} pcs</p>
+            <div className="bg-purple-50 dark:bg-purple-950/20 rounded-xl px-2 py-3 flex flex-col items-center justify-center text-center">
+              <p className="text-[9px] text-purple-500 dark:text-purple-400 font-medium uppercase tracking-wide leading-tight">Head Caps</p>
+              <p className="text-lg font-bold text-purple-700 dark:text-purple-300 mt-0.5">{kpis?.yesterdayHeadCap ?? 0} pcs</p>
             </div>
             {/* Masks */}
-            <div className="bg-purple-50 rounded-xl px-2 py-3 flex flex-col items-center justify-center text-center">
-              <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Masks</p>
-              <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.yesterdayMasks ?? 0} pcs</p>
+            <div className="bg-purple-50 dark:bg-purple-950/20 rounded-xl px-2 py-3 flex flex-col items-center justify-center text-center">
+              <p className="text-[9px] text-purple-500 dark:text-purple-400 font-medium uppercase tracking-wide leading-tight">Masks</p>
+              <p className="text-lg font-bold text-purple-700 dark:text-purple-300 mt-0.5">{kpis?.yesterdayMasks ?? 0} pcs</p>
             </div>
           </div>
         </div>
