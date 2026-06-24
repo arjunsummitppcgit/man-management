@@ -26,7 +26,7 @@ export default function SettingsPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [exporting, setExporting] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isLightMode, setIsLightMode] = useState(false);
 
   // Report Preview state
   const [previewHeaders, setPreviewHeaders] = useState<string[]>([]);
@@ -39,7 +39,7 @@ export default function SettingsPage() {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) setUserEmail(data.user.email || '');
     });
-    setIsDarkMode(document.documentElement.classList.contains('dark'));
+    setIsLightMode(!document.documentElement.classList.contains('dark'));
   }, []);
 
   // Fetch Report Preview Data when dateFrom, dateTo, or reportType changes
@@ -186,15 +186,15 @@ export default function SettingsPage() {
   }, [reportType, dateFrom, dateTo, showToast]);
 
 
-  const handleToggleDarkMode = () => {
-    const nextDark = !isDarkMode;
-    setIsDarkMode(nextDark);
-    if (nextDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
+  const handleToggleLightMode = () => {
+    const nextLight = !isLightMode;
+    setIsLightMode(nextLight);
+    if (nextLight) {
       document.documentElement.classList.remove('dark');
       localStorage.setItem('theme', 'light');
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
     }
     window.dispatchEvent(new Event('themechange'));
   };
@@ -265,29 +265,29 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* App Preferences (Dark Mode) */}
+        {/* App Preferences (Light Mode) */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-fade-in">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center shadow-inner">
-                <span className="text-sm">{isDarkMode ? '🌙' : '☀️'}</span>
+                <span className="text-sm">{isLightMode ? '☀️' : '🌙'}</span>
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-700">Dark Mode</h3>
-                <p className="text-[10px] text-gray-400">Toggle dark theme preference</p>
+                <h3 className="text-sm font-semibold text-gray-700">Light Mode</h3>
+                <p className="text-[10px] text-gray-400">Toggle light theme preference</p>
               </div>
             </div>
             
             <button
-              onClick={handleToggleDarkMode}
+              onClick={handleToggleLightMode}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500/20 active:scale-95 ${
-                isDarkMode ? 'bg-teal-600' : 'bg-gray-200'
+                isLightMode ? 'bg-teal-650' : 'bg-gray-200'
               }`}
-              aria-label="Toggle dark mode"
+              aria-label="Toggle light mode"
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  isDarkMode ? 'translate-x-6' : 'translate-x-1'
+                  isLightMode ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
             </button>
