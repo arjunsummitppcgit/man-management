@@ -795,9 +795,9 @@ export default function DailyEntryPage() {
                   </div>
                 </div>
 
-                {/* PPE Consumption */}
+                {/* Essentials */}
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">PPE Consumption</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Essentials</h3>
                   <NumberStepper label="Gloves" value={sanitization.gloves} onChange={(v) => updateSanitization('gloves', v)} />
                   <NumberStepper label="Head Cap" value={sanitization.head_cap} onChange={(v) => updateSanitization('head_cap', v)} />
                   <NumberStepper label="Masks" value={sanitization.masks} onChange={(v) => updateSanitization('masks', v)} />
