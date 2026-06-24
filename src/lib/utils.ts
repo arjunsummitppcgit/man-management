@@ -20,7 +20,7 @@ export function formatDateShort(date: Date | string): string {
  * Format a number as kg with 1 decimal place (e.g. '1234.5 kg')
  */
 export function formatKg(kg: number): string {
-  return `${kg.toFixed(1)} kg`;
+  return `${kg.toFixed(3)} kg`;
 }
 
 /**

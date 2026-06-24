@@ -138,12 +138,17 @@ export default function SettingsPage() {
         } else if (reportType === 'Sanitization Report') {
           const { data } = await supabase
             .from('daily_sanitization')
-            .select('work_date, cleaning_labour, crates_cleaning, nets_cleaning, nmr_labour, washroom_cleaning, grading_machine_cleaning, location:locations(name)')
+            .select('work_date, cleaning_labour, crates_cleaning, nets_cleaning, nmr_labour, washroom_cleaning, grading_machine_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, gloves, head_cap, masks, location:locations(name)')
             .gte('work_date', dateFrom)
             .lte('work_date', dateTo)
             .order('work_date', { ascending: true });
 
-          headers = ['Date', 'Location', 'Cleaning Labour', 'Crates', 'Nets', 'NMR', 'Washroom', 'Grading Machine'];
+          headers = [
+            'Date', 'Location', 'Cleaning Labour', 'Crates Cleaned', 'Nets Cleaned', 'NMR Labour', 
+            'Washroom Cleaned', 'Grading Machine Cleaned', 'Chlorine PPC (kg)', 'Chlorine Crates (kg)', 
+            'Chlorine Washrooms (kg)', 'Soap Oil PPC (L)', 'Soap Oil Crates (L)', 'Soap Oil Washrooms (L)', 
+            'Gloves (pairs)', 'Head Cap (pcs)', 'Masks (pcs)'
+          ];
           rows = (data || []).map((s: Record<string, unknown>) => [
             s.work_date as string,
             (s.location as { name: string } | null)?.name || '',
@@ -153,6 +158,15 @@ export default function SettingsPage() {
             s.nmr_labour as number,
             s.washroom_cleaning as number,
             s.grading_machine_cleaning as number,
+            s.chlorine_ppc as number,
+            s.chlorine_crates as number,
+            s.chlorine_washrooms as number,
+            s.soap_oil_ppc as number,
+            s.soap_oil_crates as number,
+            s.soap_oil_washrooms as number,
+            s.gloves as number,
+            s.head_cap as number,
+            s.masks as number,
           ]);
         }
 

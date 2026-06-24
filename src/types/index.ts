@@ -60,6 +60,15 @@ export interface DailySanitization {
   nmr_labour: number;
   washroom_cleaning: number;
   grading_machine_cleaning: number;
+  chlorine_ppc: number;
+  chlorine_crates: number;
+  chlorine_washrooms: number;
+  soap_oil_ppc: number;
+  soap_oil_crates: number;
+  soap_oil_washrooms: number;
+  gloves: number;
+  head_cap: number;
+  masks: number;
   created_at: string;
   updated_at: string;
 }
@@ -114,6 +123,15 @@ export interface SanitizationFormData {
   nmr_labour: number;
   washroom_cleaning: number;
   grading_machine_cleaning: number;
+  chlorine_ppc: number;
+  chlorine_crates: number;
+  chlorine_washrooms: number;
+  soap_oil_ppc: number;
+  soap_oil_crates: number;
+  soap_oil_washrooms: number;
+  gloves: number;
+  head_cap: number;
+  masks: number;
 }
 
 export interface ProcessingFormData {

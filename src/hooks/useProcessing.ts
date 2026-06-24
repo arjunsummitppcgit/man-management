@@ -42,7 +42,7 @@ export function useProcessing() {
         (sum, row) => sum + (row.processed_kg || 0),
         0
       );
-      setMonthlyTotal(total);
+      setMonthlyTotal(Number(total.toFixed(3)));
     } catch (error) {
       console.error('Error fetching processing:', error);
       setProcessing(null);

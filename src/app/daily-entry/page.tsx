@@ -244,6 +244,15 @@ export default function DailyEntryPage() {
     nmr_labour: 0,
     washroom_cleaning: 0,
     grading_machine_cleaning: 0,
+    chlorine_ppc: 0,
+    chlorine_crates: 0,
+    chlorine_washrooms: 0,
+    soap_oil_ppc: 0,
+    soap_oil_crates: 0,
+    soap_oil_washrooms: 0,
+    gloves: 0,
+    head_cap: 0,
+    masks: 0,
   });
 
   // Processing form state
@@ -318,6 +327,15 @@ export default function DailyEntryPage() {
         nmr_labour: sanitizationData.nmr_labour ?? 0,
         washroom_cleaning: sanitizationData.washroom_cleaning ?? 0,
         grading_machine_cleaning: sanitizationData.grading_machine_cleaning ?? 0,
+        chlorine_ppc: sanitizationData.chlorine_ppc ?? 0,
+        chlorine_crates: sanitizationData.chlorine_crates ?? 0,
+        chlorine_washrooms: sanitizationData.chlorine_washrooms ?? 0,
+        soap_oil_ppc: sanitizationData.soap_oil_ppc ?? 0,
+        soap_oil_crates: sanitizationData.soap_oil_crates ?? 0,
+        soap_oil_washrooms: sanitizationData.soap_oil_washrooms ?? 0,
+        gloves: sanitizationData.gloves ?? 0,
+        head_cap: sanitizationData.head_cap ?? 0,
+        masks: sanitizationData.masks ?? 0,
       });
     } else {
       setSanitization({
@@ -327,6 +345,15 @@ export default function DailyEntryPage() {
         nmr_labour: 0,
         washroom_cleaning: 0,
         grading_machine_cleaning: 0,
+        chlorine_ppc: 0,
+        chlorine_crates: 0,
+        chlorine_washrooms: 0,
+        soap_oil_ppc: 0,
+        soap_oil_crates: 0,
+        soap_oil_washrooms: 0,
+        gloves: 0,
+        head_cap: 0,
+        masks: 0,
       });
     }
   }, [sanitizationData]);
@@ -403,10 +430,10 @@ export default function DailyEntryPage() {
         await saveSanitization(selectedDate, selectedLocation, sanitization);
       } else if (activeTab === 'processing') {
         await saveProcessing(selectedDate, selectedLocation, {
-          wip_hon_to_headless: parseFloat(wipHonToHeadless) || 0,
-          wip_headless_to_va: parseFloat(wipHeadlessToVa) || 0,
-          hon_to_headless: parseFloat(honToHeadless) || 0,
-          headless_to_va: parseFloat(headlessToVa) || 0,
+          wip_hon_to_headless: Math.max(0, parseFloat(wipHonToHeadless) || 0),
+          wip_headless_to_va: Math.max(0, parseFloat(wipHeadlessToVa) || 0),
+          hon_to_headless: Math.max(0, parseFloat(honToHeadless) || 0),
+          headless_to_va: Math.max(0, parseFloat(headlessToVa) || 0),
           notes,
         });
       }
@@ -634,6 +661,148 @@ export default function DailyEntryPage() {
                   <NumberStepper label="Nets Cleaning" value={sanitization.nets_cleaning} onChange={(v) => updateSanitization('nets_cleaning', v)} />
                 </div>
 
+                {/* Chemical Consumption */}
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-4">
+                  <h3 className="text-sm font-semibold text-gray-700">Chemical Consumption</h3>
+                  
+                  {/* PPC */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-teal-600 uppercase tracking-wide">🏢 PPC (Pre Processing Center)</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 mb-1">Chlorine PPC</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            value={sanitization.chlorine_ppc || ''}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              updateSanitization('chlorine_ppc', isNaN(val) ? 0 : Math.max(0, val));
+                            }}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm font-semibold placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 pr-10"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">kg</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 mb-1">Soap Oil PPC</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            value={sanitization.soap_oil_ppc || ''}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              updateSanitization('soap_oil_ppc', isNaN(val) ? 0 : Math.max(0, val));
+                            }}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm font-semibold placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 pr-10"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">L</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Crates */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-teal-600 uppercase tracking-wide">📦 Crates Cleaning</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 mb-1">Chlorine Crates</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            value={sanitization.chlorine_crates || ''}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              updateSanitization('chlorine_crates', isNaN(val) ? 0 : Math.max(0, val));
+                            }}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm font-semibold placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 pr-10"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">kg</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 mb-1">Soap Oil Crates</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            value={sanitization.soap_oil_crates || ''}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              updateSanitization('soap_oil_crates', isNaN(val) ? 0 : Math.max(0, val));
+                            }}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm font-semibold placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 pr-10"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">L</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Washrooms */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-teal-600 uppercase tracking-wide">🚾 Washrooms Cleaning</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 mb-1">Chlorine Washrooms</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            value={sanitization.chlorine_washrooms || ''}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              updateSanitization('chlorine_washrooms', isNaN(val) ? 0 : Math.max(0, val));
+                            }}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm font-semibold placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 pr-10"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">kg</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 mb-1">Soap Oil Washrooms</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            value={sanitization.soap_oil_washrooms || ''}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              updateSanitization('soap_oil_washrooms', isNaN(val) ? 0 : Math.max(0, val));
+                            }}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm font-semibold placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 pr-10"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">L</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PPE Consumption */}
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">PPE Consumption</h3>
+                  <NumberStepper label="Gloves" value={sanitization.gloves} onChange={(v) => updateSanitization('gloves', v)} />
+                  <NumberStepper label="Head Cap" value={sanitization.head_cap} onChange={(v) => updateSanitization('head_cap', v)} />
+                  <NumberStepper label="Masks" value={sanitization.masks} onChange={(v) => updateSanitization('masks', v)} />
+                </div>
+
                 <button
                   onClick={handleSave}
                   disabled={saving}
@@ -695,6 +864,7 @@ export default function DailyEntryPage() {
                         <input
                           type="number"
                           step="any"
+                          min="0"
                           value={wipHonToHeadless}
                           onChange={(e) => setWipHonToHeadless(e.target.value)}
                           placeholder="0.000"
@@ -713,6 +883,7 @@ export default function DailyEntryPage() {
                         <input
                           type="number"
                           step="any"
+                          min="0"
                           value={wipHeadlessToVa}
                           onChange={(e) => setWipHeadlessToVa(e.target.value)}
                           placeholder="0.000"
@@ -736,6 +907,7 @@ export default function DailyEntryPage() {
                         <input
                           type="number"
                           step="any"
+                          min="0"
                           value={honToHeadless}
                           onChange={(e) => setHonToHeadless(e.target.value)}
                           placeholder="0.000"
@@ -754,6 +926,7 @@ export default function DailyEntryPage() {
                         <input
                           type="number"
                           step="any"
+                          min="0"
                           value={headlessToVa}
                           onChange={(e) => setHeadlessToVa(e.target.value)}
                           placeholder="0.000"

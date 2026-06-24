@@ -252,7 +252,7 @@ export default function TargetsPage() {
           rows.push({
             month: `${MONTHS[m - 1].slice(0, 3)} ${y}`,
             target,
-            actual: Math.round(actual * 100) / 100,
+            actual: Math.round(actual * 1000) / 1000,
             pct,
           });
         }
@@ -288,7 +288,7 @@ export default function TargetsPage() {
       return {
         id: loc.id,
         name: loc.name,
-        processed: Math.round(locProcessed * 100) / 100,
+        processed: Math.round(locProcessed * 1000) / 1000,
         target: locTarget?.target_kg || 0,
       };
     });
