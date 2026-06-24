@@ -265,7 +265,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* App Preferences (Light Mode) */}
+        {/* App Preferences (Theme Toggle) */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-fade-in">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -273,8 +273,12 @@ export default function SettingsPage() {
                 <span className="text-sm">{isLightMode ? '☀️' : '🌙'}</span>
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-gray-700">Light Mode</h3>
-                <p className="text-[10px] text-gray-400">Toggle light theme preference</p>
+                <h3 className="text-sm font-semibold text-gray-700">
+                  {isLightMode ? 'Light Mode' : 'Dark Mode'}
+                </h3>
+                <p className="text-[10px] text-gray-400">
+                  {isLightMode ? 'Toggle to default dark theme' : 'Toggle to enable light theme'}
+                </p>
               </div>
             </div>
             
@@ -283,7 +287,7 @@ export default function SettingsPage() {
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500/20 active:scale-95 ${
                 isLightMode ? 'bg-teal-650' : 'bg-gray-200'
               }`}
-              aria-label="Toggle light mode"
+              aria-label="Toggle theme mode"
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
