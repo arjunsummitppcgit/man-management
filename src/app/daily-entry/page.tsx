@@ -684,7 +684,7 @@ export default function DailyEntryPage() {
                             placeholder="0.00"
                             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm font-semibold placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 pr-10"
                           />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">kg</span>
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">L</span>
                         </div>
                       </div>
                       <div>
@@ -727,7 +727,7 @@ export default function DailyEntryPage() {
                             placeholder="0.00"
                             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm font-semibold placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 pr-10"
                           />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">kg</span>
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">L</span>
                         </div>
                       </div>
                       <div>
@@ -770,7 +770,7 @@ export default function DailyEntryPage() {
                             placeholder="0.00"
                             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm font-semibold placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 pr-10"
                           />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">kg</span>
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">L</span>
                         </div>
                       </div>
                       <div>

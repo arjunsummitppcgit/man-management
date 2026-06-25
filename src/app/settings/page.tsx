@@ -145,8 +145,8 @@ export default function SettingsPage() {
 
           headers = [
             'Date', 'Location', 'Cleaning Labour', 'Crates Cleaned', 'Nets Cleaned', 'NMR Labour', 
-            'Washroom Cleaned', 'Grading Machine Cleaned', 'Chlorine PPC (kg)', 'Chlorine Crates (kg)', 
-            'Chlorine Washrooms (kg)', 'Soap Oil PPC (L)', 'Soap Oil Crates (L)', 'Soap Oil Washrooms (L)', 
+            'Washroom Cleaned', 'Grading Machine Cleaned', 'Chlorine PPC (L)', 'Chlorine Crates (L)', 
+            'Chlorine Washrooms (L)', 'Soap Oil PPC (L)', 'Soap Oil Crates (L)', 'Soap Oil Washrooms (L)', 
             'Gloves (pairs)', 'Head Cap (pcs)', 'Masks (pcs)'
           ];
           rows = (data || []).map((s: Record<string, unknown>) => [

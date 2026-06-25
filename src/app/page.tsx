@@ -382,7 +382,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-teal-100/50 dark:border-teal-900/30">
                   <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Chlorine</p>
-                  <p className="text-sm font-bold text-teal-800 dark:text-teal-300 mt-0.5">{(kpis?.yesterdayChlorinePpc ?? 0).toFixed(2)} kg</p>
+                  <p className="text-sm font-bold text-teal-800 dark:text-teal-300 mt-0.5">{(kpis?.yesterdayChlorinePpc ?? 0).toFixed(2)} L</p>
                 </div>
                 <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-teal-100/50 dark:border-teal-900/30">
                   <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Soap Oil</p>
@@ -397,7 +397,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-orange-100/50 dark:border-orange-900/30">
                   <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Chlorine</p>
-                  <p className="text-sm font-bold text-orange-850 dark:text-orange-350 mt-0.5">{(kpis?.yesterdayChlorineCrates ?? 0).toFixed(2)} kg</p>
+                  <p className="text-sm font-bold text-orange-850 dark:text-orange-350 mt-0.5">{(kpis?.yesterdayChlorineCrates ?? 0).toFixed(2)} L</p>
                 </div>
                 <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-orange-100/50 dark:border-orange-900/30">
                   <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Soap Oil</p>
@@ -412,7 +412,7 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-indigo-100/50 dark:border-indigo-900/30">
                   <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Chlorine</p>
-                  <p className="text-sm font-bold text-indigo-850 dark:text-indigo-350 mt-0.5">{(kpis?.yesterdayChlorineWashrooms ?? 0).toFixed(2)} kg</p>
+                  <p className="text-sm font-bold text-indigo-850 dark:text-indigo-350 mt-0.5">{(kpis?.yesterdayChlorineWashrooms ?? 0).toFixed(2)} L</p>
                 </div>
                 <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-indigo-100/50 dark:border-indigo-900/30">
                   <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Soap Oil</p>
