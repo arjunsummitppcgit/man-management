@@ -1,12 +1,18 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Inter, Sora } from 'next/font/google';
 import './globals.css';
-import BottomNav from '@/components/layout/BottomNav';
+import AppShell from '@/components/layout/AppShell';
 import { ToastProvider } from '@/components/ui/Toast';
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
+});
+
+const sora = Sora({
+  subsets: ['latin'],
+  variable: '--font-display',
+  weight: ['600', '700', '800'],
 });
 
 export const metadata: Metadata = {
@@ -34,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
+    <html lang="en" className={`${inter.variable} ${sora.variable} h-full`}>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -52,10 +58,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full font-sans antialiased bg-gray-50 text-gray-900">
         <ToastProvider>
-          <div className="max-w-lg mx-auto min-h-screen bg-gray-50 relative">
-            <main className="pb-20">{children}</main>
-            <BottomNav />
-          </div>
+          <AppShell>{children}</AppShell>
         </ToastProvider>
       </body>
     </html>

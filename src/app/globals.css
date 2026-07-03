@@ -544,3 +544,241 @@ input:focus, select:focus, textarea:focus {
   color: #2dd4bf !important;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESKTOP SHELL — sidebar, motion system, masonry dashboard (lg and up only;
+   mobile layout is untouched below 1024px)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Apple-style easings: sheets/windows use the first, playful pops the second */
+  --ease-mac: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.font-display {
+  font-family: var(--font-display), 'Inter', ui-sans-serif, sans-serif;
+}
+
+/* ── Entrance keyframes ── */
+@keyframes deskRise {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sideSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes chartPop {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Sidebar chrome ── */
+.sidebar-shell {
+  background:
+    radial-gradient(120% 60% at 0% 0%, rgba(20, 184, 166, 0.22) 0%, transparent 55%),
+    radial-gradient(90% 40% at 100% 100%, rgba(245, 158, 11, 0.08) 0%, transparent 60%),
+    linear-gradient(172deg, #042f2e 0%, #06232b 48%, #051820 100%);
+  border-right: 1px solid rgba(94, 234, 212, 0.12);
+  box-shadow: 8px 0 40px -18px rgba(2, 32, 30, 0.55);
+}
+
+.sidebar-logo {
+  background: linear-gradient(140deg, #14b8a6 0%, #0d9488 55%, #115e59 100%);
+  box-shadow:
+    0 8px 20px -6px rgba(20, 184, 166, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.sidebar-user {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  transition: background 0.4s var(--ease-mac), border-color 0.4s var(--ease-mac);
+}
+.sidebar-user:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(94, 234, 212, 0.2);
+}
+
+/* Sidebar nav links — macOS-like sliding hover + glowing active pill */
+.side-link {
+  transition:
+    background-color 0.35s var(--ease-mac),
+    color 0.35s var(--ease-mac),
+    transform 0.35s var(--ease-mac);
+}
+.side-link:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  transform: translateX(3px);
+}
+.side-link:active {
+  transform: translateX(3px) scale(0.97);
+}
+.side-link-active {
+  background: linear-gradient(90deg, rgba(20, 184, 166, 0.22) 0%, rgba(20, 184, 166, 0.08) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.side-link-active:hover {
+  transform: none;
+  background: linear-gradient(90deg, rgba(20, 184, 166, 0.26) 0%, rgba(20, 184, 166, 0.1) 100%);
+}
+.side-link-indicator {
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  height: 0;
+  width: 3.5px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fcd34d, #f59e0b);
+  transform: translateY(-50%);
+  transition: height 0.4s var(--ease-spring);
+}
+.side-link-active .side-link-indicator {
+  height: 60%;
+  box-shadow: 0 0 12px rgba(252, 211, 77, 0.7);
+}
+
+/* Sidebar entrance stagger */
+.side-item {
+  opacity: 0;
+  animation: sideSlideIn 0.55s var(--ease-mac) both;
+}
+
+/* Thin dark scrollbar inside the sidebar nav */
+.sidebar-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(94, 234, 212, 0.18);
+  border-radius: 999px;
+}
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── Desktop-only refinements ── */
+@media (min-width: 1024px) {
+  /* Display typography for page titles */
+  .page-title {
+    font-family: var(--font-display), 'Inter', ui-sans-serif, sans-serif;
+    font-size: 1.9rem;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+  }
+
+  /* Staggered card entrance (macOS window-open feel) */
+  .stagger > * {
+    opacity: 0;
+    animation: deskRise 0.6s var(--ease-mac) both;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 0.05s; }
+  .stagger > *:nth-child(2) { animation-delay: 0.1s; }
+  .stagger > *:nth-child(3) { animation-delay: 0.15s; }
+  .stagger > *:nth-child(4) { animation-delay: 0.2s; }
+  .stagger > *:nth-child(5) { animation-delay: 0.25s; }
+  .stagger > *:nth-child(6) { animation-delay: 0.3s; }
+  .stagger > *:nth-child(7) { animation-delay: 0.35s; }
+  .stagger > *:nth-child(8) { animation-delay: 0.4s; }
+  .stagger > *:nth-child(n + 9) { animation-delay: 0.45s; }
+
+  /* Masonry columns for the dashboard card stack (single column on mobile) */
+  .dash-grid {
+    columns: 2;
+    column-gap: 1.25rem;
+  }
+  .dash-grid > * {
+    break-inside: avoid;
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+    transition:
+      transform 0.45s var(--ease-mac),
+      box-shadow 0.45s var(--ease-mac);
+  }
+  .dash-grid > *:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px -16px rgba(4, 47, 46, 0.22);
+  }
+  .dark .dash-grid > *:hover {
+    box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.55);
+  }
+
+  /* Charts entrance */
+  .chart-card {
+    animation: chartPop 0.7s var(--ease-mac) both;
+    transition:
+      transform 0.45s var(--ease-mac),
+      box-shadow 0.45s var(--ease-mac);
+  }
+  .chart-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px -16px rgba(4, 47, 46, 0.22);
+  }
+  .chart-card:nth-child(1) { animation-delay: 0.05s; }
+  .chart-card:nth-child(2) { animation-delay: 0.14s; }
+  .chart-card:nth-child(3) { animation-delay: 0.23s; }
+  .dark .chart-card:hover {
+    box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.55);
+  }
+
+  /* Refined desktop scrollbar for the main document */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(13, 148, 136, 0.3);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(13, 148, 136, 0.55);
+    background-clip: padding-box;
+    border: 3px solid transparent;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@media (min-width: 1700px) {
+  .dash-grid {
+    columns: 3;
+  }
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .side-item,
+  .stagger > *,
+  .chart-card {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+  .side-link,
+  .dash-grid > * {
+    transition: none !important;
+  }
+}
+

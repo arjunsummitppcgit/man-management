@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '@/components/layout/PageHeader';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import EmptyState from '@/components/ui/EmptyState';
+import ProcessingCharts from '@/components/dashboard/ProcessingCharts';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useLocations } from '@/hooks/useLocations';
 import { useAuth } from '@/hooks/useAuth';
@@ -34,7 +35,7 @@ export default function DashboardPage() {
     return () => window.removeEventListener('themechange', checkTheme);
   }, []);
 
-  const { kpis, locationBreakdowns, loading, fetchDashboard } = useDashboard();
+  const { kpis, locationBreakdowns, processingTrend, loading, fetchDashboard } = useDashboard();
   const { locations, loading: locationsLoading } = useLocations();
 
   const today = new Date();
@@ -280,8 +281,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Desktop analytics: today vs yesterday processing charts */}
+      <ProcessingCharts
+        breakdowns={locationBreakdowns}
+        trend={processingTrend}
+        yesterdayLabel={yesterdayFormatted}
+        isDark={isDark}
+      />
+
       {/* KPI Cards Grid */}
-      <div className="px-4 mb-4 space-y-3">
+      <div className="px-4 mb-4 space-y-3 dash-grid stagger">
         {/* Workforce KPI — Full-width expanded card with breakdowns */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 mb-3">
