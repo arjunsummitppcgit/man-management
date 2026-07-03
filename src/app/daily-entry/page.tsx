@@ -11,6 +11,7 @@ import { useWorkforce } from '@/hooks/useWorkforce';
 import { useSanitization } from '@/hooks/useSanitization';
 import { useProcessing } from '@/hooks/useProcessing';
 import { useSupervisors } from '@/hooks/useSupervisors';
+import { useAuth } from '@/hooks/useAuth';
 import type { Supervisor, TabType } from '@/types';
 
 // ─── Supervisor Dropdown Component ───────────────────────────────────────────
@@ -185,11 +186,21 @@ function SupervisorDropdown({ supervisors, selected, onToggle }: SupervisorDropd
 
 export default function DailyEntryPage() {
   const { showToast } = useToast();
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const { isSubUser } = useAuth();
+  const TODAY = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(TODAY);
   const [selectedLocation, setSelectedLocation] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('workforce');
   const [saving, setSaving] = useState(false);
   const [isConfirmSaveModalOpen, setIsConfirmSaveModalOpen] = useState(false);
+
+  // Sub-users: always lock date to today
+  useEffect(() => {
+    if (isSubUser) {
+      setSelectedDate(TODAY);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSubUser]);
 
 
   // Hooks
@@ -490,12 +501,22 @@ export default function DailyEntryPage() {
       {/* Date & Location Selectors - Sticky */}
       <div className="sticky top-0 z-10 bg-gray-50 px-4 pb-3 space-y-2">
         <div className="grid grid-cols-2 gap-2">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500"
-          />
+          {isSubUser ? (
+            // Sub-user: read-only date display with "Today Only" badge
+            <div className="relative px-3 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-500 flex items-center gap-2">
+              <span className="font-medium text-gray-600">{selectedDate}</span>
+              <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[9px] font-bold uppercase tracking-wide flex-shrink-0">
+                Today only
+              </span>
+            </div>
+          ) : (
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500"
+            />
+          )}
           <select
             value={selectedLocation}
             onChange={(e) => setSelectedLocation(e.target.value)}

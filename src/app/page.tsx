@@ -6,13 +6,24 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import EmptyState from '@/components/ui/EmptyState';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useLocations } from '@/hooks/useLocations';
+import { useAuth } from '@/hooks/useAuth';
 
 
+
+const TODAY = new Date().toISOString().split('T')[0];
 
 export default function DashboardPage() {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const { isSubUser } = useAuth();
+  const [selectedDate, setSelectedDate] = useState(TODAY);
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [isDark, setIsDark] = useState(false);
+
+  // Sub-users: always reset to today if they somehow change date
+  useEffect(() => {
+    if (isSubUser) {
+      setSelectedDate(TODAY);
+    }
+  }, [isSubUser]);
 
   useEffect(() => {
     const checkTheme = () => {
@@ -50,6 +61,7 @@ export default function DashboardPage() {
   }, [selectedDate]);
 
   const handlePreviousDay = () => {
+    if (isSubUser) return; // sub-users cannot navigate dates
     try {
       const dateParts = selectedDate.split('-');
       const dateObj = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]));
@@ -64,6 +76,7 @@ export default function DashboardPage() {
   };
 
   const handleNextDay = () => {
+    if (isSubUser) return; // sub-users cannot navigate dates
     try {
       const dateParts = selectedDate.split('-');
       const dateObj = new Date(Number(dateParts[0]), Number(dateParts[1]) - 1, Number(dateParts[2]));
@@ -136,36 +149,53 @@ export default function DashboardPage() {
         <div className="px-4 mb-3 flex items-center justify-between gap-3">
           <button
             onClick={handlePreviousDay}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 transition-all shadow-sm active:scale-95 min-h-[38px]"
+            disabled={isSubUser}
+            className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-semibold transition-all shadow-sm min-h-[38px] ${
+              isSubUser
+                ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed opacity-50'
+                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 active:scale-95'
+            }`}
           >
             <span>◀</span>
             <span>Previous</span>
           </button>
 
-          <div className="flex-1 text-center py-2 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800 shadow-inner min-h-[38px] flex items-center justify-center">
-            <span className="text-xs font-bold text-gray-800 dark:text-white truncate max-w-[200px]">
+          <div className="flex-1 text-center py-2 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800 shadow-inner min-h-[38px] flex items-center justify-center gap-2">
+            <span className="text-xs font-bold text-gray-800 dark:text-white truncate max-w-[160px]">
               {selectedDateFormatted}
             </span>
+            {isSubUser && (
+              <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[9px] font-bold uppercase tracking-wide flex-shrink-0">
+                Today only
+              </span>
+            )}
           </div>
 
           <button
             onClick={handleNextDay}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 transition-all shadow-sm active:scale-95 min-h-[38px]"
+            disabled={isSubUser}
+            className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-semibold transition-all shadow-sm min-h-[38px] ${
+              isSubUser
+                ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed opacity-50'
+                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 active:scale-95'
+            }`}
           >
             <span>Next</span>
             <span>▶</span>
           </button>
         </div>
 
-        {/* Date Picker */}
-        <div className="px-4 mb-3">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
-          />
-        </div>
+        {/* Date Picker — hidden for sub-users */}
+        {!isSubUser && (
+          <div className="px-4 mb-3">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+            />
+          </div>
+        )}
         <EmptyState
           icon="📊"
           title="No data available"
@@ -183,36 +213,53 @@ export default function DashboardPage() {
       <div className="px-4 mb-3 flex items-center justify-between gap-3">
         <button
           onClick={handlePreviousDay}
-          className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 transition-all shadow-sm active:scale-95 min-h-[38px]"
+          disabled={isSubUser}
+          className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-semibold transition-all shadow-sm min-h-[38px] ${
+            isSubUser
+              ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed opacity-50'
+              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 active:scale-95'
+          }`}
         >
           <span>◀</span>
           <span>Previous</span>
         </button>
 
-        <div className="flex-1 text-center py-2 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800 shadow-inner min-h-[38px] flex items-center justify-center">
-          <span className="text-xs font-bold text-gray-800 dark:text-white truncate max-w-[200px]">
+        <div className="flex-1 text-center py-2 bg-gray-50 dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-800 shadow-inner min-h-[38px] flex items-center justify-center gap-2">
+          <span className="text-xs font-bold text-gray-800 dark:text-white truncate max-w-[160px]">
             {selectedDateFormatted}
           </span>
+          {isSubUser && (
+            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[9px] font-bold uppercase tracking-wide flex-shrink-0">
+              Today only
+            </span>
+          )}
         </div>
 
         <button
           onClick={handleNextDay}
-          className="flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 transition-all shadow-sm active:scale-95 min-h-[38px]"
+          disabled={isSubUser}
+          className={`flex items-center gap-1.5 px-3 py-2 border rounded-xl text-xs font-semibold transition-all shadow-sm min-h-[38px] ${
+            isSubUser
+              ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed opacity-50'
+              : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 active:scale-95'
+          }`}
         >
           <span>Next</span>
           <span>▶</span>
         </button>
       </div>
 
-      {/* Date Picker */}
-      <div className="px-4 mb-3">
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
-        />
-      </div>
+      {/* Date Picker — hidden for sub-users */}
+      {!isSubUser && (
+        <div className="px-4 mb-3">
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+          />
+        </div>
+      )}
 
       {/* Location Filter Pills */}
       <div className="px-4 mb-4">
