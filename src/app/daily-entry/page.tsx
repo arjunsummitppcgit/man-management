@@ -188,19 +188,21 @@ export default function DailyEntryPage() {
   const { showToast } = useToast();
   const { isSubUser } = useAuth();
   const TODAY = new Date().toISOString().split('T')[0];
+  const YESTERDAY = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(TODAY);
   const [selectedLocation, setSelectedLocation] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('workforce');
   const [saving, setSaving] = useState(false);
   const [isConfirmSaveModalOpen, setIsConfirmSaveModalOpen] = useState(false);
 
-  // Sub-users: always lock date to today
+  // Sub-users: restrict date to today or yesterday only.
+  // If the current selection is outside that window, snap it back to today.
   useEffect(() => {
-    if (isSubUser) {
+    if (isSubUser && selectedDate !== TODAY && selectedDate !== YESTERDAY) {
       setSelectedDate(TODAY);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSubUser]);
+  }, [isSubUser, selectedDate]);
 
 
   // Hooks
@@ -502,13 +504,18 @@ export default function DailyEntryPage() {
       <div className="sticky top-0 z-10 bg-gray-50 px-4 pb-3 space-y-2">
         <div className="grid grid-cols-2 gap-2">
           {isSubUser ? (
-            // Sub-user: read-only date display with "Today Only" badge
-            <div className="relative px-3 py-2.5 bg-gray-100 border border-gray-200 rounded-xl text-sm text-gray-500 flex items-center gap-2">
-              <span className="font-medium text-gray-600">{selectedDate}</span>
-              <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[9px] font-bold uppercase tracking-wide flex-shrink-0">
-                Today only
-              </span>
-            </div>
+            // Sub-user: date picker limited to yesterday–today
+            <input
+              type="date"
+              value={selectedDate}
+              min={YESTERDAY}
+              max={TODAY}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === TODAY || val === YESTERDAY) setSelectedDate(val);
+              }}
+              className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500"
+            />
           ) : (
             <input
               type="date"

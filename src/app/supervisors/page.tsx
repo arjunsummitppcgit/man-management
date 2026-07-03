@@ -5,6 +5,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useSupervisors } from '@/hooks/useSupervisors';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase/client';
 import type { Supervisor } from '@/types';
 
@@ -147,6 +148,7 @@ interface AttendanceByDateRecord {
 
 export default function SupervisorsPage() {
   const { showToast } = useToast();
+  const { isSubUser } = useAuth();
   const { supervisors, loading, fetchSupervisors, addSupervisor, updateSupervisor, deactivateSupervisor } = useSupervisors();
   const [mainView, setMainView] = useState<'list' | 'attendance'>('list');
   const [searchQuery, setSearchQuery] = useState('');
@@ -273,34 +275,36 @@ export default function SupervisorsPage() {
         }
       />
 
-      {/* Segmented Control */}
-      <div className="px-4 mb-4">
-        <div className="flex bg-gray-100 rounded-xl p-1">
-          <button
-            onClick={() => setMainView('list')}
-            className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
-              mainView === 'list'
-                ? 'bg-white text-teal-600 shadow-sm'
-                : 'text-gray-500'
-            }`}
-          >
-            List
-          </button>
-          <button
-            onClick={() => setMainView('attendance')}
-            className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
-              mainView === 'attendance'
-                ? 'bg-white text-teal-600 shadow-sm'
-                : 'text-gray-500'
-            }`}
-          >
-            Attendance
-          </button>
+      {/* Segmented Control — Attendance view is admin-only */}
+      {!isSubUser && (
+        <div className="px-4 mb-4">
+          <div className="flex bg-gray-100 rounded-xl p-1">
+            <button
+              onClick={() => setMainView('list')}
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                mainView === 'list'
+                  ? 'bg-white text-teal-600 shadow-sm'
+                  : 'text-gray-500'
+              }`}
+            >
+              List
+            </button>
+            <button
+              onClick={() => setMainView('attendance')}
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                mainView === 'attendance'
+                  ? 'bg-white text-teal-600 shadow-sm'
+                  : 'text-gray-500'
+              }`}
+            >
+              Attendance
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* List View */}
-      {mainView === 'list' && (
+      {(mainView === 'list' || isSubUser) && (
         <div className="px-4 space-y-3 animate-fade-in">
           {/* Search */}
           <div className="relative">
@@ -390,8 +394,8 @@ export default function SupervisorsPage() {
         </div>
       )}
 
-      {/* Attendance View */}
-      {mainView === 'attendance' && (
+      {/* Attendance View — admin only */}
+      {mainView === 'attendance' && !isSubUser && (
         <div className="px-4 space-y-3 animate-fade-in">
           <select
             value={selectedSupervisorId}

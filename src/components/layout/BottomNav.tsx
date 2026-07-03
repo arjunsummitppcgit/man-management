@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TabItem {
   label: string;
@@ -69,14 +70,20 @@ const tabs: TabItem[] = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { isSubUser } = useAuth();
 
   // Don't show nav on login page
   if (pathname === '/login') return null;
 
+  // Sub-users cannot access Attendance — admin only
+  const visibleTabs = isSubUser
+    ? tabs.filter((tab) => tab.path !== '/monthly-attendance')
+    : tabs;
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
       <div className="max-w-lg mx-auto flex items-center justify-around h-16 pb-safe">
-        {tabs.map((tab) => {
+        {visibleTabs.map((tab) => {
           const isActive = tab.path === '/' ? pathname === '/' : pathname.startsWith(tab.path);
           return (
             <Link

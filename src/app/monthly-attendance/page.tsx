@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/layout/PageHeader';
 import { supabase } from '@/lib/supabase/client';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
+import { useAuth } from '@/hooks/useAuth';
 import { getDaysInMonth } from 'date-fns';
 
 const MONTHS = [
@@ -40,6 +42,8 @@ interface AssignmentRecord {
 
 export default function MonthlyAttendancePage() {
   const now = new Date();
+  const router = useRouter();
+  const { isSubUser, loading: authLoading } = useAuth();
   const { showToast } = useToast();
   const [month, setMonth] = useState(now.getMonth() + 1); // 1-indexed
   const [year, setYear] = useState(now.getFullYear());
@@ -59,6 +63,13 @@ export default function MonthlyAttendancePage() {
     locationId: string;
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Attendance is admin-only — send sub-users back to the dashboard
+  useEffect(() => {
+    if (!authLoading && isSubUser) {
+      router.replace('/');
+    }
+  }, [authLoading, isSubUser, router]);
 
   // Fetch data when month or year changes
   useEffect(() => {
@@ -266,6 +277,15 @@ export default function MonthlyAttendancePage() {
       };
     });
   }, [supervisors, daysInMonth, assignmentLookup]);
+
+  // Block rendering for sub-users while the redirect kicks in
+  if (authLoading || isSubUser) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <LoadingSpinner />
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in pb-10">

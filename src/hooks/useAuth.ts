@@ -8,7 +8,6 @@ import type { User } from '@supabase/supabase-js';
 // These 4 accounts are restricted to today's date only.
 // Admin is anyone NOT in this list.
 const SUB_USER_EMAILS = [
-  'sudheer@ppc.com',
   'ramakrishna@ppc.com',
   'sairam@ppc.com',
   'manisha@ppc.com',

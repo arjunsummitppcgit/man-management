@@ -8,6 +8,7 @@ import { useLocations } from '@/hooks/useLocations';
 import { supabase } from '@/lib/supabase/client';
 import { exportToPDF, exportToExcel } from '@/lib/export';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import { useAuth } from '@/hooks/useAuth';
 
 
 const REPORT_TYPES = [
@@ -22,6 +23,11 @@ export default function SettingsPage() {
   const { showToast } = useToast();
   const router = useRouter();
   const { locations } = useLocations();
+  const { isSubUser } = useAuth();
+  // Sub-users cannot access attendance reports — admin only
+  const reportTypes = isSubUser
+    ? REPORT_TYPES.filter((type) => type !== 'Supervisor Attendance')
+    : REPORT_TYPES;
   const [reportType, setReportType] = useState(REPORT_TYPES[0]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -317,7 +323,7 @@ export default function SettingsPage() {
                 onChange={(e) => setReportType(e.target.value)}
                 className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 appearance-none"
               >
-                {REPORT_TYPES.map((type) => (
+                {reportTypes.map((type) => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
