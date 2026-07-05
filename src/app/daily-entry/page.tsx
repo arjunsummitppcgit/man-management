@@ -12,7 +12,9 @@ import { useSanitization } from '@/hooks/useSanitization';
 import { useProcessing } from '@/hooks/useProcessing';
 import { useSupervisors } from '@/hooks/useSupervisors';
 import { useAuth } from '@/hooks/useAuth';
-import type { Supervisor, TabType } from '@/types';
+import { useYield } from '@/hooks/useYield';
+import { lookupStandardYield, lookupCountRange, calculateYield, calculateYieldDifference, YIELD_CHART } from '@/lib/yieldChart';
+import type { Supervisor, TabType, YieldFormRow } from '@/types';
 
 // ─── Supervisor Dropdown Component ───────────────────────────────────────────
 interface SupervisorDropdownProps {
@@ -233,6 +235,12 @@ export default function DailyEntryPage() {
     loading: supervisorsLoading,
     fetchSupervisors,
   } = useSupervisors();
+  const {
+    entries: yieldEntries,
+    loading: yieldLoading,
+    fetchYieldEntries,
+    saveYieldEntries,
+  } = useYield();
 
   // Workforce form state
   const [workforce, setWorkforce] = useState({
@@ -275,6 +283,19 @@ export default function DailyEntryPage() {
   const [headlessToVa, setHeadlessToVa] = useState('');
   const [notes, setNotes] = useState('');
 
+  // Yield form state — array of batch rows
+  const emptyYieldRow = useCallback((): YieldFormRow => ({
+    batch_id: '',
+    count_text: '',
+    count_range: '',
+    hon_kgs: '',
+    hl_kgs: '',
+    location_id: '',
+    grader_name: '',
+  }), []);
+
+  const [yieldRows, setYieldRows] = useState<YieldFormRow[]>([]);
+
   // Set default location when locations load
   useEffect(() => {
     if (locations.length > 0 && !selectedLocation) {
@@ -284,17 +305,22 @@ export default function DailyEntryPage() {
 
   // Fetch data when date, location, or active tab changes
   useEffect(() => {
-    if (!selectedDate || !selectedLocation) return;
+    if (!selectedDate) return;
 
-    if (activeTab === 'workforce') {
-      fetchWorkforce(selectedDate, selectedLocation);
-      fetchSupervisors();
-    } else if (activeTab === 'sanitization') {
-      fetchSanitization(selectedDate, selectedLocation);
-    } else if (activeTab === 'processing') {
-      fetchProcessing(selectedDate, selectedLocation);
+    if (activeTab === 'yield') {
+      // Yield tab fetches by date only (not location-specific)
+      fetchYieldEntries(selectedDate);
+    } else if (selectedLocation) {
+      if (activeTab === 'workforce') {
+        fetchWorkforce(selectedDate, selectedLocation);
+        fetchSupervisors();
+      } else if (activeTab === 'sanitization') {
+        fetchSanitization(selectedDate, selectedLocation);
+      } else if (activeTab === 'processing') {
+        fetchProcessing(selectedDate, selectedLocation);
+      }
     }
-  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing]);
+  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing, fetchYieldEntries]);
 
   // Pre-populate workforce form from fetched data
   useEffect(() => {
@@ -388,6 +414,25 @@ export default function DailyEntryPage() {
     }
   }, [processingData]);
 
+  // Pre-populate yield rows from fetched data
+  useEffect(() => {
+    if (yieldEntries.length > 0) {
+      setYieldRows(yieldEntries.map((e) => ({
+        id: e.id,
+        batch_id: e.batch_id,
+        count_text: e.count_text,
+        count_range: e.count_range,
+        hon_kgs: e.hon_kgs?.toString() ?? '',
+        hl_kgs: e.hl_kgs?.toString() ?? '',
+        location_id: e.location_id,
+        grader_name: e.grader_name,
+      })));
+    } else if (activeTab === 'yield') {
+      setYieldRows([emptyYieldRow()]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [yieldEntries]);
+
   const labourTotal =
     workforce.labour_kg_basic +
     workforce.labour_daily_wage +
@@ -449,6 +494,20 @@ export default function DailyEntryPage() {
           headless_to_va: Math.max(0, parseFloat(headlessToVa) || 0),
           notes,
         });
+      } else if (activeTab === 'yield') {
+        // Filter out rows with empty batch_id
+        const validRows = yieldRows
+          .filter((r) => r.batch_id.trim() !== '')
+          .map((r) => ({
+            batch_id: r.batch_id,
+            count_text: r.count_text,
+            count_range: lookupCountRange(r.count_text) || r.count_range || '',
+            hon_kgs: Math.max(0, parseFloat(r.hon_kgs) || 0),
+            hl_kgs: Math.max(0, parseFloat(r.hl_kgs) || 0),
+            location_id: r.location_id || locations[0]?.id || '',
+            grader_name: r.grader_name,
+          }));
+        await saveYieldEntries(selectedDate, validRows);
       }
       showToast(
         `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} data saved successfully!`,
@@ -467,12 +526,14 @@ export default function DailyEntryPage() {
     { key: 'workforce', label: 'Workforce' },
     { key: 'sanitization', label: 'Sanitization' },
     { key: 'processing', label: 'Processing' },
+    { key: 'yield', label: 'Yield' },
   ];
 
   const isDataLoading =
     (activeTab === 'workforce' && (workforceLoading || supervisorsLoading)) ||
     (activeTab === 'sanitization' && sanitizationLoading) ||
-    (activeTab === 'processing' && processingLoading);
+    (activeTab === 'processing' && processingLoading) ||
+    (activeTab === 'yield' && yieldLoading);
 
   // Show loading spinner while locations are loading
   if (locationsLoading) {
@@ -1001,6 +1062,263 @@ export default function DailyEntryPage() {
                     </>
                   ) : (
                     'Save Processing Data'
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* ─── Yield Tab ─────────────────────────────────────────────── */}
+            {activeTab === 'yield' && (
+              <div className="animate-fade-in space-y-4">
+                {/* Standard Yield Reference Chart */}
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById('yield-chart-panel');
+                      if (el) el.classList.toggle('hidden');
+                    }}
+                    className="w-full flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">📊</span>
+                      <span className="text-sm font-semibold text-gray-700">Standard Yield Chart</span>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  <div id="yield-chart-panel" className="hidden mt-3 border-t border-gray-100 pt-3">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {YIELD_CHART.map((entry) => (
+                        <div key={entry.label} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                          <span className="text-xs font-medium text-gray-600">{entry.label}</span>
+                          <span className="text-xs font-bold text-teal-700">{entry.standardYield.toFixed(2)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Batch Rows */}
+                {yieldRows.map((row, idx) => {
+                  const honNum = parseFloat(row.hon_kgs) || 0;
+                  const hlNum = parseFloat(row.hl_kgs) || 0;
+                  const yieldPct = calculateYield(honNum, hlNum);
+                  const stdYield = lookupStandardYield(row.count_text);
+                  const yieldDiff = calculateYieldDifference(yieldPct, stdYield);
+
+                  return (
+                    <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+                      {/* Row header */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-700">Batch #{idx + 1}</span>
+                        {yieldRows.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setYieldRows((prev) => prev.filter((_, i) => i !== idx));
+                            }}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Row 1: Batch ID + Count */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">Batch ID</label>
+                          <input
+                            type="text"
+                            value={row.batch_id}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, batch_id: val } : r));
+                            }}
+                            placeholder="e.g. 26G 1/8"
+                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">Count</label>
+                          <input
+                            type="text"
+                            value={row.count_text}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, count_text: val, count_range: lookupCountRange(val) || '' } : r));
+                            }}
+                            placeholder="e.g. 37.75/40"
+                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Row 2: HON + HL */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">HON (KGS)</label>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.001"
+                            value={row.hon_kgs}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, hon_kgs: val } : r));
+                            }}
+                            placeholder="0.000"
+                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">HL (KGS)</label>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.001"
+                            value={row.hl_kgs}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, hl_kgs: val } : r));
+                            }}
+                            placeholder="0.000"
+                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Row 3: Location + Grader */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">Location</label>
+                          <select
+                            value={row.location_id}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, location_id: val } : r));
+                            }}
+                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 appearance-none"
+                          >
+                            <option value="">Select...</option>
+                            {locations.map((loc) => (
+                              <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">Grader Name</label>
+                          <input
+                            type="text"
+                            value={row.grader_name}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, grader_name: val } : r));
+                            }}
+                            placeholder="Name"
+                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Auto-calculated values */}
+                      {honNum > 0 && hlNum > 0 && (
+                        <div className="grid grid-cols-3 gap-2 pt-1">
+                          <div className="bg-blue-50 rounded-xl px-2 py-2 text-center">
+                            <p className="text-[9px] text-blue-500 font-medium uppercase tracking-wide">Yield</p>
+                            <p className="text-sm font-bold text-blue-700 mt-0.5">
+                              {yieldPct !== null ? `${yieldPct.toFixed(2)}%` : '—'}
+                            </p>
+                          </div>
+                          <div className="bg-purple-50 rounded-xl px-2 py-2 text-center">
+                            <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide">Std Yield</p>
+                            <p className="text-sm font-bold text-purple-700 mt-0.5">
+                              {stdYield !== null ? `${stdYield.toFixed(2)}%` : '—'}
+                            </p>
+                          </div>
+                          <div className={`rounded-xl px-2 py-2 text-center ${
+                            yieldDiff !== null && yieldDiff >= 0
+                              ? 'bg-emerald-50'
+                              : 'bg-rose-50'
+                          }`}>
+                            <p className={`text-[9px] font-medium uppercase tracking-wide ${
+                              yieldDiff !== null && yieldDiff >= 0
+                                ? 'text-emerald-500'
+                                : 'text-rose-500'
+                            }`}>Difference</p>
+                            <p className={`text-sm font-bold mt-0.5 ${
+                              yieldDiff !== null && yieldDiff >= 0
+                                ? 'text-emerald-700'
+                                : 'text-rose-700'
+                            }`}>
+                              {yieldDiff !== null ? `${yieldDiff >= 0 ? '+' : ''}${yieldDiff.toFixed(2)}%` : '—'}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Add Batch Button */}
+                <button
+                  type="button"
+                  onClick={() => setYieldRows((prev) => [...prev, emptyYieldRow()])}
+                  className="w-full py-3 border-2 border-dashed border-gray-200 rounded-2xl text-sm font-semibold text-gray-500 hover:border-teal-300 hover:text-teal-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Add Batch
+                </button>
+
+                {/* Totals Banner */}
+                {yieldRows.some((r) => parseFloat(r.hon_kgs) > 0 || parseFloat(r.hl_kgs) > 0) && (
+                  <div className="bg-gradient-to-r from-teal-50 to-teal-100/50 rounded-2xl p-4 border border-teal-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">📋</span>
+                      <span className="text-sm font-semibold text-teal-700">Totals</span>
+                      <span className="ml-auto px-2 py-0.5 bg-teal-600 text-white rounded-full text-[10px] font-bold">
+                        {yieldRows.filter((r) => r.batch_id.trim() !== '').length} batches
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white/70 rounded-xl px-3 py-2.5 text-center">
+                        <p className="text-[10px] text-teal-600 font-medium uppercase tracking-wide">Total HON</p>
+                        <p className="text-lg font-bold text-teal-800">
+                          {yieldRows.reduce((sum, r) => sum + (parseFloat(r.hon_kgs) || 0), 0).toFixed(1)} kg
+                        </p>
+                      </div>
+                      <div className="bg-white/70 rounded-xl px-3 py-2.5 text-center">
+                        <p className="text-[10px] text-teal-600 font-medium uppercase tracking-wide">Total HL</p>
+                        <p className="text-lg font-bold text-teal-800">
+                          {yieldRows.reduce((sum, r) => sum + (parseFloat(r.hl_kgs) || 0), 0).toFixed(1)} kg
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Save Button */}
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white font-semibold rounded-xl shadow-lg shadow-teal-600/25 transition-all disabled:opacity-50 min-h-[48px] flex items-center justify-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Yield Data'
                   )}
                 </button>
               </div>

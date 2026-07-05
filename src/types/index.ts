@@ -222,4 +222,33 @@ export interface SupervisorAttendanceRecord {
   is_present: number;
 }
 
-export type TabType = 'workforce' | 'sanitization' | 'processing';
+export type TabType = 'workforce' | 'sanitization' | 'processing' | 'yield';
+
+// ─── Yield Report Types ──────────────────────────────────────────────────────
+
+export interface YieldEntry {
+  id: string;
+  work_date: string;
+  batch_id: string;
+  count_text: string;
+  count_range: string;
+  hon_kgs: number;
+  hl_kgs: number;
+  location_id: string;
+  grader_name: string;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  location?: Location;
+}
+
+export interface YieldFormRow {
+  id?: string;        // existing DB id (undefined for new unsaved rows)
+  batch_id: string;
+  count_text: string;
+  count_range: string;
+  hon_kgs: string;    // string for input binding
+  hl_kgs: string;     // string for input binding
+  location_id: string;
+  grader_name: string;
+}
