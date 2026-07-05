@@ -47,7 +47,7 @@ export default function YieldReportPage() {
 
   return (
     <div className="animate-fade-in pb-20 lg:pb-6">
-      <PageHeader title="Yield Report" />
+      <PageHeader title="Daily Report" />
 
       <div className="px-4 mt-2 space-y-4">
         {/* Date Selector */}

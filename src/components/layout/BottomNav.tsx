@@ -30,7 +30,7 @@ const tabs: TabItem[] = [
     ),
   },
   {
-    label: 'Yield',
+    label: 'Daily Report',
     path: '/yield-report',
     icon: (active) => (
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={`w-6 h-6 ${active ? 'text-teal-600' : 'text-gray-400'}`}>
