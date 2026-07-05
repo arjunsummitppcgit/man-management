@@ -134,8 +134,8 @@ export default function YieldReportPage() {
                     const diff = calculateYieldDifference(yieldPct, stdYield);
 
                     return (
-                      <tr key={entry.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white/95 backdrop-blur-sm z-10 shadow-[1px_0_0_0_#f3f4f6]">
+                      <tr key={entry.id} className="hover:bg-gray-50/50 transition-colors group">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white group-hover:bg-gray-50 z-10 shadow-[1px_0_0_0_#f3f4f6]">
                           {entry.batch_id}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
