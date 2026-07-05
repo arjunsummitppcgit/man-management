@@ -147,10 +147,10 @@ export default function YieldReportPage() {
                         <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">
                           {hlNum.toFixed(3)}
                         </td>
-                        <td className="px-4 py-3 text-sm text-blue-700 whitespace-nowrap text-right font-bold bg-blue-50/30">
+                        <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-bold">
                           {yieldPct !== null ? `${yieldPct.toFixed(2)}%` : '-'}
                         </td>
-                        <td className="px-4 py-3 text-sm text-purple-700 whitespace-nowrap text-right font-bold bg-purple-50/30">
+                        <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-bold">
                           {stdYield !== null ? `${stdYield.toFixed(2)}%` : '-'}
                         </td>
                         <td className="px-4 py-3 text-sm whitespace-nowrap text-right">
@@ -193,7 +193,7 @@ export default function YieldReportPage() {
                     <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">
                       {totalHl.toFixed(3)}
                     </td>
-                    <td className="px-4 py-3 text-sm font-bold text-teal-700 whitespace-nowrap text-right bg-blue-50/50">
+                    <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">
                       {totalYieldPct !== null ? `${totalYieldPct.toFixed(2)}%` : '-'}
                     </td>
                     <td className="px-4 py-3"></td>
