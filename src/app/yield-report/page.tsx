@@ -394,14 +394,14 @@ export default function YieldReportPage() {
                   </tbody>
                   <tfoot>
                     <tr className="bg-amber-50 dark:bg-amber-900/20 border-t-2 border-amber-100 dark:border-amber-800">
-                      <td className="px-4 py-3 text-sm font-bold text-amber-900 whitespace-nowrap sticky left-0 bg-amber-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#fef3c7] dark:shadow-[1px_0_0_0_#92400e]">TOTAL</td>
-                      <td className="px-4 py-3 text-sm font-bold text-amber-900 whitespace-nowrap text-right">{nllTotals.totalLadies}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-amber-900 whitespace-nowrap text-right">{nllTotals.totalHlQty.toFixed(0)}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-amber-900 whitespace-nowrap text-right">{nllTotals.totalPdQty.toFixed(0)}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-amber-900 whitespace-nowrap text-right">{nllTotals.totalQty.toFixed(0)}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-amber-900 dark:text-amber-400 whitespace-nowrap sticky left-0 bg-amber-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#fef3c7] dark:shadow-[1px_0_0_0_#92400e]">TOTAL</td>
+                      <td className="px-4 py-3 text-sm font-bold text-amber-900 dark:text-amber-400 whitespace-nowrap text-right">{nllTotals.totalLadies}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-amber-900 dark:text-amber-400 whitespace-nowrap text-right">{nllTotals.totalHlQty.toFixed(0)}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-amber-900 dark:text-amber-400 whitespace-nowrap text-right">{nllTotals.totalPdQty.toFixed(0)}</td>
+                      <td className="px-4 py-3 text-sm font-bold text-amber-900 dark:text-amber-400 whitespace-nowrap text-right">{nllTotals.totalQty.toFixed(0)}</td>
                       <td className="px-4 py-3 bg-amber-50/40 dark:bg-amber-900/10"></td>
                       <td className="px-4 py-3">
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total P&amp;L</span>
+                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total P&amp;L</span>
                       </td>
                       <td className="px-4 py-3"></td>
                       <td className="px-4 py-3 text-sm font-bold whitespace-nowrap text-right">
@@ -412,11 +412,11 @@ export default function YieldReportPage() {
                     </tr>
                     {/* Cost Per KG row */}
                     <tr className="bg-amber-100/60 dark:bg-amber-900/30 border-t border-amber-200 dark:border-amber-700">
-                      <td className="px-4 py-2 text-xs font-bold text-amber-800 uppercase tracking-wider whitespace-nowrap sticky left-0 bg-amber-100/60 dark:bg-gray-900 z-10" colSpan={3}>
+                      <td className="px-4 py-2 text-xs font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider whitespace-nowrap sticky left-0 bg-amber-100/60 dark:bg-gray-900 z-10" colSpan={3}>
                         Cost Per KG (Approx)
                       </td>
                       <td className="px-4 py-2" colSpan={2}></td>
-                      <td className="px-4 py-2 text-sm font-bold text-amber-800 text-right" colSpan={4}>
+                      <td className="px-4 py-2 text-sm font-bold text-amber-800 dark:text-amber-400 text-right" colSpan={4}>
                         {costPerKg !== null ? costPerKg.toFixed(2) : '-'}
                       </td>
                     </tr>
