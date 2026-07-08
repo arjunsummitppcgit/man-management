@@ -23,8 +23,6 @@ export default function YieldReportPage() {
   const [locationFilter, setLocationFilter] = useState('All');
   const [graderFilter, setGraderFilter] = useState('All');
 
-  // ── Non Local Ladies filter ────────────────────────────────────────────────
-  const [nllBatchFilter, setNllBatchFilter] = useState('All');
 
   // For sub-users, restrict the date selector to today or yesterday
   useEffect(() => {
@@ -98,20 +96,9 @@ export default function YieldReportPage() {
     }
   }, [selectedDate, fetchNllEntries]);
 
-  // Derive batch name options
-  const nllBatchNames = useMemo(() => {
-    return Array.from(new Set(nllEntries.map((e) => e.batch_name))).sort();
-  }, [nllEntries]);
-
-  // Apply batch filter
-  const filteredNllEntries = useMemo(() => {
-    if (nllBatchFilter === 'All') return nllEntries;
-    return nllEntries.filter((e) => e.batch_name === nllBatchFilter);
-  }, [nllEntries, nllBatchFilter]);
-
   // Non Local Ladies totals
   const nllTotals = useMemo(() => {
-    return filteredNllEntries.reduce(
+    return nllEntries.reduce(
       (acc, entry) => {
         const noLadies = Number(entry.no_of_ladies) || 0;
         const hlQty = Number(entry.hl_qty) || 0;
@@ -131,7 +118,7 @@ export default function YieldReportPage() {
       },
       { totalLadies: 0, totalHlQty: 0, totalPdQty: 0, totalQty: 0, totalPnl: 0, totalSalaryPaid: 0 }
     );
-  }, [filteredNllEntries]);
+  }, [nllEntries]);
 
   // Cost Per KG = Total Salary Paid / Total HL QTY
   const costPerKg = nllTotals.totalHlQty > 0
@@ -309,23 +296,6 @@ export default function YieldReportPage() {
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Non Local Ladies</h2>
           </div>
 
-          {/* Batch Name Filter */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <div className="max-w-xs">
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Batch Name</label>
-              <select
-                value={nllBatchFilter}
-                onChange={(e) => setNllBatchFilter(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
-              >
-                <option value="All">All Batches</option>
-                {nllBatchNames.map((name) => (
-                  <option key={name} value={name}>{name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
           {/* Non Local Ladies Table */}
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             {nllLoading ? (
@@ -337,12 +307,6 @@ export default function YieldReportPage() {
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 mb-3 text-amber-600 text-xl">👩</div>
                 <p className="text-sm font-semibold text-gray-900">No Data Available</p>
                 <p className="text-sm text-gray-500 mt-1">There are no non-local ladies entries for {selectedDate}.</p>
-              </div>
-            ) : filteredNllEntries.length === 0 ? (
-              <div className="p-8 text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 mb-3 text-amber-600 text-xl">🔍</div>
-                <p className="text-sm font-semibold text-gray-900">No Matches Found</p>
-                <p className="text-sm text-gray-500 mt-1">Try adjusting the batch filter.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -361,7 +325,7 @@ export default function YieldReportPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {filteredNllEntries.map((entry) => {
+                    {nllEntries.map((entry) => {
                       const noLadies = Number(entry.no_of_ladies) || 0;
                       const hlQty = Number(entry.hl_qty) || 0;
                       const pdQty = Number(entry.pd_qty) || 0;
