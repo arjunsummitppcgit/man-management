@@ -6,7 +6,9 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
+import { useGradesVa } from '@/hooks/useGradesVa';
 import { calculateYield, lookupStandardYield, calculateYieldDifference } from '@/lib/yieldChart';
+import { VA_GRADES, VA_COLUMNS, formatVaQty, type VaColumnKey } from '@/lib/gradesVa';
 
 const SALARY_BASIC = 350;
 
@@ -124,6 +126,157 @@ export default function YieldReportPage() {
   const costPerKg = nllTotals.totalHlQty > 0
     ? nllTotals.totalSalaryPaid / nllTotals.totalHlQty
     : null;
+
+  // ── Grades vs V/A data ─────────────────────────────────────────────────────
+  const MONTH_START = TODAY.slice(0, 8) + '01';
+  const [gvaFrom, setGvaFrom] = useState(MONTH_START);
+  const [gvaTo, setGvaTo] = useState(TODAY);
+  const [gvaGradeFilter, setGvaGradeFilter] = useState<string[]>([]);      // empty = all grades
+  const [gvaColFilter, setGvaColFilter] = useState<VaColumnKey[]>([]);     // empty = all columns
+  const [gvaMinTotal, setGvaMinTotal] = useState('');                       // min total KGS threshold
+  const [gvaShowDaily, setGvaShowDaily] = useState(false);
+
+  // Sub-users: clamp range to yesterday–today
+  useEffect(() => {
+    if (isSubUser) {
+      if (gvaFrom < YESTERDAY) setGvaFrom(YESTERDAY);
+      if (gvaTo > TODAY) setGvaTo(TODAY);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSubUser, gvaFrom, gvaTo]);
+
+  const { rangeEntries: gvaEntries, rangeLoading: gvaLoading, fetchRange: fetchGvaRange } = useGradesVa();
+
+  useEffect(() => {
+    if (gvaFrom && gvaTo && gvaFrom <= gvaTo) {
+      fetchGvaRange(gvaFrom, gvaTo);
+    }
+  }, [gvaFrom, gvaTo, fetchGvaRange]);
+
+  // Active columns = selected or all
+  const activeVaColumns = useMemo(
+    () => (gvaColFilter.length === 0 ? [...VA_COLUMNS] : VA_COLUMNS.filter((c) => gvaColFilter.includes(c.key))),
+    [gvaColFilter]
+  );
+
+  // Aggregate range entries by grade (over active columns only)
+  const gvaByGrade = useMemo(() => {
+    const map = new Map<string, Record<VaColumnKey, number> & { total: number; days: number }>();
+    VA_GRADES.forEach((g) => {
+      map.set(g, { pd: 0, pdto: 0, ezpl: 0, pvpd: 0, pvpdto: 0, total: 0, days: 0 });
+    });
+    gvaEntries.forEach((e) => {
+      let agg = map.get(e.grade);
+      if (!agg) {
+        agg = { pd: 0, pdto: 0, ezpl: 0, pvpd: 0, pvpdto: 0, total: 0, days: 0 };
+        map.set(e.grade, agg);
+      }
+      agg.pd += Number(e.pd) || 0;
+      agg.pdto += Number(e.pdto) || 0;
+      agg.ezpl += Number(e.ezpl) || 0;
+      agg.pvpd += Number(e.pvpd) || 0;
+      agg.pvpdto += Number(e.pvpdto) || 0;
+      agg.days += 1;
+    });
+    // Total = sum of ACTIVE columns only (so column filter drives the total)
+    map.forEach((agg) => {
+      agg.total = activeVaColumns.reduce((sum, col) => sum + agg[col.key], 0);
+    });
+    return map;
+  }, [gvaEntries, activeVaColumns]);
+
+  // Grade rows after grade + min-total filters (keeps register order, includes extra grades from DB)
+  const gvaRows = useMemo(() => {
+    const knownGrades = [...VA_GRADES] as string[];
+    const extraGrades = Array.from(gvaByGrade.keys()).filter((g) => !knownGrades.includes(g)).sort();
+    const orderedGrades = [...knownGrades, ...extraGrades];
+    const minTotal = parseFloat(gvaMinTotal) || 0;
+
+    return orderedGrades
+      .filter((g) => gvaGradeFilter.length === 0 || gvaGradeFilter.includes(g))
+      .map((g) => ({ grade: g, ...gvaByGrade.get(g)! }))
+      .filter((r) => r.total > 0)
+      .filter((r) => r.total >= minTotal);
+  }, [gvaByGrade, gvaGradeFilter, gvaMinTotal]);
+
+  // Column totals + per-column highest grade (for highlights & summary)
+  const gvaColumnStats = useMemo(() => {
+    const stats = {} as Record<VaColumnKey, { total: number; maxGrade: string | null; maxValue: number }>;
+    VA_COLUMNS.forEach((col) => {
+      let total = 0;
+      let maxGrade: string | null = null;
+      let maxValue = 0;
+      gvaRows.forEach((r) => {
+        const v = r[col.key];
+        total += v;
+        if (v > maxValue) {
+          maxValue = v;
+          maxGrade = r.grade;
+        }
+      });
+      stats[col.key] = { total, maxGrade, maxValue };
+    });
+    return stats;
+  }, [gvaRows]);
+
+  const gvaGrandTotal = useMemo(
+    () => gvaRows.reduce((sum, r) => sum + r.total, 0),
+    [gvaRows]
+  );
+
+  const gvaTopGrade = useMemo(() => {
+    let top: { grade: string; total: number } | null = null;
+    gvaRows.forEach((r) => {
+      if (!top || r.total > top.total) top = { grade: r.grade, total: r.total };
+    });
+    return top as { grade: string; total: number } | null;
+  }, [gvaRows]);
+
+  // Daily breakdown rows (date-wise, respecting grade filter)
+  const gvaDailyRows = useMemo(() => {
+    if (!gvaShowDaily) return [];
+    return gvaEntries
+      .filter((e) => gvaGradeFilter.length === 0 || gvaGradeFilter.includes(e.grade))
+      .map((e) => {
+        const total = activeVaColumns.reduce((sum, col) => sum + (Number(e[col.key]) || 0), 0);
+        return { ...e, computedTotal: total };
+      })
+      .filter((e) => e.computedTotal > 0);
+  }, [gvaShowDaily, gvaEntries, gvaGradeFilter, activeVaColumns]);
+
+  const toggleGvaGrade = (grade: string) => {
+    setGvaGradeFilter((prev) =>
+      prev.includes(grade) ? prev.filter((g) => g !== grade) : [...prev, grade]
+    );
+  };
+
+  const toggleGvaCol = (key: VaColumnKey) => {
+    setGvaColFilter((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
+  // Quick range presets
+  const applyGvaPreset = (preset: 'today' | 'yesterday' | 'last7' | 'thisMonth' | 'lastMonth') => {
+    const now = new Date();
+    const iso = (d: Date) => d.toISOString().split('T')[0];
+    if (preset === 'today') {
+      setGvaFrom(TODAY); setGvaTo(TODAY);
+    } else if (preset === 'yesterday') {
+      setGvaFrom(YESTERDAY); setGvaTo(YESTERDAY);
+    } else if (preset === 'last7') {
+      setGvaFrom(iso(new Date(Date.now() - 6 * 86400000))); setGvaTo(TODAY);
+    } else if (preset === 'thisMonth') {
+      setGvaFrom(MONTH_START); setGvaTo(TODAY);
+    } else if (preset === 'lastMonth') {
+      const firstLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endLast = new Date(now.getFullYear(), now.getMonth(), 0);
+      // Use UTC-safe manual formatting to avoid timezone shifts
+      const pad = (n: number) => String(n).padStart(2, '0');
+      setGvaFrom(`${firstLast.getFullYear()}-${pad(firstLast.getMonth() + 1)}-${pad(firstLast.getDate())}`);
+      setGvaTo(`${endLast.getFullYear()}-${pad(endLast.getMonth() + 1)}-${pad(endLast.getDate())}`);
+    }
+  };
 
   return (
     <div className="animate-fade-in pb-20 lg:pb-6">
@@ -389,6 +542,284 @@ export default function YieldReportPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            SECTION 3: GRADES VS VALUE ADDITION (V/A)
+        ═══════════════════════════════════════════════════════════════════ */}
+        <div className="space-y-4">
+          <div className="pt-2 pb-1">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Grades vs V/A</h2>
+          </div>
+
+          {/* Date Range + Presets */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">From Date</label>
+                <input
+                  type="date"
+                  value={gvaFrom}
+                  min={isSubUser ? YESTERDAY : undefined}
+                  max={isSubUser ? TODAY : gvaTo}
+                  onChange={(e) => setGvaFrom(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">To Date</label>
+                <input
+                  type="date"
+                  value={gvaTo}
+                  min={isSubUser ? YESTERDAY : gvaFrom}
+                  max={isSubUser ? TODAY : undefined}
+                  onChange={(e) => setGvaTo(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-indigo-500"
+                />
+              </div>
+            </div>
+            {/* Quick presets */}
+            <div className="flex flex-wrap gap-2">
+              {([
+                { key: 'today', label: 'Today' },
+                { key: 'yesterday', label: 'Yesterday' },
+                ...(!isSubUser ? [
+                  { key: 'last7', label: 'Last 7 Days' },
+                  { key: 'thisMonth', label: 'This Month' },
+                  { key: 'lastMonth', label: 'Last Month' },
+                ] : []),
+              ] as { key: 'today' | 'yesterday' | 'last7' | 'thisMonth' | 'lastMonth'; label: string }[]).map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => applyGvaPreset(p.key)}
+                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Filters: Columns + Grades + Min KGS */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-4">
+            {/* Column filter */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">V/A Columns</label>
+                {gvaColFilter.length > 0 && (
+                  <button type="button" onClick={() => setGvaColFilter([])} className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700">
+                    Show All
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {VA_COLUMNS.map((col) => {
+                  const active = gvaColFilter.length === 0 || gvaColFilter.includes(col.key);
+                  return (
+                    <button
+                      key={col.key}
+                      type="button"
+                      onClick={() => toggleGvaCol(col.key)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors border ${
+                        active
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {col.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1.5">Tap a column to select only specific columns. Totals recalculate using only the selected columns.</p>
+            </div>
+
+            {/* Grade filter */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Grades</label>
+                {gvaGradeFilter.length > 0 && (
+                  <button type="button" onClick={() => setGvaGradeFilter([])} className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700">
+                    All Grades
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {VA_GRADES.map((grade) => {
+                  const active = gvaGradeFilter.length === 0 || gvaGradeFilter.includes(grade);
+                  return (
+                    <button
+                      key={grade}
+                      type="button"
+                      onClick={() => toggleGvaGrade(grade)}
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors border ${
+                        active
+                          ? 'bg-teal-600 text-white border-teal-600'
+                          : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {grade}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Min total + daily breakdown toggle */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Min Total (KGS)</label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  value={gvaMinTotal}
+                  onChange={(e) => setGvaMinTotal(e.target.value)}
+                  placeholder="e.g. 1000 — show grades above this qty"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:border-indigo-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setGvaShowDaily((v) => !v)}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
+                  gvaShowDaily
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                }`}
+              >
+                {gvaShowDaily ? '✓ Day-wise Breakdown ON' : 'Show Day-wise Breakdown'}
+              </button>
+            </div>
+          </div>
+
+          {/* Summary cards */}
+          {!gvaLoading && gvaRows.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-2xl p-3 border border-indigo-200">
+                <p className="text-[10px] text-indigo-600 font-semibold uppercase tracking-wide">Total V/A (QTY)</p>
+                <p className="text-lg font-bold text-indigo-800 mt-0.5">{formatVaQty(gvaGrandTotal)}</p>
+              </div>
+              {gvaTopGrade && (
+                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-2xl p-3 border border-emerald-200">
+                  <p className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wide">🏆 Top Grade</p>
+                  <p className="text-lg font-bold text-emerald-800 mt-0.5">{gvaTopGrade.grade}</p>
+                  <p className="text-[11px] text-emerald-600 font-medium">{formatVaQty(gvaTopGrade.total)} kg</p>
+                </div>
+              )}
+              {activeVaColumns.slice(0, 2).map((col) => {
+                const stat = gvaColumnStats[col.key];
+                return (
+                  <div key={col.key} className="bg-white rounded-2xl p-3 border border-gray-100 shadow-sm">
+                    <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wide">Highest {col.label}</p>
+                    <p className="text-lg font-bold text-gray-900 dark:text-white mt-0.5">{stat.maxGrade ?? '—'}</p>
+                    <p className="text-[11px] text-gray-500 font-medium">{stat.maxValue > 0 ? `${formatVaQty(stat.maxValue)} kg` : 'No data'}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Grade Summary Table */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {gvaLoading ? (
+              <div className="p-8 flex justify-center">
+                <LoadingSpinner />
+              </div>
+            ) : gvaEntries.length === 0 ? (
+              <div className="p-8 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 mb-3 text-indigo-600 text-xl">📦</div>
+                <p className="text-sm font-semibold text-gray-900">No Data Available</p>
+                <p className="text-sm text-gray-500 mt-1">There are no Grades V/A entries between {gvaFrom} and {gvaTo}.</p>
+              </div>
+            ) : gvaRows.length === 0 ? (
+              <div className="p-8 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 mb-3 text-indigo-600 text-xl">🔍</div>
+                <p className="text-sm font-semibold text-gray-900">No Matches Found</p>
+                <p className="text-sm text-gray-500 mt-1">Try adjusting your grade, column, or min-KGS filters.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100 dark:border-gray-800">
+                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap sticky left-0 bg-gray-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">Grade</th>
+                      {activeVaColumns.map((col) => (
+                        <th key={col.key} className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">{col.label}</th>
+                      ))}
+                      <th className="px-4 py-3 text-[10px] font-semibold text-indigo-500 uppercase tracking-wider whitespace-nowrap text-right">Total (QTY)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {gvaRows.map((row) => (
+                      <tr key={row.grade} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800/80 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">{row.grade}</td>
+                        {activeVaColumns.map((col) => {
+                          const isMax = gvaColumnStats[col.key].maxGrade === row.grade && row[col.key] > 0;
+                          return (
+                            <td key={col.key} className={`px-4 py-3 text-sm whitespace-nowrap text-right font-medium ${isMax ? 'text-emerald-700 bg-emerald-50/60 dark:bg-emerald-900/10 font-bold' : 'text-gray-900'}`}>
+                              {row[col.key] > 0 ? formatVaQty(row[col.key]) : '-'}
+                              {isMax && <span className="ml-1">🏆</span>}
+                            </td>
+                          );
+                        })}
+                        <td className="px-4 py-3 text-sm font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap text-right">{formatVaQty(row.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-indigo-50 dark:bg-indigo-900/30 border-t-2 border-indigo-100 dark:border-indigo-800">
+                      <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap sticky left-0 bg-indigo-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#e0e7ff] dark:shadow-[1px_0_0_0_#3730a3]">TOTAL</td>
+                      {activeVaColumns.map((col) => (
+                        <td key={col.key} className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap text-right">
+                          {gvaColumnStats[col.key].total > 0 ? formatVaQty(gvaColumnStats[col.key].total) : '-'}
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap text-right bg-indigo-100/70 dark:bg-indigo-900/40">{formatVaQty(gvaGrandTotal)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Day-wise Breakdown Table */}
+          {gvaShowDaily && !gvaLoading && gvaDailyRows.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="px-4 pt-4 pb-1">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Day-wise Breakdown</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100 dark:border-gray-800">
+                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap sticky left-0 bg-gray-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">Date</th>
+                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Grade</th>
+                      {activeVaColumns.map((col) => (
+                        <th key={col.key} className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">{col.label}</th>
+                      ))}
+                      <th className="px-4 py-3 text-[10px] font-semibold text-indigo-500 uppercase tracking-wider whitespace-nowrap text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {gvaDailyRows.map((entry) => (
+                      <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800/80 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">{entry.work_date}</td>
+                        <td className="px-4 py-3 text-sm font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">{entry.grade}</td>
+                        {activeVaColumns.map((col) => (
+                          <td key={col.key} className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">
+                            {Number(entry[col.key]) > 0 ? formatVaQty(Number(entry[col.key])) : '-'}
+                          </td>
+                        ))}
+                        <td className="px-4 py-3 text-sm font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap text-right">{formatVaQty(entry.computedTotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
 
       </div>

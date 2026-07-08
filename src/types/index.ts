@@ -222,7 +222,7 @@ export interface SupervisorAttendanceRecord {
   is_present: number;
 }
 
-export type TabType = 'workforce' | 'sanitization' | 'processing' | 'yield' | 'non_local_ladies';
+export type TabType = 'workforce' | 'sanitization' | 'processing' | 'yield' | 'non_local_ladies' | 'grades_va';
 
 // ─── Yield Report Types ──────────────────────────────────────────────────────
 
@@ -274,4 +274,28 @@ export interface NonLocalLadyFormRow {
   hl_qty: string;
   pd_qty: string;
   per_head_amount: string;
+}
+
+// ─── Grades vs Value Addition (V/A) Types ────────────────────────────────────
+
+export interface GradesVaEntry {
+  id: string;
+  work_date: string;
+  grade: string;
+  pd: number;
+  pdto: number;
+  ezpl: number;
+  pvpd: number;
+  pvpdto: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GradesVaFormRow {
+  grade: string;
+  pd: string;      // strings for input binding
+  pdto: string;
+  ezpl: string;
+  pvpd: string;
+  pvpdto: string;
 }

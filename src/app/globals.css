@@ -366,6 +366,30 @@ input:focus, select:focus, textarea:focus {
   border-color: rgba(249, 115, 22, 0.3) !important;
 }
 
+.dark .from-indigo-50,
+.dark .bg-gradient-to-br.from-indigo-50.to-indigo-100\/50,
+.dark .bg-gradient-to-r.from-indigo-50.to-indigo-100\/50 {
+  background-image: none !important;
+  background-color: #14152e !important; /* solid, deep dark indigo-slate */
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+.dark .text-indigo-800 {
+  color: #c7d2fe !important; /* indigo-200, clear on dark background */
+}
+
+.dark .text-indigo-900 {
+  color: #eef2ff !important; /* indigo-50, extremely clear on dark background */
+}
+
+.dark .bg-indigo-50\/60 {
+  background-color: rgba(99, 102, 241, 0.22) !important;
+}
+
+.dark .border-indigo-100 {
+  border-color: rgba(99, 102, 241, 0.35) !important;
+}
+
 
 /* Ensure teal and other colored text has high visibility in dark mode */
 .dark .text-teal-700 {

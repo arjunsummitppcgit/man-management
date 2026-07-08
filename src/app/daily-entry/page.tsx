@@ -14,8 +14,10 @@ import { useSupervisors } from '@/hooks/useSupervisors';
 import { useAuth } from '@/hooks/useAuth';
 import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
+import { useGradesVa } from '@/hooks/useGradesVa';
 import { lookupStandardYield, lookupCountRange, calculateYield, calculateYieldDifference, YIELD_CHART } from '@/lib/yieldChart';
-import type { Supervisor, TabType, YieldFormRow, NonLocalLadyFormRow } from '@/types';
+import { VA_GRADES, VA_COLUMNS } from '@/lib/gradesVa';
+import type { Supervisor, TabType, YieldFormRow, NonLocalLadyFormRow, GradesVaFormRow } from '@/types';
 
 // ─── Supervisor Dropdown Component ───────────────────────────────────────────
 interface SupervisorDropdownProps {
@@ -250,6 +252,13 @@ export default function DailyEntryPage() {
     saveEntries: saveNllEntries,
   } = useNonLocalLadies();
 
+  const {
+    entries: gvaEntries,
+    loading: gvaLoading,
+    fetchEntries: fetchGvaEntries,
+    saveEntries: saveGvaEntries,
+  } = useGradesVa();
+
   const SALARY_BASIC = 350;
 
   // Workforce form state
@@ -316,6 +325,12 @@ export default function DailyEntryPage() {
   }), []);
   const [nllRows, setNllRows] = useState<NonLocalLadyFormRow[]>([]);
 
+  // Grades VA form state — one fixed row per grade
+  const emptyGvaRows = useCallback((): GradesVaFormRow[] => (
+    VA_GRADES.map((grade) => ({ grade, pd: '', pdto: '', ezpl: '', pvpd: '', pvpdto: '' }))
+  ), []);
+  const [gvaRows, setGvaRows] = useState<GradesVaFormRow[]>(emptyGvaRows);
+
   // Set default location when locations load
   useEffect(() => {
     if (locations.length > 0 && !selectedLocation) {
@@ -331,6 +346,8 @@ export default function DailyEntryPage() {
       fetchYieldEntries(selectedDate);
     } else if (activeTab === 'non_local_ladies') {
       fetchNllEntries(selectedDate);
+    } else if (activeTab === 'grades_va') {
+      fetchGvaEntries(selectedDate);
     } else if (selectedLocation) {
       if (activeTab === 'workforce') {
         fetchWorkforce(selectedDate, selectedLocation);
@@ -341,7 +358,24 @@ export default function DailyEntryPage() {
         fetchProcessing(selectedDate, selectedLocation);
       }
     }
-  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing, fetchYieldEntries, fetchNllEntries]);
+  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing, fetchYieldEntries, fetchNllEntries, fetchGvaEntries]);
+
+  // Pre-populate Grades VA rows from fetched data (fixed grade order)
+  useEffect(() => {
+    setGvaRows(
+      VA_GRADES.map((grade) => {
+        const e = gvaEntries.find((entry) => entry.grade === grade);
+        return {
+          grade,
+          pd: e && Number(e.pd) ? e.pd.toString() : '',
+          pdto: e && Number(e.pdto) ? e.pdto.toString() : '',
+          ezpl: e && Number(e.ezpl) ? e.ezpl.toString() : '',
+          pvpd: e && Number(e.pvpd) ? e.pvpd.toString() : '',
+          pvpdto: e && Number(e.pvpdto) ? e.pvpdto.toString() : '',
+        };
+      })
+    );
+  }, [gvaEntries]);
 
   // Pre-populate NLL rows from fetched data
   useEffect(() => {
@@ -556,6 +590,18 @@ export default function DailyEntryPage() {
             per_head_amount: Math.max(0, parseFloat(r.per_head_amount) || 0),
           }));
         await saveNllEntries(selectedDate, validRows);
+      } else if (activeTab === 'grades_va') {
+        const validRows = gvaRows
+          .map((r) => ({
+            grade: r.grade,
+            pd: Math.max(0, parseFloat(r.pd) || 0),
+            pdto: Math.max(0, parseFloat(r.pdto) || 0),
+            ezpl: Math.max(0, parseFloat(r.ezpl) || 0),
+            pvpd: Math.max(0, parseFloat(r.pvpd) || 0),
+            pvpdto: Math.max(0, parseFloat(r.pvpdto) || 0),
+          }))
+          .filter((r) => r.pd > 0 || r.pdto > 0 || r.ezpl > 0 || r.pvpd > 0 || r.pvpdto > 0);
+        await saveGvaEntries(selectedDate, validRows);
       }
       showToast(
         `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} data saved successfully!`,
@@ -576,6 +622,7 @@ export default function DailyEntryPage() {
     { key: 'processing', label: 'Processing' },
     { key: 'yield', label: 'Yield' },
     { key: 'non_local_ladies', label: 'NL Ladies' },
+    { key: 'grades_va', label: 'Grades VA' },
   ];
 
   const isDataLoading =
@@ -583,7 +630,8 @@ export default function DailyEntryPage() {
     (activeTab === 'sanitization' && sanitizationLoading) ||
     (activeTab === 'processing' && processingLoading) ||
     (activeTab === 'yield' && yieldLoading) ||
-    (activeTab === 'non_local_ladies' && nllLoading);
+    (activeTab === 'non_local_ladies' && nllLoading) ||
+    (activeTab === 'grades_va' && gvaLoading);
 
   // Show loading spinner while locations are loading
   if (locationsLoading) {
@@ -1558,6 +1606,113 @@ export default function DailyEntryPage() {
                     </>
                   ) : (
                     'Save Non Local Ladies Data'
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* ─── Grades VA Tab ─────────────────────────────────────────── */}
+            {activeTab === 'grades_va' && (
+              <div className="animate-fade-in space-y-4">
+
+                {/* Info Card */}
+                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-2xl p-4 border border-indigo-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">📦</span>
+                    <h3 className="text-sm font-semibold text-indigo-800">Grades vs Value Addition (V/A)</h3>
+                  </div>
+                  <p className="text-xs text-indigo-700">Enter daily V/A quantities (KGS) for each grade. Row and column totals are auto-calculated. Leave blank for no production.</p>
+                </div>
+
+                {/* Grades Grid */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+                  <div className="min-w-[680px] p-3">
+                    {/* Header row */}
+                    <div className="grid grid-cols-[90px_repeat(5,1fr)_90px] gap-1.5 mb-2 px-1">
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider self-end">Grade</span>
+                      {VA_COLUMNS.map((col) => (
+                        <span key={col.key} className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-center self-end">{col.label}</span>
+                      ))}
+                      <span className="text-[10px] font-semibold text-indigo-500 uppercase tracking-wider text-right self-end">Total</span>
+                    </div>
+
+                    {/* Grade rows */}
+                    <div className="space-y-1.5">
+                      {gvaRows.map((row, idx) => {
+                        const rowTotal = VA_COLUMNS.reduce((sum, col) => sum + (parseFloat(row[col.key]) || 0), 0);
+                        return (
+                          <div key={row.grade} className="grid grid-cols-[90px_repeat(5,1fr)_90px] gap-1.5 items-center">
+                            <span className="text-xs font-bold text-gray-700 px-1">{row.grade}</span>
+                            {VA_COLUMNS.map((col) => (
+                              <input
+                                key={col.key}
+                                type="number"
+                                inputMode="decimal"
+                                step="0.001"
+                                min="0"
+                                value={row[col.key]}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setGvaRows((prev) => prev.map((r, i) => i === idx ? { ...r, [col.key]: val } : r));
+                                }}
+                                placeholder="-"
+                                className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-300 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                              />
+                            ))}
+                            <span className={`text-xs font-bold text-right px-1 ${rowTotal > 0 ? 'text-indigo-700' : 'text-gray-300'}`}>
+                              {rowTotal > 0 ? rowTotal.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '-'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Column totals footer */}
+                    <div className="grid grid-cols-[90px_repeat(5,1fr)_90px] gap-1.5 items-center mt-2 pt-2 border-t-2 border-indigo-100 bg-indigo-50/60 rounded-lg px-1 py-2">
+                      <span className="text-xs font-bold text-indigo-800">TOTAL</span>
+                      {VA_COLUMNS.map((col) => {
+                        const colTotal = gvaRows.reduce((sum, r) => sum + (parseFloat(r[col.key]) || 0), 0);
+                        return (
+                          <span key={col.key} className="text-xs font-bold text-indigo-800 text-right px-1">
+                            {colTotal > 0 ? colTotal.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '-'}
+                          </span>
+                        );
+                      })}
+                      <span className="text-xs font-bold text-indigo-900 text-right px-1">
+                        {(() => {
+                          const grand = gvaRows.reduce((sum, r) => sum + VA_COLUMNS.reduce((s, col) => s + (parseFloat(r[col.key]) || 0), 0), 0);
+                          return grand > 0 ? grand.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '-';
+                        })()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Total V/A banner */}
+                <div className="bg-gradient-to-r from-indigo-50 to-indigo-100/50 rounded-2xl p-4 border border-indigo-200 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-indigo-700">Total V/A (QTY)</span>
+                  <span className="text-lg font-bold text-indigo-800">
+                    {gvaRows.reduce((sum, r) => sum + VA_COLUMNS.reduce((s, col) => s + (parseFloat(r[col.key]) || 0), 0), 0)
+                      .toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg
+                  </span>
+                </div>
+
+                {/* Save Button */}
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/25 transition-all disabled:opacity-50 min-h-[48px] flex items-center justify-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Grades VA Data'
                   )}
                 </button>
               </div>
