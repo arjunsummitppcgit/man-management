@@ -252,3 +252,26 @@ export interface YieldFormRow {
   location_id: string;
   grader_name: string;
 }
+
+// ─── Non Local Ladies Report Types ──────────────────────────────────────────
+
+export interface NonLocalLadyEntry {
+  id: string;
+  work_date: string;
+  batch_name: string;
+  no_of_ladies: number;
+  hl_qty: number;
+  pd_qty: number;
+  per_head_amount: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NonLocalLadyFormRow {
+  id?: string;
+  batch_name: string;
+  no_of_ladies: string;   // string for input binding
+  hl_qty: string;
+  pd_qty: string;
+  per_head_amount: string;
+}
