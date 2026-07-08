@@ -14,6 +14,8 @@ export default function YieldReportPage() {
   const YESTERDAY = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   
   const [selectedDate, setSelectedDate] = useState(TODAY);
+  
+  const [reportType, setReportType] = useState('HON to HL yields');
 
   // Filters
   const [diffFilter, setDiffFilter] = useState('All');
@@ -97,9 +99,23 @@ export default function YieldReportPage() {
 
   return (
     <div className="animate-fade-in pb-20 lg:pb-6">
-      <PageHeader title="HON to HL yields" />
+      <PageHeader title={reportType} />
 
       <div className="px-4 mt-2 space-y-4">
+        {/* Report Type Selector */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+          <label className="text-sm font-semibold text-gray-700">Report Type</label>
+          <select
+            value={reportType}
+            onChange={(e) => setReportType(e.target.value)}
+            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+          >
+            <option value="HON to HL yields">HON to HL yields</option>
+            <option value="HL to PUD yields">HL to PUD yields</option>
+            <option value="PUD to PD yields">PUD to PD yields</option>
+          </select>
+        </div>
+
         {/* Date Selector */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
           <label className="text-sm font-semibold text-gray-700">Report Date</label>
