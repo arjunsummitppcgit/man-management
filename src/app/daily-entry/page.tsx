@@ -13,8 +13,9 @@ import { useProcessing } from '@/hooks/useProcessing';
 import { useSupervisors } from '@/hooks/useSupervisors';
 import { useAuth } from '@/hooks/useAuth';
 import { useYield } from '@/hooks/useYield';
+import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { lookupStandardYield, lookupCountRange, calculateYield, calculateYieldDifference, YIELD_CHART } from '@/lib/yieldChart';
-import type { Supervisor, TabType, YieldFormRow } from '@/types';
+import type { Supervisor, TabType, YieldFormRow, NonLocalLadyFormRow } from '@/types';
 
 // ─── Supervisor Dropdown Component ───────────────────────────────────────────
 interface SupervisorDropdownProps {
@@ -242,6 +243,15 @@ export default function DailyEntryPage() {
     saveYieldEntries,
   } = useYield();
 
+  const {
+    entries: nllEntries,
+    loading: nllLoading,
+    fetchEntries: fetchNllEntries,
+    saveEntries: saveNllEntries,
+  } = useNonLocalLadies();
+
+  const SALARY_BASIC = 350;
+
   // Workforce form state
   const [workforce, setWorkforce] = useState({
     labour_kg_basic: 0,
@@ -296,6 +306,16 @@ export default function DailyEntryPage() {
 
   const [yieldRows, setYieldRows] = useState<YieldFormRow[]>([]);
 
+  // Non Local Ladies form state
+  const emptyNllRow = useCallback((): NonLocalLadyFormRow => ({
+    batch_name: '',
+    no_of_ladies: '',
+    hl_qty: '',
+    pd_qty: '',
+    per_head_amount: '',
+  }), []);
+  const [nllRows, setNllRows] = useState<NonLocalLadyFormRow[]>([]);
+
   // Set default location when locations load
   useEffect(() => {
     if (locations.length > 0 && !selectedLocation) {
@@ -308,8 +328,9 @@ export default function DailyEntryPage() {
     if (!selectedDate) return;
 
     if (activeTab === 'yield') {
-      // Yield tab fetches by date only (not location-specific)
       fetchYieldEntries(selectedDate);
+    } else if (activeTab === 'non_local_ladies') {
+      fetchNllEntries(selectedDate);
     } else if (selectedLocation) {
       if (activeTab === 'workforce') {
         fetchWorkforce(selectedDate, selectedLocation);
@@ -320,7 +341,24 @@ export default function DailyEntryPage() {
         fetchProcessing(selectedDate, selectedLocation);
       }
     }
-  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing, fetchYieldEntries]);
+  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing, fetchYieldEntries, fetchNllEntries]);
+
+  // Pre-populate NLL rows from fetched data
+  useEffect(() => {
+    if (nllEntries.length > 0) {
+      setNllRows(nllEntries.map((e) => ({
+        id: e.id,
+        batch_name: e.batch_name,
+        no_of_ladies: e.no_of_ladies?.toString() ?? '',
+        hl_qty: e.hl_qty?.toString() ?? '',
+        pd_qty: e.pd_qty?.toString() ?? '',
+        per_head_amount: e.per_head_amount?.toString() ?? '',
+      })));
+    } else if (activeTab === 'non_local_ladies') {
+      setNllRows([emptyNllRow()]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nllEntries]);
 
   // Pre-populate workforce form from fetched data
   useEffect(() => {
@@ -495,7 +533,6 @@ export default function DailyEntryPage() {
           notes,
         });
       } else if (activeTab === 'yield') {
-        // Filter out rows with empty batch_id
         const validRows = yieldRows
           .filter((r) => r.batch_id.trim() !== '')
           .map((r) => ({
@@ -508,6 +545,17 @@ export default function DailyEntryPage() {
             grader_name: r.grader_name,
           }));
         await saveYieldEntries(selectedDate, validRows);
+      } else if (activeTab === 'non_local_ladies') {
+        const validRows = nllRows
+          .filter((r) => r.batch_name.trim() !== '')
+          .map((r) => ({
+            batch_name: r.batch_name,
+            no_of_ladies: Math.max(0, parseInt(r.no_of_ladies) || 0),
+            hl_qty: Math.max(0, parseFloat(r.hl_qty) || 0),
+            pd_qty: Math.max(0, parseFloat(r.pd_qty) || 0),
+            per_head_amount: Math.max(0, parseFloat(r.per_head_amount) || 0),
+          }));
+        await saveNllEntries(selectedDate, validRows);
       }
       showToast(
         `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} data saved successfully!`,
@@ -527,13 +575,15 @@ export default function DailyEntryPage() {
     { key: 'sanitization', label: 'Sanitization' },
     { key: 'processing', label: 'Processing' },
     { key: 'yield', label: 'Yield' },
+    { key: 'non_local_ladies', label: 'NL Ladies' },
   ];
 
   const isDataLoading =
     (activeTab === 'workforce' && (workforceLoading || supervisorsLoading)) ||
     (activeTab === 'sanitization' && sanitizationLoading) ||
     (activeTab === 'processing' && processingLoading) ||
-    (activeTab === 'yield' && yieldLoading);
+    (activeTab === 'yield' && yieldLoading) ||
+    (activeTab === 'non_local_ladies' && nllLoading);
 
   // Show loading spinner while locations are loading
   if (locationsLoading) {
@@ -1319,6 +1369,195 @@ export default function DailyEntryPage() {
                     </>
                   ) : (
                     'Save Yield Data'
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* ─── Non Local Ladies Tab ──────────────────────────────────── */}
+            {activeTab === 'non_local_ladies' && (
+              <div className="animate-fade-in space-y-4">
+
+                {/* Info Card */}
+                <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-2xl p-4 border border-amber-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">👩</span>
+                    <h3 className="text-sm font-semibold text-amber-800">Non Local Ladies</h3>
+                  </div>
+                  <p className="text-xs text-amber-700">Salary Basic is fixed at <strong>₹{SALARY_BASIC}.00</strong>. Difference and Profit &amp; Loss are auto-calculated.</p>
+                </div>
+
+                {/* Batch Rows */}
+                {nllRows.map((row, idx) => {
+                  const noLadies = parseInt(row.no_of_ladies) || 0;
+                  const hlQty = parseFloat(row.hl_qty) || 0;
+                  const pdQty = parseFloat(row.pd_qty) || 0;
+                  const perHead = parseFloat(row.per_head_amount) || 0;
+                  const totalQty = hlQty + pdQty;
+                  const diff = perHead > 0 ? perHead - SALARY_BASIC : null;
+                  const pnl = diff !== null ? diff * noLadies : null;
+
+                  return (
+                    <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+                      {/* Row header */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-gray-700">Contractor #{idx + 1}</span>
+                        {nllRows.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setNllRows((prev) => prev.filter((_, i) => i !== idx))}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Batch Name */}
+                      <div>
+                        <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">Batch / Contractor Name</label>
+                        <input
+                          type="text"
+                          value={row.batch_name}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, batch_name: val } : r));
+                          }}
+                          placeholder="e.g. BASANTH CONTRACTOR"
+                          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                        />
+                      </div>
+
+                      {/* No of Ladies + Per Head Amount */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">No. of Ladies</label>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            value={row.no_of_ladies}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, no_of_ladies: val } : r));
+                            }}
+                            placeholder="0"
+                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-amber-600 uppercase tracking-wide mb-1">Per Head Amount (₹)</label>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min="0"
+                            value={row.per_head_amount}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, per_head_amount: val } : r));
+                            }}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900 placeholder-amber-400 focus:bg-white focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10"
+                          />
+                        </div>
+                      </div>
+
+                      {/* HL QTY + PD QTY */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">HL QTY</label>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.001"
+                            min="0"
+                            value={row.hl_qty}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, hl_qty: val } : r));
+                            }}
+                            placeholder="0"
+                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">PD QTY</label>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.001"
+                            min="0"
+                            value={row.pd_qty}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, pd_qty: val } : r));
+                            }}
+                            placeholder="0"
+                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Auto-calculated preview */}
+                      {perHead > 0 && noLadies > 0 && (
+                        <div className="grid grid-cols-2 gap-2 pt-1">
+                          <div className="bg-gray-50 rounded-xl px-2 py-2 text-center">
+                            <p className="text-[9px] text-gray-500 font-medium uppercase tracking-wide">Total QTY</p>
+                            <p className="text-sm font-bold text-gray-800 mt-0.5">{totalQty.toFixed(0)}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-xl px-2 py-2 text-center">
+                            <p className="text-[9px] text-gray-500 font-medium uppercase tracking-wide">Salary Basic</p>
+                            <p className="text-sm font-bold text-gray-800 mt-0.5">₹{SALARY_BASIC}.00</p>
+                          </div>
+                          <div className={`rounded-xl px-2 py-2 text-center ${diff !== null && diff >= 0 ? 'bg-emerald-50' : 'bg-rose-50'}`}>
+                            <p className={`text-[9px] font-medium uppercase tracking-wide ${diff !== null && diff >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>Difference</p>
+                            <p className={`text-sm font-bold mt-0.5 ${diff !== null && diff >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              {diff !== null ? `${diff >= 0 ? '+' : ''}${diff.toFixed(2)}` : '—'}
+                            </p>
+                          </div>
+                          <div className={`rounded-xl px-2 py-2 text-center ${pnl !== null && pnl >= 0 ? 'bg-emerald-50' : 'bg-rose-50'}`}>
+                            <p className={`text-[9px] font-medium uppercase tracking-wide ${pnl !== null && pnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>P &amp; L</p>
+                            <p className={`text-sm font-bold mt-0.5 ${pnl !== null && pnl >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                              {pnl !== null ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}` : '—'}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Add Contractor Button */}
+                <button
+                  type="button"
+                  onClick={() => setNllRows((prev) => [...prev, emptyNllRow()])}
+                  className="w-full py-3 border-2 border-dashed border-gray-200 rounded-2xl text-sm font-semibold text-gray-500 hover:border-amber-300 hover:text-amber-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Add Contractor
+                </button>
+
+                {/* Save Button */}
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="w-full py-3.5 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold rounded-xl shadow-lg shadow-amber-500/25 transition-all disabled:opacity-50 min-h-[48px] flex items-center justify-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Non Local Ladies Data'
                   )}
                 </button>
               </div>

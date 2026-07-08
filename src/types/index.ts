@@ -222,7 +222,7 @@ export interface SupervisorAttendanceRecord {
   is_present: number;
 }
 
-export type TabType = 'workforce' | 'sanitization' | 'processing' | 'yield';
+export type TabType = 'workforce' | 'sanitization' | 'processing' | 'yield' | 'non_local_ladies';
 
 // ─── Yield Report Types ──────────────────────────────────────────────────────
 
