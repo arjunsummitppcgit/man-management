@@ -15,6 +15,11 @@ export default function YieldReportPage() {
   
   const [selectedDate, setSelectedDate] = useState(TODAY);
 
+  // Filters
+  const [diffFilter, setDiffFilter] = useState('All');
+  const [locationFilter, setLocationFilter] = useState('All');
+  const [graderFilter, setGraderFilter] = useState('All');
+
   // For sub-users, restrict the date selector to today or yesterday
   useEffect(() => {
     if (isSubUser && selectedDate !== TODAY && selectedDate !== YESTERDAY) {
@@ -31,9 +36,54 @@ export default function YieldReportPage() {
     }
   }, [selectedDate, fetchYieldEntries]);
 
+  // Derive filter options
+  const { locations, graders } = useMemo(() => {
+    const locSet = new Set<string>();
+    const gradSet = new Set<string>();
+    entries.forEach((entry) => {
+      if (entry.location?.name) locSet.add(entry.location.name);
+      if (entry.grader_name) gradSet.add(entry.grader_name);
+    });
+    return {
+      locations: Array.from(locSet).sort(),
+      graders: Array.from(gradSet).sort(),
+    };
+  }, [entries]);
+
+  // Apply filters
+  const filteredEntries = useMemo(() => {
+    return entries.filter((entry) => {
+      // Location filter
+      if (locationFilter !== 'All' && (entry.location?.name || 'Unknown') !== locationFilter) {
+        return false;
+      }
+      
+      // Grader filter
+      if (graderFilter !== 'All' && entry.grader_name !== graderFilter) {
+        return false;
+      }
+      
+      // Difference filter
+      if (diffFilter !== 'All') {
+        const honNum = Number(entry.hon_kgs) || 0;
+        const hlNum = Number(entry.hl_kgs) || 0;
+        const yieldPct = calculateYield(honNum, hlNum);
+        const stdYield = lookupStandardYield(entry.count_text);
+        const diff = calculateYieldDifference(yieldPct, stdYield);
+        
+        if (diff === null) return false;
+        
+        if (diffFilter === 'Positive' && diff < 0) return false;
+        if (diffFilter === 'Negative' && diff >= 0) return false;
+      }
+      
+      return true;
+    });
+  }, [entries, diffFilter, locationFilter, graderFilter]);
+
   // Calculate totals
   const { totalHon, totalHl } = useMemo(() => {
-    return entries.reduce(
+    return filteredEntries.reduce(
       (acc, entry) => {
         acc.totalHon += Number(entry.hon_kgs) || 0;
         acc.totalHl += Number(entry.hl_kgs) || 0;
@@ -41,7 +91,7 @@ export default function YieldReportPage() {
       },
       { totalHon: 0, totalHl: 0 }
     );
-  }, [entries]);
+  }, [filteredEntries]);
 
   const totalYieldPct = calculateYield(totalHon, totalHl);
 
@@ -75,6 +125,49 @@ export default function YieldReportPage() {
           )}
         </div>
 
+        {/* Filters */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Difference</label>
+            <select
+              value={diffFilter}
+              onChange={(e) => setDiffFilter(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+            >
+              <option value="All">All</option>
+              <option value="Positive">Positive (+)</option>
+              <option value="Negative">Negative (-)</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Location</label>
+            <select
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+            >
+              <option value="All">All Locations</option>
+              {locations.map((loc) => (
+                <option key={loc} value={loc}>{loc}</option>
+              ))}
+              <option value="Unknown">Unknown</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Grader Name</label>
+            <select
+              value={graderFilter}
+              onChange={(e) => setGraderFilter(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 outline-none"
+            >
+              <option value="All">All Graders</option>
+              {graders.map((grader) => (
+                <option key={grader} value={grader}>{grader}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {/* Report Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {loading ? (
@@ -89,6 +182,16 @@ export default function YieldReportPage() {
               <p className="text-sm font-semibold text-gray-900">No Data Available</p>
               <p className="text-sm text-gray-500 mt-1">
                 There are no yield entries for {selectedDate}.
+              </p>
+            </div>
+          ) : filteredEntries.length === 0 ? (
+            <div className="p-8 text-center">
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-teal-50 mb-3 text-teal-600 text-xl">
+                🔍
+              </div>
+              <p className="text-sm font-semibold text-gray-900">No Matches Found</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Try adjusting your filters to see more results.
               </p>
             </div>
           ) : (
@@ -126,7 +229,7 @@ export default function YieldReportPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {entries.map((entry) => {
+                  {filteredEntries.map((entry) => {
                     const honNum = Number(entry.hon_kgs) || 0;
                     const hlNum = Number(entry.hl_kgs) || 0;
                     const yieldPct = calculateYield(honNum, hlNum);
@@ -185,7 +288,7 @@ export default function YieldReportPage() {
                       TOTALS
                     </td>
                     <td className="px-4 py-3 text-sm text-teal-800 whitespace-nowrap">
-                      {entries.length} batches
+                      {filteredEntries.length} batches
                     </td>
                     <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">
                       {totalHon.toFixed(3)}
