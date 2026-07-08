@@ -97,7 +97,7 @@ export default function YieldReportPage() {
 
   return (
     <div className="animate-fade-in pb-20 lg:pb-6">
-      <PageHeader title="Daily Report" />
+      <PageHeader title="HON to HL yields" />
 
       <div className="px-4 mt-2 space-y-4">
         {/* Date Selector */}
@@ -198,8 +198,8 @@ export default function YieldReportPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap sticky left-0 bg-gray-50 z-10 shadow-[1px_0_0_0_#f3f4f6]">
+                  <tr className="bg-gray-50 border-b border-gray-100 dark:border-gray-800">
+                    <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap sticky left-0 bg-gray-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">
                       Batch ID
                     </th>
                     <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
@@ -237,8 +237,8 @@ export default function YieldReportPage() {
                     const diff = calculateYieldDifference(yieldPct, stdYield);
 
                     return (
-                      <tr key={entry.id} className="hover:bg-gray-50/50 transition-colors group">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white group-hover:bg-gray-50 z-10 shadow-[1px_0_0_0_#f3f4f6]">
+                      <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800/80 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">
                           {entry.batch_id}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
@@ -283,8 +283,8 @@ export default function YieldReportPage() {
                 </tbody>
                 {/* Total Row */}
                 <tfoot>
-                  <tr className="bg-teal-50/50 border-t-2 border-teal-100">
-                    <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap sticky left-0 bg-teal-50 z-10 shadow-[1px_0_0_0_#ccfbf1]">
+                  <tr className="bg-teal-50 dark:bg-teal-900/30 border-t-2 border-teal-100 dark:border-teal-800">
+                    <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap sticky left-0 bg-teal-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#ccfbf1] dark:shadow-[1px_0_0_0_#0f766e]">
                       TOTALS
                     </td>
                     <td className="px-4 py-3 text-sm text-teal-800 whitespace-nowrap">
