@@ -8,6 +8,7 @@ import { useSupervisors } from '@/hooks/useSupervisors';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/lib/supabase/client';
 import type { Supervisor } from '@/types';
+import MonthlyAttendanceView from '@/components/supervisors/MonthlyAttendanceView';
 
 interface SupervisorModalProps {
   open: boolean;
@@ -150,7 +151,7 @@ export default function SupervisorsPage() {
   const { showToast } = useToast();
   const { isSubUser } = useAuth();
   const { supervisors, loading, fetchSupervisors, addSupervisor, updateSupervisor, deactivateSupervisor } = useSupervisors();
-  const [mainView, setMainView] = useState<'list' | 'attendance'>('list');
+  const [mainView, setMainView] = useState<'list' | 'attendance' | 'monthly'>('list');
   const [searchQuery, setSearchQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingSupervisor, setEditingSupervisor] = useState<Supervisor | null>(null);
@@ -297,7 +298,17 @@ export default function SupervisorsPage() {
                   : 'text-gray-500'
               }`}
             >
-              Attendance
+              Name wise details
+            </button>
+            <button
+              onClick={() => setMainView('monthly')}
+              className={`flex-1 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 ${
+                mainView === 'monthly'
+                  ? 'bg-white text-teal-600 shadow-sm'
+                  : 'text-gray-500'
+              }`}
+            >
+              Month register attendance
             </button>
           </div>
         </div>
@@ -446,6 +457,11 @@ export default function SupervisorsPage() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Monthly Attendance View — admin only */}
+      {mainView === 'monthly' && !isSubUser && (
+        <MonthlyAttendanceView />
       )}
 
       {/* FAB for adding */}

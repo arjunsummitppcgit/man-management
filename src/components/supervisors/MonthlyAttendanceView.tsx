@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import PageHeader from '@/components/layout/PageHeader';
 import { supabase } from '@/lib/supabase/client';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
@@ -40,7 +39,7 @@ interface AssignmentRecord {
   is_present: number | boolean;
 }
 
-export default function MonthlyAttendancePage() {
+export default function MonthlyAttendanceView() {
   const now = new Date();
   const router = useRouter();
   const { isSubUser, loading: authLoading } = useAuth();
@@ -289,7 +288,6 @@ export default function MonthlyAttendancePage() {
 
   return (
     <div className="animate-fade-in pb-10">
-      <PageHeader title="Staff Attendance" />
 
       {/* Month & Year Selectors */}
       <div className="px-4 mb-4 grid grid-cols-2 gap-3">
