@@ -62,6 +62,7 @@ export function useGradesVa() {
     rows: {
       grade: string;
       pd: number;
+      pud: number;
       pdto: number;
       ezpl: number;
       pvpd: number;
@@ -81,6 +82,7 @@ export function useGradesVa() {
           work_date: date,
           grade: row.grade,
           pd: row.pd,
+          pud: row.pud,
           pdto: row.pdto,
           ezpl: row.ezpl,
           pvpd: row.pvpd,

@@ -164,15 +164,16 @@ export default function YieldReportPage() {
   const gvaByGrade = useMemo(() => {
     const map = new Map<string, Record<VaColumnKey, number> & { total: number; days: number }>();
     VA_GRADES.forEach((g) => {
-      map.set(g, { pd: 0, pdto: 0, ezpl: 0, pvpd: 0, pvpdto: 0, total: 0, days: 0 });
+      map.set(g, { pd: 0, pud: 0, pdto: 0, ezpl: 0, pvpd: 0, pvpdto: 0, total: 0, days: 0 });
     });
     gvaEntries.forEach((e) => {
       let agg = map.get(e.grade);
       if (!agg) {
-        agg = { pd: 0, pdto: 0, ezpl: 0, pvpd: 0, pvpdto: 0, total: 0, days: 0 };
+        agg = { pd: 0, pud: 0, pdto: 0, ezpl: 0, pvpd: 0, pvpdto: 0, total: 0, days: 0 };
         map.set(e.grade, agg);
       }
       agg.pd += Number(e.pd) || 0;
+      agg.pud += Number(e.pud) || 0;
       agg.pdto += Number(e.pdto) || 0;
       agg.ezpl += Number(e.ezpl) || 0;
       agg.pvpd += Number(e.pvpd) || 0;

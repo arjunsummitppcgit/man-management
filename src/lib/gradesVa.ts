@@ -20,6 +20,7 @@ export const VA_GRADES = [
 
 export const VA_COLUMNS = [
   { key: 'pd', label: 'PD' },
+  { key: 'pud', label: 'PUD' },
   { key: 'pdto', label: 'PDTO' },
   { key: 'ezpl', label: 'EZPL' },
   { key: 'pvpd', label: 'PVPD' },

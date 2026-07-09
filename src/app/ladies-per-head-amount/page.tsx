@@ -446,7 +446,7 @@ export default function LadiesPerHeadAmountPage() {
                             className="py-2 px-1 text-center border-r border-gray-100/50 dark:border-gray-800/20 cursor-pointer hover:bg-teal-50/30 dark:hover:bg-teal-900/10 transition-colors"
                           >
                             {isAbsent ? (
-                              <span className="font-bold text-rose-400 dark:text-rose-500 text-xs">A</span>
+                              <span className="text-gray-300 dark:text-gray-700">-</span>
                             ) : (
                               <span className="font-semibold text-gray-800 dark:text-gray-200 text-xs">{formatAmount(cell.amount)}</span>
                             )}
@@ -524,11 +524,11 @@ export default function LadiesPerHeadAmountPage() {
                     const numVal = parseFloat(e.target.value);
                     setEditingCell({ ...editingCell, currentValue: isNaN(numVal) || numVal < 0 ? 0 : numVal });
                   }}
-                  placeholder="0 = Absent (A)"
+                  placeholder="0 = No entry"
                   className="flex-1 min-w-0 bg-transparent text-right pr-2 text-lg font-bold text-gray-900 dark:text-gray-100 focus:outline-none"
                 />
               </div>
-              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">Leave 0 to mark the batch absent (shows “A”).</p>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">Leave 0 to mark the batch as no entry.</p>
             </div>
 
             <div className="flex gap-3">

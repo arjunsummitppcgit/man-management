@@ -330,7 +330,7 @@ export default function DailyEntryPage() {
 
   // Grades VA form state — one fixed row per grade
   const emptyGvaRows = useCallback((): GradesVaFormRow[] => (
-    VA_GRADES.map((grade) => ({ grade, pd: '', pdto: '', ezpl: '', pvpd: '', pvpdto: '' }))
+    VA_GRADES.map((grade) => ({ grade, pd: '', pud: '', pdto: '', ezpl: '', pvpd: '', pvpdto: '' }))
   ), []);
   const [gvaRows, setGvaRows] = useState<GradesVaFormRow[]>(emptyGvaRows);
 
@@ -371,6 +371,7 @@ export default function DailyEntryPage() {
         return {
           grade,
           pd: e && Number(e.pd) ? e.pd.toString() : '',
+          pud: e && Number(e.pud) ? e.pud.toString() : '',
           pdto: e && Number(e.pdto) ? e.pdto.toString() : '',
           ezpl: e && Number(e.ezpl) ? e.ezpl.toString() : '',
           pvpd: e && Number(e.pvpd) ? e.pvpd.toString() : '',
@@ -604,12 +605,13 @@ export default function DailyEntryPage() {
           .map((r) => ({
             grade: r.grade,
             pd: Math.max(0, parseFloat(r.pd) || 0),
+            pud: Math.max(0, parseFloat(r.pud) || 0),
             pdto: Math.max(0, parseFloat(r.pdto) || 0),
             ezpl: Math.max(0, parseFloat(r.ezpl) || 0),
             pvpd: Math.max(0, parseFloat(r.pvpd) || 0),
             pvpdto: Math.max(0, parseFloat(r.pvpdto) || 0),
           }))
-          .filter((r) => r.pd > 0 || r.pdto > 0 || r.ezpl > 0 || r.pvpd > 0 || r.pvpdto > 0);
+          .filter((r) => r.pd > 0 || r.pud > 0 || r.pdto > 0 || r.ezpl > 0 || r.pvpd > 0 || r.pvpdto > 0);
         await saveGvaEntries(selectedDate, validRows);
       }
       showToast(
@@ -1704,7 +1706,7 @@ export default function DailyEntryPage() {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
                   <div className="min-w-[680px] p-3">
                     {/* Header row */}
-                    <div className="grid grid-cols-[90px_repeat(5,1fr)_90px] gap-1.5 mb-2 px-1">
+                    <div className="grid grid-cols-[90px_repeat(6,1fr)_90px] gap-1.5 mb-2 px-1">
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider self-end">Grade</span>
                       {VA_COLUMNS.map((col) => (
                         <span key={col.key} className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-center self-end">{col.label}</span>
@@ -1717,11 +1719,12 @@ export default function DailyEntryPage() {
                       {gvaRows.map((row, idx) => {
                         const rowTotal = VA_COLUMNS.reduce((sum, col) => sum + (parseFloat(row[col.key]) || 0), 0);
                         return (
-                          <div key={row.grade} className="grid grid-cols-[90px_repeat(5,1fr)_90px] gap-1.5 items-center">
+                          <div key={row.grade} className="grid grid-cols-[90px_repeat(6,1fr)_90px] gap-1.5 items-center">
                             <span className="text-xs font-bold text-gray-700 px-1">{row.grade}</span>
-                            {VA_COLUMNS.map((col) => (
+                            {VA_COLUMNS.map((col, colIdx) => (
                               <input
                                 key={col.key}
+                                id={`gva-${idx}-${col.key}`}
                                 type="number"
                                 inputMode="decimal"
                                 step="0.001"
@@ -1730,6 +1733,21 @@ export default function DailyEntryPage() {
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setGvaRows((prev) => prev.map((r, i) => i === idx ? { ...r, [col.key]: val } : r));
+                                }}
+                                onKeyDown={(e) => {
+                                  let nextRow = idx;
+                                  let nextCol = colIdx;
+                                  if (e.key === 'ArrowUp') nextRow = Math.max(0, idx - 1);
+                                  else if (e.key === 'ArrowDown') nextRow = Math.min(gvaRows.length - 1, idx + 1);
+                                  else if (e.key === 'ArrowLeft') nextCol = Math.max(0, colIdx - 1);
+                                  else if (e.key === 'ArrowRight') nextCol = Math.min(VA_COLUMNS.length - 1, colIdx + 1);
+                                  else return;
+                                  
+                                  if (nextRow !== idx || nextCol !== colIdx) {
+                                    e.preventDefault();
+                                    const nextId = `gva-${nextRow}-${VA_COLUMNS[nextCol].key}`;
+                                    document.getElementById(nextId)?.focus();
+                                  }
                                 }}
                                 placeholder="-"
                                 className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-300 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
@@ -1744,7 +1762,7 @@ export default function DailyEntryPage() {
                     </div>
 
                     {/* Column totals footer */}
-                    <div className="grid grid-cols-[90px_repeat(5,1fr)_90px] gap-1.5 items-center mt-2 pt-2 border-t-2 border-indigo-100 bg-indigo-50/60 rounded-lg px-1 py-2">
+                    <div className="grid grid-cols-[90px_repeat(6,1fr)_90px] gap-1.5 items-center mt-2 pt-2 border-t-2 border-indigo-100 bg-indigo-50/60 rounded-lg px-1 py-2">
                       <span className="text-xs font-bold text-indigo-800">TOTAL</span>
                       {VA_COLUMNS.map((col) => {
                         const colTotal = gvaRows.reduce((sum, r) => sum + (parseFloat(r[col.key]) || 0), 0);

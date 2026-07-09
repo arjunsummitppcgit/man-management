@@ -1,0 +1,1 @@
+ALTER TABLE grades_va ADD COLUMN pud numeric(10,3) DEFAULT 0 NOT NULL;

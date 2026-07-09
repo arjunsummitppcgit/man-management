@@ -290,6 +290,7 @@ export interface GradesVaEntry {
   work_date: string;
   grade: string;
   pd: number;
+  pud: number;
   pdto: number;
   ezpl: number;
   pvpd: number;
@@ -301,6 +302,7 @@ export interface GradesVaEntry {
 export interface GradesVaFormRow {
   grade: string;
   pd: string;      // strings for input binding
+  pud: string;
   pdto: string;
   ezpl: string;
   pvpd: string;
