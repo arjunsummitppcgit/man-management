@@ -290,10 +290,13 @@ export default function DailyEntryPage() {
     soap_oil_ppc: 0,
     soap_oil_crates: 0,
     soap_oil_washrooms: 0,
+    chlorine_grading_machine: 0,
+    soap_oil_grading_machine: 0,
     gloves: 0,
     head_cap: 0,
     masks: 0,
   });
+  const [sanitizationNotes, setSanitizationNotes] = useState('');
 
   // Processing form state
   const [wipHonToHeadless, setWipHonToHeadless] = useState('');
@@ -444,10 +447,13 @@ export default function DailyEntryPage() {
         soap_oil_ppc: sanitizationData.soap_oil_ppc ?? 0,
         soap_oil_crates: sanitizationData.soap_oil_crates ?? 0,
         soap_oil_washrooms: sanitizationData.soap_oil_washrooms ?? 0,
+        chlorine_grading_machine: sanitizationData.chlorine_grading_machine ?? 0,
+        soap_oil_grading_machine: sanitizationData.soap_oil_grading_machine ?? 0,
         gloves: sanitizationData.gloves ?? 0,
         head_cap: sanitizationData.head_cap ?? 0,
         masks: sanitizationData.masks ?? 0,
       });
+      setSanitizationNotes(sanitizationData.notes ?? '');
     } else {
       setSanitization({
         cleaning_labour: 0,
@@ -462,10 +468,13 @@ export default function DailyEntryPage() {
         soap_oil_ppc: 0,
         soap_oil_crates: 0,
         soap_oil_washrooms: 0,
+        chlorine_grading_machine: 0,
+        soap_oil_grading_machine: 0,
         gloves: 0,
         head_cap: 0,
         masks: 0,
       });
+      setSanitizationNotes('');
     }
   }, [sanitizationData]);
 
@@ -557,7 +566,7 @@ export default function DailyEntryPage() {
           supervisor_ids: selectedSupervisors,
         });
       } else if (activeTab === 'sanitization') {
-        await saveSanitization(selectedDate, selectedLocation, sanitization);
+        await saveSanitization(selectedDate, selectedLocation, { ...sanitization, notes: sanitizationNotes });
       } else if (activeTab === 'processing') {
         await saveProcessing(selectedDate, selectedLocation, {
           wip_hon_to_headless: Math.max(0, parseFloat(wipHonToHeadless) || 0),
@@ -846,6 +855,18 @@ export default function DailyEntryPage() {
                   <h3 className="text-sm font-semibold text-gray-700 mb-2">Cleaned Quantity</h3>
                   <NumberStepper label="Crates Cleaning" value={sanitization.crates_cleaning} onChange={(v) => updateSanitization('crates_cleaning', v)} />
                   <NumberStepper label="Nets Cleaning" value={sanitization.nets_cleaning} onChange={(v) => updateSanitization('nets_cleaning', v)} />
+
+                  {/* Day Note (optional) */}
+                  <div className="pt-1">
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wide mb-1">Notes (optional)</label>
+                    <textarea
+                      value={sanitizationNotes}
+                      onChange={(e) => setSanitizationNotes(e.target.value)}
+                      rows={3}
+                      placeholder="Anything to note about this day…"
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 resize-none"
+                    />
+                  </div>
                 </div>
 
                 {/* Chemical Consumption */}
@@ -971,6 +992,49 @@ export default function DailyEntryPage() {
                             onChange={(e) => {
                               const val = parseFloat(e.target.value);
                               updateSanitization('soap_oil_washrooms', isNaN(val) ? 0 : Math.max(0, val));
+                            }}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm font-semibold placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 pr-10"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">L</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Grading Machine */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-teal-600 uppercase tracking-wide">⚙️ Grading Machine Cleaning</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 mb-1">Chlorine Grading Machine</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            value={sanitization.chlorine_grading_machine || ''}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              updateSanitization('chlorine_grading_machine', isNaN(val) ? 0 : Math.max(0, val));
+                            }}
+                            placeholder="0.00"
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm font-semibold placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 pr-10"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-400">L</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 mb-1">Soap Oil Grading Machine</label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="any"
+                            min="0"
+                            value={sanitization.soap_oil_grading_machine || ''}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              updateSanitization('soap_oil_grading_machine', isNaN(val) ? 0 : Math.max(0, val));
                             }}
                             placeholder="0.00"
                             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 text-sm font-semibold placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 pr-10"

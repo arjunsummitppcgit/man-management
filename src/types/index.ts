@@ -68,9 +68,12 @@ export interface DailySanitization {
   soap_oil_ppc: number;
   soap_oil_crates: number;
   soap_oil_washrooms: number;
+  chlorine_grading_machine: number;
+  soap_oil_grading_machine: number;
   gloves: number;
   head_cap: number;
   masks: number;
+  notes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -131,9 +134,12 @@ export interface SanitizationFormData {
   soap_oil_ppc: number;
   soap_oil_crates: number;
   soap_oil_washrooms: number;
+  chlorine_grading_machine: number;
+  soap_oil_grading_machine: number;
   gloves: number;
   head_cap: number;
   masks: number;
+  notes: string;
 }
 
 export interface ProcessingFormData {
@@ -202,6 +208,7 @@ export interface DashboardKPIs {
   yesterdayHeadCap?: number;
   yesterdayMasks?: number;
   yesterdayDate?: string;
+  yesterdayNotes?: { location: string; note: string }[];
 }
 
 export interface LocationBreakdown {

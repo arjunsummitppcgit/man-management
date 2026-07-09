@@ -52,9 +52,12 @@ export function useSanitization() {
             soap_oil_ppc: data.soap_oil_ppc,
             soap_oil_crates: data.soap_oil_crates,
             soap_oil_washrooms: data.soap_oil_washrooms,
+            chlorine_grading_machine: data.chlorine_grading_machine,
+            soap_oil_grading_machine: data.soap_oil_grading_machine,
             gloves: data.gloves,
             head_cap: data.head_cap,
             masks: data.masks,
+            notes: data.notes.trim() || null,
             updated_at: new Date().toISOString(),
           },
           {

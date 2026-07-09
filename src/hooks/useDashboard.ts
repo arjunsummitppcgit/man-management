@@ -157,7 +157,7 @@ export function useDashboard() {
 
       let yesterdaySanitizationQuery = supabase
         .from('daily_sanitization')
-        .select('crates_cleaning, nets_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, gloves, head_cap, masks')
+        .select('crates_cleaning, nets_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, gloves, head_cap, masks, notes, location:locations(name)')
         .eq('work_date', yesterdayDate);
 
       if (locationFilter) {
@@ -189,6 +189,14 @@ export function useDashboard() {
       const yesterdayGloves = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.gloves || 0), 0);
       const yesterdayHeadCap = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.head_cap || 0), 0);
       const yesterdayMasks = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.masks || 0), 0);
+
+      // Collect any non-empty day notes from yesterday's sanitization rows
+      const yesterdayNotes = ((yesterdaySanitizationData as any[]) || [])
+        .filter((row) => row.notes && String(row.notes).trim())
+        .map((row) => ({
+          location: row.location?.name || 'Unknown',
+          note: String(row.notes).trim(),
+        }));
 
       const todaysProcessing = Number(((yesterdayProcessingData || []).reduce(
         (sum, row) => sum + (row.headless_to_va || 0),
@@ -305,6 +313,7 @@ export function useDashboard() {
         yesterdayHeadCap,
         yesterdayMasks,
         yesterdayDate,
+        yesterdayNotes,
       });
 
       // ──────────────────────────────────────────
