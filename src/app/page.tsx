@@ -290,7 +290,7 @@ export default function DashboardPage() {
       />
 
       {/* KPI Cards Grid */}
-      <div className="px-4 mb-4 space-y-3 dash-grid stagger">
+      <div className="px-4 mb-4 dash-grid stagger">
         {/* Workforce KPI — Full-width expanded card with breakdowns */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 mb-3">

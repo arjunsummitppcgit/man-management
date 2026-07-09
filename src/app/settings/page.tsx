@@ -22,7 +22,7 @@ const REPORT_TYPES = [
 export default function SettingsPage() {
   const { showToast } = useToast();
   const router = useRouter();
-  const { locations } = useLocations();
+  const { locations, addLocation } = useLocations();
   const { isSubUser } = useAuth();
   // Sub-users cannot access attendance reports — admin only
   const reportTypes = isSubUser
@@ -33,6 +33,11 @@ export default function SettingsPage() {
   const [dateTo, setDateTo] = useState('');
   const [exporting, setExporting] = useState(false);
   const [isLightMode, setIsLightMode] = useState(false);
+
+  // Manage Locations
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
+  const [newLocationName, setNewLocationName] = useState('');
+  const [addingLocation, setAddingLocation] = useState(false);
 
   // Report Preview state
   const [previewHeaders, setPreviewHeaders] = useState<string[]>([]);
@@ -245,6 +250,26 @@ export default function SettingsPage() {
 
 
 
+  const handleAddLocation = async () => {
+    const trimmed = newLocationName.trim();
+    if (!trimmed) {
+      showToast('Enter a location name', 'error');
+      return;
+    }
+    setAddingLocation(true);
+    try {
+      await addLocation(trimmed);
+      showToast('Location added', 'success');
+      setNewLocationName('');
+      setLocationModalOpen(false);
+    } catch (error) {
+      console.error('Error adding location:', error);
+      showToast('Failed to add location', 'error');
+    } finally {
+      setAddingLocation(false);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/login');
@@ -270,6 +295,46 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* Manage Locations (admin-only) */}
+        {!isSubUser && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4.5 h-4.5 text-teal-600">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-semibold text-gray-700">Manage Locations</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLocationModalOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-lg transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {locations.map((loc) => (
+                <span
+                  key={loc.id}
+                  className="px-2.5 py-1 bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-medium rounded-full border border-gray-200 dark:border-gray-700"
+                >
+                  {loc.name}
+                </span>
+              ))}
+            </div>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
+              For rare cases needing extra processing capacity — added locations appear immediately in every location dropdown.
+            </p>
+          </div>
+        )}
 
         {/* App Preferences (Theme Toggle) */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-fade-in">
@@ -472,6 +537,58 @@ export default function SettingsPage() {
         {/* Bottom spacing */}
         <div className="h-4" />
       </div>
+
+      {/* Add Location Modal */}
+      {locationModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setLocationModalOpen(false)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" />
+          <div
+            className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-3xl p-6 border-t border-gray-200 dark:border-gray-800 shadow-2xl animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mb-5" />
+
+            <div className="mb-5">
+              <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">Add Location</h3>
+              <p className="text-xs text-gray-550 dark:text-gray-400 mt-1">
+                For rare cases needing an extra processing location — it&apos;ll show up in every location dropdown right away.
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
+                Location Name
+              </label>
+              <input
+                type="text"
+                autoFocus
+                value={newLocationName}
+                onChange={(e) => setNewLocationName(e.target.value)}
+                placeholder="e.g. PPC 5"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-800 dark:text-gray-200 focus:border-teal-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setLocationModalOpen(false)}
+                className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl transition-colors min-h-[48px]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={addingLocation}
+                onClick={handleAddLocation}
+                className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl shadow-lg shadow-teal-600/20 transition-all min-h-[48px] flex items-center justify-center gap-2"
+              >
+                {addingLocation ? 'Adding...' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

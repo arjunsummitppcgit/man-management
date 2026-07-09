@@ -701,6 +701,20 @@ input:focus, select:focus, textarea:focus {
   background: transparent;
 }
 
+/* Dashboard card grid — row-major (left→right) auto-placement, single column on mobile */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem;
+  align-items: start;
+}
+.dash-grid > * {
+  margin: 0;
+  transition:
+    transform 0.45s var(--ease-mac),
+    box-shadow 0.45s var(--ease-mac);
+}
+
 /* ── Desktop-only refinements ── */
 @media (min-width: 1024px) {
   /* Display typography for page titles */
@@ -726,18 +740,10 @@ input:focus, select:focus, textarea:focus {
   .stagger > *:nth-child(8) { animation-delay: 0.4s; }
   .stagger > *:nth-child(n + 9) { animation-delay: 0.45s; }
 
-  /* Masonry columns for the dashboard card stack (single column on mobile) */
+  /* Dashboard cards: 2-column row-major grid on desktop */
   .dash-grid {
-    columns: 2;
-    column-gap: 1.25rem;
-  }
-  .dash-grid > * {
-    break-inside: avoid;
-    margin-top: 0;
-    margin-bottom: 1.25rem;
-    transition:
-      transform 0.45s var(--ease-mac),
-      box-shadow 0.45s var(--ease-mac);
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.25rem;
   }
   .dash-grid > *:hover {
     transform: translateY(-4px);
@@ -788,7 +794,7 @@ input:focus, select:focus, textarea:focus {
 
 @media (min-width: 1700px) {
   .dash-grid {
-    columns: 3;
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
