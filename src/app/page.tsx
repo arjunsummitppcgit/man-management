@@ -672,6 +672,21 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+
+            {/* Grading Machine */}
+            <div className="bg-rose-50/50 dark:bg-rose-950/20 rounded-xl p-2.5 chemical-container-grading-machine">
+              <p className="text-[10px] font-bold text-rose-650 dark:text-rose-400 uppercase tracking-wide mb-1.5">⚙️ Grading Machine</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-rose-100/50 dark:border-rose-900/30">
+                  <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Chlorine</p>
+                  <p className="text-sm font-bold text-rose-850 dark:text-rose-350 mt-0.5">{(kpis?.yesterdayChlorineGradingMachine ?? 0).toFixed(2)} L</p>
+                </div>
+                <div className="bg-white dark:bg-gray-900 rounded-lg p-2 text-center border border-rose-100/50 dark:border-rose-900/30">
+                  <p className="text-[9px] text-gray-500 dark:text-gray-400 font-medium uppercase chemical-label">Soap Oil</p>
+                  <p className="text-sm font-bold text-rose-850 dark:text-rose-350 mt-0.5">{(kpis?.yesterdaySoapOilGradingMachine ?? 0).toFixed(2)} L</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -688,7 +703,7 @@ export default function DashboardPage() {
             {/* Gloves */}
             <div className="bg-purple-50 dark:bg-purple-950/20 rounded-xl px-2 py-3 flex flex-col items-center justify-center text-center">
               <p className="text-[9px] text-purple-500 dark:text-purple-400 font-medium uppercase tracking-wide leading-tight">Gloves</p>
-              <p className="text-lg font-bold text-purple-700 dark:text-purple-300 mt-0.5">{((kpis?.yesterdayGloves ?? 0) * 2).toLocaleString('en-IN')} pcs</p>
+              <p className="text-lg font-bold text-purple-700 dark:text-purple-300 mt-0.5">{(kpis?.yesterdayGloves ?? 0).toLocaleString('en-IN')} pcs</p>
             </div>
             {/* Head Cap */}
             <div className="bg-purple-50 dark:bg-purple-950/20 rounded-xl px-2 py-3 flex flex-col items-center justify-center text-center">

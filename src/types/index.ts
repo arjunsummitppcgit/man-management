@@ -201,9 +201,11 @@ export interface DashboardKPIs {
   yesterdayChlorinePpc?: number;
   yesterdayChlorineCrates?: number;
   yesterdayChlorineWashrooms?: number;
+  yesterdayChlorineGradingMachine?: number;
   yesterdaySoapOilPpc?: number;
   yesterdaySoapOilCrates?: number;
   yesterdaySoapOilWashrooms?: number;
+  yesterdaySoapOilGradingMachine?: number;
   yesterdayGloves?: number;
   yesterdayHeadCap?: number;
   yesterdayMasks?: number;

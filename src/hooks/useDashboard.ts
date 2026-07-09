@@ -157,7 +157,7 @@ export function useDashboard() {
 
       let yesterdaySanitizationQuery = supabase
         .from('daily_sanitization')
-        .select('crates_cleaning, nets_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, gloves, head_cap, masks, notes, location:locations(name)')
+        .select('crates_cleaning, nets_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, chlorine_grading_machine, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, soap_oil_grading_machine, gloves, head_cap, masks, notes, location:locations(name)')
         .eq('work_date', yesterdayDate);
 
       if (locationFilter) {
@@ -181,11 +181,13 @@ export function useDashboard() {
       const yesterdayChlorinePpc = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.chlorine_ppc || 0), 0);
       const yesterdayChlorineCrates = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.chlorine_crates || 0), 0);
       const yesterdayChlorineWashrooms = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.chlorine_washrooms || 0), 0);
-      
+      const yesterdayChlorineGradingMachine = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.chlorine_grading_machine || 0), 0);
+
       const yesterdaySoapOilPpc = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.soap_oil_ppc || 0), 0);
       const yesterdaySoapOilCrates = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.soap_oil_crates || 0), 0);
       const yesterdaySoapOilWashrooms = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.soap_oil_washrooms || 0), 0);
-      
+      const yesterdaySoapOilGradingMachine = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.soap_oil_grading_machine || 0), 0);
+
       const yesterdayGloves = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.gloves || 0), 0);
       const yesterdayHeadCap = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.head_cap || 0), 0);
       const yesterdayMasks = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.masks || 0), 0);
@@ -306,9 +308,11 @@ export function useDashboard() {
         yesterdayChlorinePpc,
         yesterdayChlorineCrates,
         yesterdayChlorineWashrooms,
+        yesterdayChlorineGradingMachine,
         yesterdaySoapOilPpc,
         yesterdaySoapOilCrates,
         yesterdaySoapOilWashrooms,
+        yesterdaySoapOilGradingMachine,
         yesterdayGloves,
         yesterdayHeadCap,
         yesterdayMasks,
