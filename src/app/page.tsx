@@ -689,6 +689,7 @@ export default function DashboardPage() {
             <div className="bg-purple-50 dark:bg-purple-950/20 rounded-xl px-2 py-3 flex flex-col items-center justify-center text-center">
               <p className="text-[9px] text-purple-500 dark:text-purple-400 font-medium uppercase tracking-wide leading-tight">Gloves</p>
               <p className="text-lg font-bold text-purple-700 dark:text-purple-300 mt-0.5">{kpis?.yesterdayGloves ?? 0} pairs</p>
+              <p className="text-[9px] text-purple-400 dark:text-purple-500 font-medium mt-0.5">= {((kpis?.yesterdayGloves ?? 0) * 2).toLocaleString('en-IN')} pcs</p>
             </div>
             {/* Head Cap */}
             <div className="bg-purple-50 dark:bg-purple-950/20 rounded-xl px-2 py-3 flex flex-col items-center justify-center text-center">
