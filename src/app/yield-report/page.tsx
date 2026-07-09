@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useGradesVa } from '@/hooks/useGradesVa';
+import LadiesPerHeadAmountSection from '@/components/reports/LadiesPerHeadAmountSection';
 import { calculateYield, lookupStandardYield, calculateYieldDifference } from '@/lib/yieldChart';
 import { VA_GRADES, VA_COLUMNS, formatVaQty, type VaColumnKey } from '@/lib/gradesVa';
 
@@ -821,6 +822,18 @@ export default function YieldReportPage() {
             </div>
           )}
         </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            SECTION 4: LADIES PER HEAD AMOUNT (entry values, no calculation)
+        ═══════════════════════════════════════════════════════════════════ */}
+        {!isSubUser && (
+          <div className="space-y-4">
+            <div className="pt-2 pb-1">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Ladies Per Head Amount</h2>
+            </div>
+            <LadiesPerHeadAmountSection selectedDate={selectedDate} />
+          </div>
+        )}
 
       </div>
     </div>
