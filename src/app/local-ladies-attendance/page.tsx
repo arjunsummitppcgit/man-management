@@ -409,13 +409,16 @@ export default function LocalLadiesAttendancePage() {
   }
 
   // ── Reusable grid renderer ─────────────────────────────────────────────────
-  const renderGrid = (
+  const renderGrid = <
+    R extends { sNo: number; id: string; name: string; batch: BatchRecord; daily: { dayNum: number; formattedDate: string }[]; total: number }
+  >(
     title: string,
-    rows: typeof attRows | typeof amtRows,
-    columnTotals: typeof attColumnTotals | typeof amtColumnTotals,
-    renderCell: (cell: { dayNum: number; formattedDate: string; count?: number; amount?: number }, row: typeof attRows[0]) => React.ReactNode,
+    rows: R[],
+    columnTotals: { perDay: number[]; grand: number },
+    renderCell: (cell: R['daily'][number], row: R) => React.ReactNode,
     renderFooterCell: (sum: number, i: number) => React.ReactNode,
     onAddBatch: () => void,
+    formatTotal: (n: number) => React.ReactNode,
   ) => (
     <div className="mb-8">
       {/* Section title + Add Batch */}
@@ -489,7 +492,7 @@ export default function LocalLadiesAttendancePage() {
                       </td>
                       {row.daily.map((cell) => renderCell(cell, row))}
                       <td className="px-3 py-3 text-center font-bold text-teal-600 dark:text-teal-400 bg-teal-50/20 dark:bg-teal-950/10 text-sm">
-                        {row.total > 0 ? (typeof row.total === 'number' && row.daily[0] && 'amount' in row.daily[0] ? formatAmount(row.total) : row.total) : '-'}
+                        {row.total > 0 ? formatTotal(row.total) : '-'}
                       </td>
                     </tr>
                   ))}
@@ -502,7 +505,7 @@ export default function LocalLadiesAttendancePage() {
                     </td>
                     {columnTotals.perDay.map((sum, i) => renderFooterCell(sum, i))}
                     <td className="px-3 py-3 text-center text-teal-700 dark:text-teal-300 bg-teal-100/60 dark:bg-teal-950/40 text-sm">
-                      {columnTotals.grand > 0 ? (typeof columnTotals.grand === 'number' ? columnTotals.grand : '-') : '-'}
+                      {columnTotals.grand > 0 ? formatTotal(columnTotals.grand) : '-'}
                     </td>
                   </tr>
                 </tfoot>
@@ -563,28 +566,26 @@ export default function LocalLadiesAttendancePage() {
         'Ladies Attendance',
         attRows,
         attColumnTotals,
-        (cell, row) => {
-          const c = cell as { dayNum: number; count: number; formattedDate: string };
-          return (
-            <td
-              key={c.dayNum}
-              onClick={() => handleEditAttCell(row.id, row.name, c.formattedDate, c.dayNum)}
-              className="py-2 text-center border-r border-gray-100/50 dark:border-gray-800/20 cursor-pointer hover:bg-teal-50/30 dark:hover:bg-teal-900/10 transition-colors"
-            >
-              {c.count > 0 ? (
-                <span className="font-extrabold text-teal-650 dark:text-teal-400 text-sm">{c.count}</span>
-              ) : (
-                <span className="text-gray-300 dark:text-gray-700">-</span>
-              )}
-            </td>
-          );
-        },
+        (cell, row) => (
+          <td
+            key={cell.dayNum}
+            onClick={() => handleEditAttCell(row.id, row.name, cell.formattedDate, cell.dayNum)}
+            className="py-2 text-center border-r border-gray-100/50 dark:border-gray-800/20 cursor-pointer hover:bg-teal-50/30 dark:hover:bg-teal-900/10 transition-colors"
+          >
+            {cell.count > 0 ? (
+              <span className="font-extrabold text-teal-650 dark:text-teal-400 text-sm">{cell.count}</span>
+            ) : (
+              <span className="text-gray-300 dark:text-gray-700">-</span>
+            )}
+          </td>
+        ),
         (sum, i) => (
           <td key={i} className="py-3 text-center text-gray-700 dark:text-gray-200 border-r border-gray-200/60 dark:border-gray-700/40 text-[11px]">
             {sum > 0 ? sum : <span className="text-gray-300 dark:text-gray-600">-</span>}
           </td>
         ),
         openAddBatch,
+        (n) => n,
       )}
 
       {/* ── Per Head Amount Grid ────────────────────────────────────────────── */}
@@ -594,28 +595,26 @@ export default function LocalLadiesAttendancePage() {
             'Ladies Per Head Amount',
             amtRows,
             amtColumnTotals,
-            (cell, row) => {
-              const c = cell as { dayNum: number; amount: number; formattedDate: string };
-              return (
-                <td
-                  key={c.dayNum}
-                  onClick={() => handleEditAmtCell(row.id, row.name, c.formattedDate, c.dayNum)}
-                  className="py-2 px-1 text-center border-r border-gray-100/50 dark:border-gray-800/20 cursor-pointer hover:bg-teal-50/30 dark:hover:bg-teal-900/10 transition-colors"
-                >
-                  {c.amount > 0 ? (
-                    <span className="font-semibold text-gray-800 dark:text-gray-200 text-xs">{formatAmount(c.amount)}</span>
-                  ) : (
-                    <span className="text-gray-300 dark:text-gray-700">-</span>
-                  )}
-                </td>
-              );
-            },
+            (cell, row) => (
+              <td
+                key={cell.dayNum}
+                onClick={() => handleEditAmtCell(row.id, row.name, cell.formattedDate, cell.dayNum)}
+                className="py-2 px-1 text-center border-r border-gray-100/50 dark:border-gray-800/20 cursor-pointer hover:bg-teal-50/30 dark:hover:bg-teal-900/10 transition-colors"
+              >
+                {cell.amount > 0 ? (
+                  <span className="font-semibold text-gray-800 dark:text-gray-200 text-xs">{formatAmount(cell.amount)}</span>
+                ) : (
+                  <span className="text-gray-300 dark:text-gray-700">-</span>
+                )}
+              </td>
+            ),
             (sum, i) => (
               <td key={i} className="py-3 px-1 text-center text-gray-700 dark:text-gray-200 border-r border-gray-200/60 dark:border-gray-700/40 text-[11px]">
                 {sum > 0 ? formatAmount(sum) : <span className="text-gray-300 dark:text-gray-600">-</span>}
               </td>
             ),
             openAddBatch,
+            (n) => formatAmount(n),
           )}
         </div>
       </div>
