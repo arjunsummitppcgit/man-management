@@ -18,7 +18,8 @@ export default function YieldReportPage() {
   const TODAY = new Date().toISOString().split('T')[0];
   const YESTERDAY = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   
-  const [selectedDate, setSelectedDate] = useState(TODAY);
+  // Default to yesterday — the Daily Report recaps the previous day's work
+  const [selectedDate, setSelectedDate] = useState(YESTERDAY);
 
   // ── HON to HL Yields filters ───────────────────────────────────────────────
   const [diffFilter, setDiffFilter] = useState('All');
@@ -279,9 +280,93 @@ export default function YieldReportPage() {
     }
   };
 
+  // Report Date navigation (Sections 1 & 2) — shift selectedDate by ±1 day.
+  // Stays in local calendar fields throughout (no toISOString) so the date
+  // doesn't shift across the UTC boundary for timezones ahead of UTC.
+  const shiftDate = (dateStr: string, days: number) => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() + days);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+  };
+  const handlePrevDate = () => {
+    const prev = shiftDate(selectedDate, -1);
+    if (isSubUser && prev !== TODAY && prev !== YESTERDAY) return;
+    setSelectedDate(prev);
+  };
+  const handleNextDate = () => {
+    const next = shiftDate(selectedDate, 1);
+    if (isSubUser && next !== TODAY && next !== YESTERDAY) return;
+    setSelectedDate(next);
+  };
+
+  // Which quick preset (if any) the current Grades V/A range matches, plus a
+  // human-readable label — so it's obvious the section is showing "Yesterday".
+  const PRESET_LABELS: Record<string, string> = {
+    today: 'Today',
+    yesterday: 'Yesterday',
+    last7: 'Last 7 Days',
+    thisMonth: 'This Month',
+    lastMonth: 'Last Month',
+  };
+  const gvaMeta = useMemo(() => {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const now = new Date();
+    const last7From = new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0];
+    const firstLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const endLast = new Date(now.getFullYear(), now.getMonth(), 0);
+    const lastMonthFrom = `${firstLast.getFullYear()}-${pad(firstLast.getMonth() + 1)}-${pad(firstLast.getDate())}`;
+    const lastMonthTo = `${endLast.getFullYear()}-${pad(endLast.getMonth() + 1)}-${pad(endLast.getDate())}`;
+
+    let preset: string | null = null;
+    if (gvaFrom === gvaTo && gvaFrom === TODAY) preset = 'today';
+    else if (gvaFrom === gvaTo && gvaFrom === YESTERDAY) preset = 'yesterday';
+    else if (gvaFrom === last7From && gvaTo === TODAY) preset = 'last7';
+    else if (gvaFrom === MONTH_START && gvaTo === TODAY) preset = 'thisMonth';
+    else if (gvaFrom === lastMonthFrom && gvaTo === lastMonthTo) preset = 'lastMonth';
+
+    const fmt = (s: string) => {
+      try {
+        return new Date(s + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+      } catch {
+        return s;
+      }
+    };
+    const label = gvaFrom === gvaTo ? fmt(gvaFrom) : `${fmt(gvaFrom)} – ${fmt(gvaTo)}`;
+    return { preset, label };
+  }, [gvaFrom, gvaTo, TODAY, YESTERDAY, MONTH_START]);
+
   return (
     <div className="animate-fade-in pb-20 lg:pb-6">
-      <PageHeader title="Daily Report" />
+      <PageHeader
+        title="Daily Report"
+        rightAction={
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrevDate}
+              disabled={isSubUser && selectedDate === YESTERDAY}
+              aria-label="Previous day"
+              className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200"
+            >
+              ◀
+            </button>
+            <span className="px-3 py-2 bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap">
+              {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+            </span>
+            <button
+              type="button"
+              onClick={handleNextDate}
+              disabled={isSubUser && selectedDate === TODAY}
+              aria-label="Next day"
+              className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200"
+            >
+              ▶
+            </button>
+          </div>
+        }
+      />
 
       <div className="px-4 mt-2 space-y-6">
 
@@ -549,8 +634,14 @@ export default function YieldReportPage() {
             SECTION 3: GRADES VS VALUE ADDITION (V/A)
         ═══════════════════════════════════════════════════════════════════ */}
         <div className="space-y-4">
-          <div className="pt-2 pb-1">
+          <div className="pt-2 pb-1 flex items-center gap-2.5 flex-wrap">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Grades vs V/A</h2>
+            {gvaMeta.preset && (
+              <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-bold uppercase tracking-wide">
+                {PRESET_LABELS[gvaMeta.preset]}
+              </span>
+            )}
+            <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">{gvaMeta.label}</span>
           </div>
 
           {/* Date Range + Presets */}
@@ -594,7 +685,11 @@ export default function YieldReportPage() {
                   key={p.key}
                   type="button"
                   onClick={() => applyGvaPreset(p.key)}
-                  className="px-3 py-1.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                    gvaMeta.preset === p.key
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                  }`}
                 >
                   {p.label}
                 </button>
