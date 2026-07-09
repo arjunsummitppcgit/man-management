@@ -137,6 +137,14 @@ export default function YieldReportPage() {
   const [gvaMinTotal, setGvaMinTotal] = useState('');                       // min total KGS threshold
   const [gvaShowDaily, setGvaShowDaily] = useState(false);
 
+  // Follow the Daily Report date navigation: whenever the shared report date
+  // changes (header arrows / Report Date picker), snap the V/A range to that
+  // same single day. Presets and manual pickers can still override afterward.
+  useEffect(() => {
+    setGvaFrom(selectedDate);
+    setGvaTo(selectedDate);
+  }, [selectedDate]);
+
   // Sub-users: clamp range to yesterday–today
   useEffect(() => {
     if (isSubUser) {
@@ -352,8 +360,9 @@ export default function YieldReportPage() {
             >
               ◀
             </button>
+            {/* Header shows the report day; the sections below cover the previous day's work */}
             <span className="px-3 py-2 bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-800 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-200 whitespace-nowrap">
-              {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              {new Date(shiftDate(selectedDate, 1) + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
             </span>
             <button
               type="button"
