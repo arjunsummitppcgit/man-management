@@ -1264,169 +1264,158 @@ export default function DailyEntryPage() {
                   </div>
                 </div>
 
-                {/* Batch Rows */}
-                {yieldRows.map((row, idx) => {
-                  const honNum = parseFloat(row.hon_kgs) || 0;
-                  const hlNum = parseFloat(row.hl_kgs) || 0;
-                  const yieldPct = calculateYield(honNum, hlNum);
-                  const stdYield = lookupStandardYield(row.count_text);
-                  const yieldDiff = calculateYieldDifference(yieldPct, stdYield);
-
-                  return (
-                    <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
-                      {/* Row header */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-gray-700">Batch #{idx + 1}</span>
-                        {yieldRows.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setYieldRows((prev) => prev.filter((_, i) => i !== idx));
-                            }}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Row 1: Batch ID + Count */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">Batch ID</label>
-                          <input
-                            type="text"
-                            value={row.batch_id}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, batch_id: val } : r));
-                            }}
-                            placeholder="e.g. 26G 1/8"
-                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">Count</label>
-                          <input
-                            type="text"
-                            value={row.count_text}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, count_text: val, count_range: lookupCountRange(val) || '' } : r));
-                            }}
-                            placeholder="e.g. 37.75/40"
-                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Row 2: HON + HL */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">HON (KGS)</label>
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            step="0.001"
-                            value={row.hon_kgs}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, hon_kgs: val } : r));
-                            }}
-                            placeholder="0.000"
-                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">HL (KGS)</label>
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            step="0.001"
-                            value={row.hl_kgs}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, hl_kgs: val } : r));
-                            }}
-                            placeholder="0.000"
-                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Row 3: Location + Grader */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">Location</label>
-                          <select
-                            value={row.location_id}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, location_id: val } : r));
-                            }}
-                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 appearance-none"
-                          >
-                            <option value="">Select...</option>
-                            {locations.map((loc) => (
-                              <option key={loc.id} value={loc.id}>{loc.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">Grader Name</label>
-                          <input
-                            type="text"
-                            value={row.grader_name}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, grader_name: val } : r));
-                            }}
-                            placeholder="Name"
-                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Auto-calculated values */}
-                      {honNum > 0 && hlNum > 0 && (
-                        <div className="grid grid-cols-3 gap-2 pt-1">
-                          <div className="bg-blue-50 rounded-xl px-2 py-2 text-center">
-                            <p className="text-[9px] text-blue-500 font-medium uppercase tracking-wide">Yield</p>
-                            <p className="text-sm font-bold text-blue-700 mt-0.5">
-                              {yieldPct !== null ? `${yieldPct.toFixed(2)}%` : '—'}
-                            </p>
-                          </div>
-                          <div className="bg-purple-50 rounded-xl px-2 py-2 text-center">
-                            <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide">Std Yield</p>
-                            <p className="text-sm font-bold text-purple-700 mt-0.5">
-                              {stdYield !== null ? `${stdYield.toFixed(2)}%` : '—'}
-                            </p>
-                          </div>
-                          <div className={`rounded-xl px-2 py-2 text-center ${
-                            yieldDiff !== null && yieldDiff >= 0
-                              ? 'bg-emerald-50'
-                              : 'bg-rose-50'
-                          }`}>
-                            <p className={`text-[9px] font-medium uppercase tracking-wide ${
-                              yieldDiff !== null && yieldDiff >= 0
-                                ? 'text-emerald-500'
-                                : 'text-rose-500'
-                            }`}>Difference</p>
-                            <p className={`text-sm font-bold mt-0.5 ${
-                              yieldDiff !== null && yieldDiff >= 0
-                                ? 'text-emerald-700'
-                                : 'text-rose-700'
-                            }`}>
-                              {yieldDiff !== null ? `${yieldDiff >= 0 ? '+' : ''}${yieldDiff.toFixed(2)}%` : '—'}
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                {/* Yield Grid */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+                  <div className="min-w-[860px] p-3">
+                    {/* Header row */}
+                    <div className="grid grid-cols-[120px_100px_90px_90px_120px_120px_60px_60px_70px_32px] gap-1.5 mb-2 px-1 border-b border-gray-100 pb-2">
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Batch ID</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Count</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">HON (KGS)</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">HL (KGS)</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Location</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Grader</span>
+                      <span className="text-[10px] font-semibold text-teal-500 uppercase tracking-wider text-right">Yield</span>
+                      <span className="text-[10px] font-semibold text-purple-500 uppercase tracking-wider text-right">Std %</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Diff</span>
+                      <span></span>
                     </div>
-                  );
-                })}
+
+                    {/* Batch rows */}
+                    <div className="space-y-1.5">
+                      {yieldRows.map((row, idx) => {
+                        const honNum = parseFloat(row.hon_kgs) || 0;
+                        const hlNum = parseFloat(row.hl_kgs) || 0;
+                        const yieldPct = calculateYield(honNum, hlNum);
+                        const stdYield = lookupStandardYield(row.count_text);
+                        const yieldDiff = calculateYieldDifference(yieldPct, stdYield);
+                        
+                        const handleKeyDown = (e: React.KeyboardEvent, colIdx: number) => {
+                          let nextRow = idx;
+                          let nextCol = colIdx;
+                          if (e.key === 'ArrowUp') nextRow = Math.max(0, idx - 1);
+                          else if (e.key === 'ArrowDown') nextRow = Math.min(yieldRows.length - 1, idx + 1);
+                          else if (e.key === 'ArrowLeft') nextCol = Math.max(0, colIdx - 1);
+                          else if (e.key === 'ArrowRight') nextCol = Math.min(5, colIdx + 1);
+                          else return;
+                          
+                          if (nextRow !== idx || nextCol !== colIdx) {
+                            e.preventDefault();
+                            const nextId = `yield-${nextRow}-${nextCol}`;
+                            document.getElementById(nextId)?.focus();
+                          }
+                        };
+
+                        return (
+                          <div key={idx} className="grid grid-cols-[120px_100px_90px_90px_120px_120px_60px_60px_70px_32px] gap-1.5 items-center group">
+                            {/* Batch ID */}
+                            <input
+                              id={`yield-${idx}-0`}
+                              type="text"
+                              value={row.batch_id}
+                              onChange={(e) => setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, batch_id: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 0)}
+                              placeholder="Batch ID"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+                            {/* Count */}
+                            <input
+                              id={`yield-${idx}-1`}
+                              type="text"
+                              value={row.count_text}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, count_text: val, count_range: lookupCountRange(val) || '' } : r));
+                              }}
+                              onKeyDown={(e) => handleKeyDown(e, 1)}
+                              placeholder="Count"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+                            {/* HON */}
+                            <input
+                              id={`yield-${idx}-2`}
+                              type="number"
+                              inputMode="decimal"
+                              step="0.001"
+                              value={row.hon_kgs}
+                              onChange={(e) => setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, hon_kgs: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 2)}
+                              placeholder="0.000"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+                            {/* HL */}
+                            <input
+                              id={`yield-${idx}-3`}
+                              type="number"
+                              inputMode="decimal"
+                              step="0.001"
+                              value={row.hl_kgs}
+                              onChange={(e) => setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, hl_kgs: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 3)}
+                              placeholder="0.000"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+                            {/* Location */}
+                            <select
+                              id={`yield-${idx}-4`}
+                              value={row.location_id}
+                              onChange={(e) => setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, location_id: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 4)}
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 focus:border-teal-500 appearance-none"
+                            >
+                              <option value="">Location...</option>
+                              {locations.map((loc) => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                              ))}
+                            </select>
+                            {/* Grader Name */}
+                            <input
+                              id={`yield-${idx}-5`}
+                              type="text"
+                              value={row.grader_name}
+                              onChange={(e) => setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, grader_name: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 5)}
+                              placeholder="Name"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+                            
+                            {/* Calculated Values */}
+                            <span className="text-[11px] font-bold text-right px-1 text-teal-700">{yieldPct !== null ? `${yieldPct.toFixed(2)}%` : '-'}</span>
+                            <span className="text-[11px] font-bold text-right px-1 text-purple-700">{stdYield !== null ? `${stdYield.toFixed(2)}%` : '-'}</span>
+                            <span className={`text-[11px] font-bold text-right px-1 ${yieldDiff !== null && yieldDiff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {yieldDiff !== null ? `${yieldDiff >= 0 ? '+' : ''}${yieldDiff.toFixed(2)}%` : '-'}
+                            </span>
+                            
+                            {/* Action */}
+                            <div className="flex justify-end pr-1">
+                              {yieldRows.length > 1 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setYieldRows((prev) => prev.filter((_, i) => i !== idx))}
+                                  className="w-6 h-6 flex items-center justify-center rounded bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setYieldRows([emptyYieldRow()])}
+                                  className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9.75L14.25 12m0 0l2.25 2.25M14.25 12l2.25-2.25M14.25 12L12 14.25m-2.58 4.92l-6.375-6.375a1.125 1.125 0 010-1.59L9.42 4.83c.211-.211.498-.33.796-.33H19.5a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-9.284c-.298 0-.585-.119-.796-.33z" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
 
                 {/* Add Batch Button */}
                 <button
@@ -1501,160 +1490,149 @@ export default function DailyEntryPage() {
                   <p className="text-xs text-amber-700">Salary Basic is fixed at <strong>₹{SALARY_BASIC}.00</strong>. Difference and Profit &amp; Loss are auto-calculated.</p>
                 </div>
 
-                {/* Batch Rows */}
-                {nllRows.map((row, idx) => {
-                  const noLadies = parseInt(row.no_of_ladies) || 0;
-                  const hlQty = parseFloat(row.hl_qty) || 0;
-                  const pdQty = parseFloat(row.pd_qty) || 0;
-                  const perHead = parseFloat(row.per_head_amount) || 0;
-                  const totalQty = hlQty + pdQty;
-                  const diff = perHead > 0 ? perHead - SALARY_BASIC : null;
-                  const pnl = diff !== null ? diff * noLadies : null;
-
-                  return (
-                    <div key={idx} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
-                      {/* Row header */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-gray-700">Contractor #{idx + 1}</span>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, batch_name: '', no_of_ladies: '', per_head_amount: '', hl_qty: '', pd_qty: '' } : r))}
-                            className="flex items-center gap-1 px-2.5 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 text-[11px] font-semibold transition-colors"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9.75L14.25 12m0 0l2.25 2.25M14.25 12l2.25-2.25M14.25 12L12 14.25m-2.58 4.92l-6.375-6.375a1.125 1.125 0 010-1.59L9.42 4.83c.211-.211.498-.33.796-.33H19.5a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-9.284c-.298 0-.585-.119-.796-.33z" />
-                            </svg>
-                            Clear
-                          </button>
-                          {nllRows.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => setNllRows((prev) => prev.filter((_, i) => i !== idx))}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                              </svg>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Batch Name */}
-                      <div>
-                        <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">Batch / Contractor Name</label>
-                        <input
-                          type="text"
-                          value={row.batch_name}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, batch_name: val } : r));
-                          }}
-                          placeholder="e.g. BASANTH CONTRACTOR"
-                          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
-                        />
-                      </div>
-
-                      {/* No of Ladies + Per Head Amount */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">No. of Ladies</label>
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min="0"
-                            value={row.no_of_ladies}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, no_of_ladies: val } : r));
-                            }}
-                            placeholder="0"
-                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-medium text-amber-600 uppercase tracking-wide mb-1">Per Head Amount (₹)</label>
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            step="0.01"
-                            min="0"
-                            value={row.per_head_amount}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, per_head_amount: val } : r));
-                            }}
-                            placeholder="0.00"
-                            className="w-full px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-900 placeholder-amber-400 focus:bg-white focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10"
-                          />
-                        </div>
-                      </div>
-
-                      {/* HL QTY + PD QTY */}
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">HL QTY</label>
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            step="0.001"
-                            min="0"
-                            value={row.hl_qty}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, hl_qty: val } : r));
-                            }}
-                            placeholder="0"
-                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-medium text-gray-500 uppercase tracking-wide mb-1">PD QTY</label>
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            step="0.001"
-                            min="0"
-                            value={row.pd_qty}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, pd_qty: val } : r));
-                            }}
-                            placeholder="0"
-                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Auto-calculated preview */}
-                      {perHead > 0 && noLadies > 0 && (
-                        <div className="grid grid-cols-2 gap-2 pt-1">
-                          <div className="bg-gray-50 rounded-xl px-2 py-2 text-center">
-                            <p className="text-[9px] text-gray-500 font-medium uppercase tracking-wide">Total QTY</p>
-                            <p className="text-sm font-bold text-gray-800 mt-0.5">{totalQty.toFixed(0)}</p>
-                          </div>
-                          <div className="bg-gray-50 rounded-xl px-2 py-2 text-center">
-                            <p className="text-[9px] text-gray-500 font-medium uppercase tracking-wide">Salary Basic</p>
-                            <p className="text-sm font-bold text-gray-800 mt-0.5">₹{SALARY_BASIC}.00</p>
-                          </div>
-                          <div className={`rounded-xl px-2 py-2 text-center ${diff !== null && diff >= 0 ? 'bg-emerald-50' : 'bg-rose-50'}`}>
-                            <p className={`text-[9px] font-medium uppercase tracking-wide ${diff !== null && diff >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>Difference</p>
-                            <p className={`text-sm font-bold mt-0.5 ${diff !== null && diff >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                              {diff !== null ? `${diff >= 0 ? '+' : ''}${diff.toFixed(2)}` : '—'}
-                            </p>
-                          </div>
-                          <div className={`rounded-xl px-2 py-2 text-center ${pnl !== null && pnl >= 0 ? 'bg-emerald-50' : 'bg-rose-50'}`}>
-                            <p className={`text-[9px] font-medium uppercase tracking-wide ${pnl !== null && pnl >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>P &amp; L</p>
-                            <p className={`text-sm font-bold mt-0.5 ${pnl !== null && pnl >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                              {pnl !== null ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}` : '—'}
-                            </p>
-                          </div>
-                        </div>
-                      )}
+                {/* NL Ladies Grid */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+                  <div className="min-w-[800px] p-3">
+                    {/* Header row */}
+                    <div className="grid grid-cols-[140px_80px_100px_80px_80px_80px_80px_80px_80px_32px] gap-1.5 mb-2 px-1 border-b border-gray-100 pb-2">
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Contractor</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Ladies</span>
+                      <span className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider text-right">₹/Head</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">HL QTY</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">PD QTY</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Total</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Basic</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Diff</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">P&L</span>
+                      <span></span>
                     </div>
-                  );
-                })}
+
+                    {/* Batch rows */}
+                    <div className="space-y-1.5">
+                      {nllRows.map((row, idx) => {
+                        const noLadies = parseInt(row.no_of_ladies) || 0;
+                        const hlQty = parseFloat(row.hl_qty) || 0;
+                        const pdQty = parseFloat(row.pd_qty) || 0;
+                        const perHead = parseFloat(row.per_head_amount) || 0;
+                        const totalQty = hlQty + pdQty;
+                        const diff = perHead > 0 ? perHead - SALARY_BASIC : null;
+                        const pnl = diff !== null ? diff * noLadies : null;
+                        
+                        const handleKeyDown = (e: React.KeyboardEvent, colIdx: number) => {
+                          let nextRow = idx;
+                          let nextCol = colIdx;
+                          if (e.key === 'ArrowUp') nextRow = Math.max(0, idx - 1);
+                          else if (e.key === 'ArrowDown') nextRow = Math.min(nllRows.length - 1, idx + 1);
+                          else if (e.key === 'ArrowLeft') nextCol = Math.max(0, colIdx - 1);
+                          else if (e.key === 'ArrowRight') nextCol = Math.min(4, colIdx + 1);
+                          else return;
+                          
+                          if (nextRow !== idx || nextCol !== colIdx) {
+                            e.preventDefault();
+                            const nextId = `nll-${nextRow}-${nextCol}`;
+                            document.getElementById(nextId)?.focus();
+                          }
+                        };
+
+                        return (
+                          <div key={idx} className="grid grid-cols-[140px_80px_100px_80px_80px_80px_80px_80px_80px_32px] gap-1.5 items-center group">
+                            <input
+                              id={`nll-${idx}-0`}
+                              type="text"
+                              value={row.batch_name}
+                              onChange={(e) => setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, batch_name: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 0)}
+                              placeholder="Contractor"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10"
+                            />
+                            <input
+                              id={`nll-${idx}-1`}
+                              type="number"
+                              inputMode="numeric"
+                              min="0"
+                              value={row.no_of_ladies}
+                              onChange={(e) => setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, no_of_ladies: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 1)}
+                              placeholder="0"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10"
+                            />
+                            <input
+                              id={`nll-${idx}-2`}
+                              type="number"
+                              inputMode="decimal"
+                              step="0.01"
+                              min="0"
+                              value={row.per_head_amount}
+                              onChange={(e) => setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, per_head_amount: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 2)}
+                              placeholder="0.00"
+                              className="w-full px-2 py-2 bg-amber-50/50 border border-amber-200 rounded-lg text-xs text-amber-900 text-right placeholder-amber-400 focus:bg-white focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10"
+                            />
+                            <input
+                              id={`nll-${idx}-3`}
+                              type="number"
+                              inputMode="decimal"
+                              step="0.001"
+                              min="0"
+                              value={row.hl_qty}
+                              onChange={(e) => setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, hl_qty: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 3)}
+                              placeholder="0"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10"
+                            />
+                            <input
+                              id={`nll-${idx}-4`}
+                              type="number"
+                              inputMode="decimal"
+                              step="0.001"
+                              min="0"
+                              value={row.pd_qty}
+                              onChange={(e) => setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, pd_qty: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 4)}
+                              placeholder="0"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10"
+                            />
+                            
+                            {/* Auto calculations */}
+                            <span className="text-[11px] font-bold text-right px-1 text-gray-700">{totalQty > 0 ? totalQty.toFixed(1) : '-'}</span>
+                            <span className="text-[11px] font-bold text-right px-1 text-gray-500">₹{SALARY_BASIC}</span>
+                            <span className={`text-[11px] font-bold text-right px-1 ${diff !== null && diff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {diff !== null ? `${diff >= 0 ? '+' : ''}${diff.toFixed(2)}` : '-'}
+                            </span>
+                            <span className={`text-[11px] font-bold text-right px-1 ${pnl !== null && pnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {pnl !== null ? `${pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}` : '-'}
+                            </span>
+                            
+                            {/* Action */}
+                            <div className="flex justify-end pr-1">
+                              {nllRows.length > 1 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setNllRows((prev) => prev.filter((_, i) => i !== idx))}
+                                  className="w-6 h-6 flex items-center justify-center rounded bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setNllRows([emptyNllRow()])}
+                                  className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9.75L14.25 12m0 0l2.25 2.25M14.25 12l2.25-2.25M14.25 12L12 14.25m-2.58 4.92l-6.375-6.375a1.125 1.125 0 010-1.59L9.42 4.83c.211-.211.498-.33.796-.33H19.5a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-9.284c-.298 0-.585-.119-.796-.33z" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
 
                 {/* Add Contractor Button */}
                 <button
