@@ -211,6 +211,8 @@ export interface DashboardKPIs {
   yesterdayMasks?: number;
   yesterdayDate?: string;
   yesterdayNotes?: { location: string; note: string }[];
+  yesterdayTopGrade?: string | null;
+  yesterdayTopGradeQty?: number;
 }
 
 export interface LocationBreakdown {

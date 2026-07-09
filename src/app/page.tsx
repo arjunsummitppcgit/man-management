@@ -287,6 +287,8 @@ export default function DashboardPage() {
         trend={processingTrend}
         yesterdayLabel={yesterdayFormatted}
         isDark={isDark}
+        topGrade={kpis?.yesterdayTopGrade ?? null}
+        topGradeQty={kpis?.yesterdayTopGradeQty ?? 0}
       />
 
       {/* KPI Cards Grid */}

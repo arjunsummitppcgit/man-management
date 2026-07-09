@@ -200,6 +200,26 @@ export function useDashboard() {
           note: String(row.notes).trim(),
         }));
 
+      // ──────────────────────────────────────────
+      // 2.6. Grades V/A for yesterday — find the top grade by total quantity
+      // ──────────────────────────────────────────
+      const { data: yesterdayGvaData, error: yesterdayGvaError } = await supabase
+        .from('grades_va')
+        .select('grade, pd, pud, pdto, ezpl, pvpd, pvpdto')
+        .eq('work_date', yesterdayDate);
+
+      if (yesterdayGvaError) throw yesterdayGvaError;
+
+      let yesterdayTopGrade: string | null = null;
+      let yesterdayTopGradeQty = 0;
+      (yesterdayGvaData || []).forEach((row) => {
+        const total = (row.pd || 0) + (row.pud || 0) + (row.pdto || 0) + (row.ezpl || 0) + (row.pvpd || 0) + (row.pvpdto || 0);
+        if (total > yesterdayTopGradeQty) {
+          yesterdayTopGradeQty = total;
+          yesterdayTopGrade = row.grade;
+        }
+      });
+
       const todaysProcessing = Number(((yesterdayProcessingData || []).reduce(
         (sum, row) => sum + (row.headless_to_va || 0),
         0
@@ -318,6 +338,8 @@ export function useDashboard() {
         yesterdayMasks,
         yesterdayDate,
         yesterdayNotes,
+        yesterdayTopGrade,
+        yesterdayTopGradeQty,
       });
 
       // ──────────────────────────────────────────

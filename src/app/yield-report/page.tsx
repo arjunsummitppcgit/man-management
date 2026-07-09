@@ -129,8 +129,8 @@ export default function YieldReportPage() {
 
   // ── Grades vs V/A data ─────────────────────────────────────────────────────
   const MONTH_START = TODAY.slice(0, 8) + '01';
-  const [gvaFrom, setGvaFrom] = useState(MONTH_START);
-  const [gvaTo, setGvaTo] = useState(TODAY);
+  const [gvaFrom, setGvaFrom] = useState(YESTERDAY);
+  const [gvaTo, setGvaTo] = useState(YESTERDAY);
   const [gvaGradeFilter, setGvaGradeFilter] = useState<string[]>([]);      // empty = all grades
   const [gvaColFilter, setGvaColFilter] = useState<VaColumnKey[]>([]);     // empty = all columns
   const [gvaMinTotal, setGvaMinTotal] = useState('');                       // min total KGS threshold

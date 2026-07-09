@@ -24,7 +24,12 @@ interface ProcessingChartsProps {
   trend: { date: string; kg: number; location: string }[];
   yesterdayLabel: string;
   isDark: boolean;
+  topGrade?: string | null;
+  topGradeQty?: number;
 }
+
+const formatVaQty = (v: number) =>
+  v.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
 const PIE_COLORS = ['#0d9488', '#f59e0b', '#6366f1', '#f43f5e', '#a855f7', '#0ea5e9', '#84cc16'];
 
@@ -45,6 +50,8 @@ export default function ProcessingCharts({
   trend,
   yesterdayLabel,
   isDark,
+  topGrade,
+  topGradeQty,
 }: ProcessingChartsProps) {
   // Per-location comparison: yesterday's completed vs today's WIP (HL→VA)
   const barData = useMemo(
@@ -100,10 +107,6 @@ export default function ProcessingCharts({
     [trendData]
   );
 
-  const diff = totalToday - totalYesterday;
-  const diffPct = totalYesterday > 0 ? (diff / totalYesterday) * 100 : null;
-  const diffUp = diff >= 0;
-
   const hasBarData = barData.some((d) => d.Yesterday > 0 || d.Today > 0);
   const hasTrendData = trendData.some((d) => d.kg > 0);
 
@@ -135,11 +138,11 @@ export default function ProcessingCharts({
       icon: '⚙️',
     },
     {
-      label: 'Difference',
-      value: `${diffUp ? '+' : ''}${fmt(diff)} kg`,
-      sub: diffPct === null ? 'no baseline yesterday' : `${diffUp ? '▲' : '▼'} ${Math.abs(diffPct).toFixed(1)}% vs yesterday`,
-      accent: diffUp ? 'from-emerald-500 to-teal-600' : 'from-rose-500 to-red-500',
-      icon: diffUp ? '📈' : '📉',
+      label: `Top Grade · ${yesterdayLabel || 'Yesterday'}`,
+      value: topGrade ? topGrade : '—',
+      sub: topGrade ? `${formatVaQty(topGradeQty ?? 0)} kg V/A` : 'no grade data yesterday',
+      accent: 'from-emerald-500 to-teal-600',
+      icon: '🏆',
     },
     {
       label: 'Last 7 Days',
