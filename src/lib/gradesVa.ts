@@ -20,11 +20,11 @@ export const VA_GRADES = [
 
 export const VA_COLUMNS = [
   { key: 'pd', label: 'PD' },
-  { key: 'pud', label: 'PUD' },
   { key: 'pdto', label: 'PDTO' },
   { key: 'pvpd', label: 'PVPD' },
   { key: 'pvpdto', label: 'PVPDTO' },
   { key: 'ezpl', label: 'EZPL' },
+  { key: 'pud', label: 'PUD' },
 ] as const;
 
 export type VaColumnKey = (typeof VA_COLUMNS)[number]['key'];
