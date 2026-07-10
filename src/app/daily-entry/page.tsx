@@ -1494,12 +1494,12 @@ export default function DailyEntryPage() {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
                   <div className="min-w-[800px] p-3">
                     {/* Header row */}
-                    <div className="grid grid-cols-[140px_80px_100px_80px_80px_80px_80px_80px_80px_32px] gap-1.5 mb-2 px-1 border-b border-gray-100 pb-2">
+                    <div className="grid grid-cols-[140px_80px_80px_80px_100px_80px_80px_80px_80px_32px] gap-1.5 mb-2 px-1 border-b border-gray-100 pb-2">
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Contractor</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Ladies</span>
-                      <span className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider text-right">₹/Head</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">HL QTY</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">PD QTY</span>
+                      <span className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider text-right">₹/Head</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Total</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Basic</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Diff</span>
@@ -1535,7 +1535,7 @@ export default function DailyEntryPage() {
                         };
 
                         return (
-                          <div key={idx} className="grid grid-cols-[140px_80px_100px_80px_80px_80px_80px_80px_80px_32px] gap-1.5 items-center group">
+                          <div key={idx} className="grid grid-cols-[140px_80px_80px_80px_100px_80px_80px_80px_80px_32px] gap-1.5 items-center group">
                             <input
                               id={`nll-${idx}-0`}
                               type="text"
@@ -1560,13 +1560,13 @@ export default function DailyEntryPage() {
                               id={`nll-${idx}-2`}
                               type="number"
                               inputMode="decimal"
-                              step="0.01"
+                              step="0.001"
                               min="0"
-                              value={row.per_head_amount}
-                              onChange={(e) => setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, per_head_amount: e.target.value } : r))}
+                              value={row.hl_qty}
+                              onChange={(e) => setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, hl_qty: e.target.value } : r))}
                               onKeyDown={(e) => handleKeyDown(e, 2)}
-                              placeholder="0.00"
-                              className="w-full px-2 py-2 bg-amber-50/50 border border-amber-200 rounded-lg text-xs text-amber-900 text-right placeholder-amber-400 focus:bg-white focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10"
+                              placeholder="0"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10"
                             />
                             <input
                               id={`nll-${idx}-3`}
@@ -1574,8 +1574,8 @@ export default function DailyEntryPage() {
                               inputMode="decimal"
                               step="0.001"
                               min="0"
-                              value={row.hl_qty}
-                              onChange={(e) => setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, hl_qty: e.target.value } : r))}
+                              value={row.pd_qty}
+                              onChange={(e) => setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, pd_qty: e.target.value } : r))}
                               onKeyDown={(e) => handleKeyDown(e, 3)}
                               placeholder="0"
                               className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10"
@@ -1584,13 +1584,13 @@ export default function DailyEntryPage() {
                               id={`nll-${idx}-4`}
                               type="number"
                               inputMode="decimal"
-                              step="0.001"
+                              step="0.01"
                               min="0"
-                              value={row.pd_qty}
-                              onChange={(e) => setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, pd_qty: e.target.value } : r))}
+                              value={row.per_head_amount}
+                              onChange={(e) => setNllRows((prev) => prev.map((r, i) => i === idx ? { ...r, per_head_amount: e.target.value } : r))}
                               onKeyDown={(e) => handleKeyDown(e, 4)}
-                              placeholder="0"
-                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10"
+                              placeholder="0.00"
+                              className="w-full px-2 py-2 bg-amber-50/50 border border-amber-200 rounded-lg text-xs text-amber-900 text-right placeholder-amber-400 focus:bg-white focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10"
                             />
                             
                             {/* Auto calculations */}
