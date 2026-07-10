@@ -28,6 +28,102 @@ const YEARS = [2025, 2026, 2027];
 
 const formatAmount = (n: number) => n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
+const InlineInput = ({
+  initialValue,
+  onSave,
+  id,
+  rowIndex,
+  colIndex,
+  maxRow,
+  maxCol,
+  gridPrefix,
+}: {
+  initialValue: number;
+  onSave: (val: number) => void;
+  id: string;
+  rowIndex: number;
+  colIndex: number;
+  maxRow: number;
+  maxCol: number;
+  gridPrefix: string;
+}) => {
+  const [val, setVal] = useState(initialValue === 0 ? '' : String(initialValue));
+
+  useEffect(() => {
+    setVal(initialValue === 0 ? '' : String(initialValue));
+  }, [initialValue]);
+
+  const handleBlur = () => {
+    const numVal = parseFloat(val);
+    const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
+    if (finalVal !== initialValue) {
+      onSave(finalVal);
+    }
+    setVal(finalVal === 0 ? '' : String(finalVal));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      let r = rowIndex;
+      let c = colIndex;
+
+      if (e.key === 'ArrowUp') {
+        r = Math.max(0, r - 1);
+      } else if (e.key === 'ArrowDown') {
+        r = Math.min(maxRow - 1, r + 1);
+      } else if (e.key === 'ArrowLeft') {
+        if (e.currentTarget.selectionStart === 0) {
+          c = Math.max(0, c - 1);
+        } else {
+          return;
+        }
+      } else if (e.key === 'ArrowRight') {
+        if (e.currentTarget.selectionEnd === e.currentTarget.value.length) {
+          c = Math.min(maxCol - 1, c + 1);
+        } else {
+          return;
+        }
+      }
+
+      if (r !== rowIndex || c !== colIndex) {
+        e.preventDefault();
+        const nextId = `${gridPrefix}-${r}-${c}`;
+        const el = document.getElementById(nextId);
+        if (el) {
+          (el as HTMLInputElement).focus();
+        }
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const r = Math.min(maxRow - 1, rowIndex + 1);
+      if (r !== rowIndex) {
+        const nextId = `${gridPrefix}-${r}-${colIndex}`;
+        const el = document.getElementById(nextId);
+        if (el) {
+          (el as HTMLInputElement).focus();
+        }
+      } else {
+        e.currentTarget.blur();
+      }
+    }
+  };
+
+  return (
+    <input
+      id={id}
+      type="text"
+      inputMode="numeric"
+      value={val}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      onFocus={(e) => e.target.select()}
+      className="w-full h-[36px] text-center bg-transparent focus:bg-white dark:focus:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-teal-500 rounded text-sm font-bold text-gray-900 dark:text-gray-100 placeholder-gray-300 dark:placeholder-gray-700 transition-colors m-0 p-0"
+      placeholder="-"
+    />
+  );
+};
+
 interface BatchRecord {
   id: string;
   name: string;
@@ -65,26 +161,6 @@ export default function LocalLadiesAttendancePage() {
   const [amounts, setAmounts] = useState<AmountRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-
-  // Edit-attendance modal state
-  const [editingAttCell, setEditingAttCell] = useState<{
-    batchId: string;
-    batchName: string;
-    dateStr: string;
-    dayNum: number;
-    currentValue: number;
-  } | null>(null);
-  const [attSubmitting, setAttSubmitting] = useState(false);
-
-  // Edit-amount modal state
-  const [editingAmtCell, setEditingAmtCell] = useState<{
-    batchId: string;
-    batchName: string;
-    dateStr: string;
-    dayNum: number;
-    currentValue: number;
-  } | null>(null);
-  const [amtSubmitting, setAmtSubmitting] = useState(false);
 
   // Add / manage batch modal state
   const [batchModal, setBatchModal] = useState<{ mode: 'add' } | { mode: 'edit'; batch: BatchRecord } | null>(null);
@@ -199,94 +275,80 @@ export default function LocalLadiesAttendancePage() {
   }, [amounts]);
 
   // ── Attendance handlers ────────────────────────────────────────────────────
-  const handleEditAttCell = (batchId: string, batchName: string, dateStr: string, dayNum: number) => {
-    const currentValue = attendanceLookup.get(`${batchId}_${dateStr}`) ?? 0;
-    setEditingAttCell({ batchId, batchName, dateStr, dayNum, currentValue });
-  };
-
-  const handleSaveAttendance = async (val: number) => {
-    if (!editingAttCell) return;
-    setAttSubmitting(true);
+  const saveAttendanceCell = async (batchId: string, dateStr: string, val: number) => {
     try {
       if (val <= 0) {
-        const { error } = await supabase
+        await supabase
           .from('local_ladies_attendance')
           .delete()
-          .eq('work_date', editingAttCell.dateStr)
-          .eq('batch_id', editingAttCell.batchId);
-        if (error) throw error;
+          .eq('work_date', dateStr)
+          .eq('batch_id', batchId);
       } else {
         await supabase
           .from('local_ladies_attendance')
           .delete()
-          .eq('work_date', editingAttCell.dateStr)
-          .eq('batch_id', editingAttCell.batchId);
+          .eq('work_date', dateStr)
+          .eq('batch_id', batchId);
 
-        const { error: insertError } = await supabase
+        await supabase
           .from('local_ladies_attendance')
           .insert({
-            work_date: editingAttCell.dateStr,
-            batch_id: editingAttCell.batchId,
+            work_date: dateStr,
+            batch_id: batchId,
             location_id: locationId,
             ladies_count: val,
           });
-        if (insertError) throw insertError;
       }
-
-      showToast('Attendance updated successfully', 'success');
-      setRefreshTrigger((prev) => prev + 1);
-      setEditingAttCell(null);
+      
+      setAttendance(prev => {
+        const filtered = prev.filter(a => !(a.batch_id === batchId && a.work_date === dateStr));
+        if (val > 0) {
+            filtered.push({ id: Math.random().toString(), work_date: dateStr, batch_id: batchId, location_id: locationId, ladies_count: val });
+        }
+        return filtered;
+      });
     } catch (error) {
       console.error('Error saving attendance:', error);
       showToast('Failed to save attendance', 'error');
-    } finally {
-      setAttSubmitting(false);
     }
   };
 
   // ── Per Head Amount handlers ───────────────────────────────────────────────
-  const handleEditAmtCell = (batchId: string, batchName: string, dateStr: string, dayNum: number) => {
-    const currentValue = amountLookup.get(`${batchId}_${dateStr}`) ?? 0;
-    setEditingAmtCell({ batchId, batchName, dateStr, dayNum, currentValue });
-  };
-
-  const handleSaveAmount = async (val: number) => {
-    if (!editingAmtCell) return;
-    setAmtSubmitting(true);
+  const saveAmountCell = async (batchId: string, dateStr: string, val: number) => {
     try {
       if (val <= 0) {
-        const { error } = await supabase
+        await supabase
           .from('local_ladies_per_head_amount')
           .delete()
-          .eq('work_date', editingAmtCell.dateStr)
-          .eq('batch_id', editingAmtCell.batchId);
-        if (error) throw error;
+          .eq('work_date', dateStr)
+          .eq('batch_id', batchId);
       } else {
         await supabase
           .from('local_ladies_per_head_amount')
           .delete()
-          .eq('work_date', editingAmtCell.dateStr)
-          .eq('batch_id', editingAmtCell.batchId);
+          .eq('work_date', dateStr)
+          .eq('batch_id', batchId);
 
-        const { error: insertError } = await supabase
+        await supabase
           .from('local_ladies_per_head_amount')
           .insert({
-            work_date: editingAmtCell.dateStr,
-            batch_id: editingAmtCell.batchId,
+            work_date: dateStr,
+            batch_id: batchId,
             location_id: locationId,
             per_head_amount: val,
           });
-        if (insertError) throw insertError;
       }
-
-      showToast('Amount updated successfully', 'success');
-      setRefreshTrigger((prev) => prev + 1);
-      setEditingAmtCell(null);
+      
+      setAmounts(prev => {
+        const filtered = prev.filter(a => !(a.batch_id === batchId && a.work_date === dateStr));
+        if (val > 0) {
+            filtered.push({ id: Math.random().toString(), work_date: dateStr, batch_id: batchId, location_id: locationId, per_head_amount: val });
+        }
+        return filtered;
+      });
     } catch (error) {
       console.error('Error saving amount:', error);
       showToast('Failed to save amount', 'error');
-    } finally {
-      setAmtSubmitting(false);
     }
   };
 
@@ -415,7 +477,7 @@ export default function LocalLadiesAttendancePage() {
     title: string,
     rows: R[],
     columnTotals: { perDay: number[]; grand: number },
-    renderCell: (cell: R['daily'][number], row: R) => React.ReactNode,
+    renderCell: (cell: R['daily'][number], row: R, rowIdx: number, colIdx: number, maxRow: number, maxCol: number) => React.ReactNode,
     renderFooterCell: (sum: number, i: number) => React.ReactNode,
     onAddBatch: () => void,
     formatTotal: (n: number) => React.ReactNode,
@@ -478,7 +540,7 @@ export default function LocalLadiesAttendancePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800/50">
-                  {rows.map((row) => (
+                  {rows.map((row, rowIdx) => (
                     <tr key={row.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/30 transition-colors">
                       <td className="px-3 py-3 text-center text-gray-400 dark:text-gray-500 font-medium sticky left-0 z-10 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800">
                         {row.sNo}
@@ -490,7 +552,7 @@ export default function LocalLadiesAttendancePage() {
                       >
                         {row.name}
                       </td>
-                      {row.daily.map((cell) => renderCell(cell, row))}
+                      {row.daily.map((cell, colIdx) => renderCell(cell, row, rowIdx, colIdx, rows.length, row.daily.length))}
                       <td className="px-3 py-3 text-center font-bold text-teal-600 dark:text-teal-400 bg-teal-50/20 dark:bg-teal-950/10 text-sm">
                         {row.total > 0 ? formatTotal(row.total) : '-'}
                       </td>
@@ -566,17 +628,21 @@ export default function LocalLadiesAttendancePage() {
         'Ladies Attendance',
         attRows,
         attColumnTotals,
-        (cell, row) => (
+        (cell, row, rowIdx, colIdx, maxRow, maxCol) => (
           <td
             key={cell.dayNum}
-            onClick={() => handleEditAttCell(row.id, row.name, cell.formattedDate, cell.dayNum)}
-            className="py-2 text-center border-r border-gray-100/50 dark:border-gray-800/20 cursor-pointer hover:bg-teal-50/30 dark:hover:bg-teal-900/10 transition-colors"
+            className="p-0 border-r border-gray-100/50 dark:border-gray-800/20 min-w-[36px] relative"
           >
-            {cell.count > 0 ? (
-              <span className="font-extrabold text-teal-650 dark:text-teal-400 text-sm">{cell.count}</span>
-            ) : (
-              <span className="text-gray-300 dark:text-gray-700">-</span>
-            )}
+            <InlineInput
+              initialValue={cell.count}
+              onSave={(val) => saveAttendanceCell(row.id, cell.formattedDate, val)}
+              id={`att-${rowIdx}-${colIdx}`}
+              rowIndex={rowIdx}
+              colIndex={colIdx}
+              maxRow={maxRow}
+              maxCol={maxCol}
+              gridPrefix="att"
+            />
           </td>
         ),
         (sum, i) => (
@@ -595,17 +661,21 @@ export default function LocalLadiesAttendancePage() {
             'Ladies Per Head Amount',
             amtRows,
             amtColumnTotals,
-            (cell, row) => (
+            (cell, row, rowIdx, colIdx, maxRow, maxCol) => (
               <td
                 key={cell.dayNum}
-                onClick={() => handleEditAmtCell(row.id, row.name, cell.formattedDate, cell.dayNum)}
-                className="py-2 px-1 text-center border-r border-gray-100/50 dark:border-gray-800/20 cursor-pointer hover:bg-teal-50/30 dark:hover:bg-teal-900/10 transition-colors"
+                className="p-0 border-r border-gray-100/50 dark:border-gray-800/20 min-w-[36px] relative"
               >
-                {cell.amount > 0 ? (
-                  <span className="font-semibold text-gray-800 dark:text-gray-200 text-xs">{formatAmount(cell.amount)}</span>
-                ) : (
-                  <span className="text-gray-300 dark:text-gray-700">-</span>
-                )}
+                <InlineInput
+                  initialValue={cell.amount}
+                  onSave={(val) => saveAmountCell(row.id, cell.formattedDate, val)}
+                  id={`amt-${rowIdx}-${colIdx}`}
+                  rowIndex={rowIdx}
+                  colIndex={colIdx}
+                  maxRow={maxRow}
+                  maxCol={maxCol}
+                  gridPrefix="amt"
+                />
               </td>
             ),
             (sum, i) => (
@@ -618,150 +688,6 @@ export default function LocalLadiesAttendancePage() {
           )}
         </div>
       </div>
-
-      {/* ── Edit Attendance Modal ────────────────────────────────────────────── */}
-      {editingAttCell && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setEditingAttCell(null)}>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" />
-          <div
-            className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-3xl p-6 border-t border-gray-200 dark:border-gray-800 shadow-2xl animate-slide-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-12 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mb-5" />
-
-            <div className="mb-5">
-              <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">No. of Ladies</h3>
-              <p className="text-xs text-gray-550 dark:text-gray-400 mt-1">
-                For <span className="font-semibold text-gray-700 dark:text-gray-300">{editingAttCell.batchName}</span> on{' '}
-                <span className="font-semibold text-gray-700 dark:text-gray-300">
-                  {new Date(editingAttCell.dateStr).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
-                </span>
-              </p>
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">
-                Ladies Present
-              </label>
-              <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
-                <input
-                  type="number"
-                  step="1"
-                  min="0"
-                  max="999"
-                  autoFocus
-                  value={editingAttCell.currentValue === 0 ? '' : editingAttCell.currentValue}
-                  onChange={(e) => {
-                    const numVal = parseInt(e.target.value, 10);
-                    setEditingAttCell({ ...editingAttCell, currentValue: isNaN(numVal) || numVal < 0 ? 0 : numVal });
-                  }}
-                  placeholder="0 = No entry"
-                  className="flex-1 min-w-0 bg-transparent text-right pr-2 text-lg font-bold text-gray-900 dark:text-gray-100 focus:outline-none"
-                />
-              </div>
-              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">Leave 0 to mark as no entry.</p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setEditingAttCell(null)}
-                className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl transition-colors min-h-[48px]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={attSubmitting}
-                onClick={() => handleSaveAttendance(editingAttCell.currentValue)}
-                className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl shadow-lg shadow-teal-600/20 transition-all min-h-[48px] flex items-center justify-center gap-2"
-              >
-                {attSubmitting ? (
-                  <>
-                    <svg className="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Saving...
-                  </>
-                ) : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Edit Amount Modal ────────────────────────────────────────────────── */}
-      {editingAmtCell && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setEditingAmtCell(null)}>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" />
-          <div
-            className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-3xl p-6 border-t border-gray-200 dark:border-gray-800 shadow-2xl animate-slide-up"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-12 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mb-5" />
-
-            <div className="mb-5">
-              <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">Per Head Amount</h3>
-              <p className="text-xs text-gray-550 dark:text-gray-400 mt-1">
-                For <span className="font-semibold text-gray-700 dark:text-gray-300">{editingAmtCell.batchName}</span> on{' '}
-                <span className="font-semibold text-gray-700 dark:text-gray-300">
-                  {new Date(editingAmtCell.dateStr).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
-                </span>
-              </p>
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wider">
-                Amount (₹)
-              </label>
-              <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700">
-                <span className="text-base font-bold text-gray-400 dark:text-gray-500">₹</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  autoFocus
-                  value={editingAmtCell.currentValue === 0 ? '' : editingAmtCell.currentValue}
-                  onChange={(e) => {
-                    const numVal = parseFloat(e.target.value);
-                    setEditingAmtCell({ ...editingAmtCell, currentValue: isNaN(numVal) || numVal < 0 ? 0 : numVal });
-                  }}
-                  placeholder="0 = No entry"
-                  className="flex-1 min-w-0 bg-transparent text-right pr-2 text-lg font-bold text-gray-900 dark:text-gray-100 focus:outline-none"
-                />
-              </div>
-              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">Leave 0 to mark as no entry.</p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setEditingAmtCell(null)}
-                className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl transition-colors min-h-[48px]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={amtSubmitting}
-                onClick={() => handleSaveAmount(editingAmtCell.currentValue)}
-                className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-semibold rounded-xl shadow-lg shadow-teal-600/20 transition-all min-h-[48px] flex items-center justify-center gap-2"
-              >
-                {amtSubmitting ? (
-                  <>
-                    <svg className="animate-spin w-4 h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Saving...
-                  </>
-                ) : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Add / Manage Batch Modal ─────────────────────────────────────────── */}
       {batchModal && (

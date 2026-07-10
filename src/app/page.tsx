@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState(TODAY);
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [isDark, setIsDark] = useState(false);
+  const [showLiveAnalytics, setShowLiveAnalytics] = useState(true);
 
   // Sub-users: always reset to today if they somehow change date
   useEffect(() => {
@@ -30,9 +31,17 @@ export default function DashboardPage() {
     const checkTheme = () => {
       setIsDark(document.documentElement.classList.contains('dark'));
     };
+    const checkAnalytics = () => {
+      setShowLiveAnalytics(localStorage.getItem('showLiveAnalytics') !== 'false');
+    };
     checkTheme();
+    checkAnalytics();
     window.addEventListener('themechange', checkTheme);
-    return () => window.removeEventListener('themechange', checkTheme);
+    window.addEventListener('analyticschange', checkAnalytics);
+    return () => {
+      window.removeEventListener('themechange', checkTheme);
+      window.removeEventListener('analyticschange', checkAnalytics);
+    };
   }, []);
 
   const { kpis, locationBreakdowns, processingTrend, loading, fetchDashboard } = useDashboard();
@@ -282,14 +291,16 @@ export default function DashboardPage() {
       </div>
 
       {/* Desktop analytics: today vs yesterday processing charts */}
-      <ProcessingCharts
-        breakdowns={locationBreakdowns}
-        trend={processingTrend}
-        yesterdayLabel={yesterdayFormatted}
-        isDark={isDark}
-        topGrade={kpis?.yesterdayTopGrade ?? null}
-        topGradeQty={kpis?.yesterdayTopGradeQty ?? 0}
-      />
+      {showLiveAnalytics && (
+        <ProcessingCharts
+          breakdowns={locationBreakdowns}
+          trend={processingTrend}
+          yesterdayLabel={yesterdayFormatted}
+          isDark={isDark}
+          topGrade={kpis?.yesterdayTopGrade ?? null}
+          topGradeQty={kpis?.yesterdayTopGradeQty ?? 0}
+        />
+      )}
 
       {/* KPI Cards Grid */}
       <div className="px-4 mb-4 dash-grid stagger">

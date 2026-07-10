@@ -33,6 +33,7 @@ export default function SettingsPage() {
   const [dateTo, setDateTo] = useState('');
   const [exporting, setExporting] = useState(false);
   const [isLightMode, setIsLightMode] = useState(false);
+  const [showLiveAnalytics, setShowLiveAnalytics] = useState(true);
 
   // Manage Locations
   const [locationModalOpen, setLocationModalOpen] = useState(false);
@@ -51,6 +52,7 @@ export default function SettingsPage() {
       if (data.user) setUserEmail(data.user.email || '');
     });
     setIsLightMode(!document.documentElement.classList.contains('dark'));
+    setShowLiveAnalytics(localStorage.getItem('showLiveAnalytics') !== 'false');
   }, []);
 
   // Fetch Report Preview Data when dateFrom, dateTo, or reportType changes
@@ -210,6 +212,13 @@ export default function SettingsPage() {
     window.dispatchEvent(new Event('themechange'));
   };
 
+  const handleToggleLiveAnalytics = () => {
+    const nextVal = !showLiveAnalytics;
+    setShowLiveAnalytics(nextVal);
+    localStorage.setItem('showLiveAnalytics', String(nextVal));
+    window.dispatchEvent(new Event('analyticschange'));
+  };
+
   // Derive initials from email
   const userInitials = userEmail
     ? userEmail
@@ -336,8 +345,8 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* App Preferences (Theme Toggle) */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-fade-in">
+        {/* App Preferences */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 animate-fade-in space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-teal-50 flex items-center justify-center shadow-inner">
@@ -363,6 +372,36 @@ export default function SettingsPage() {
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                   isLightMode ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-gray-100 pt-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shadow-inner">
+                <span className="text-sm">📊</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700">
+                  Live Analytics
+                </h3>
+                <p className="text-[10px] text-gray-400">
+                  {showLiveAnalytics ? 'Analytics are visible on dashboard' : 'Analytics are hidden on dashboard'}
+                </p>
+              </div>
+            </div>
+            
+            <button
+              onClick={handleToggleLiveAnalytics}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500/20 active:scale-95 ${
+                showLiveAnalytics ? 'bg-teal-650' : 'bg-gray-200'
+              }`}
+              aria-label="Toggle live analytics"
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  showLiveAnalytics ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
             </button>
