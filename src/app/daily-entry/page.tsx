@@ -1494,13 +1494,13 @@ export default function DailyEntryPage() {
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
                   <div className="min-w-[800px] p-3">
                     {/* Header row */}
-                    <div className="grid grid-cols-[140px_80px_80px_80px_100px_80px_80px_80px_80px_32px] gap-1.5 mb-2 px-1 border-b border-gray-100 pb-2">
+                    <div className="grid grid-cols-[140px_80px_80px_80px_80px_100px_80px_80px_80px_32px] gap-1.5 mb-2 px-1 border-b border-gray-100 pb-2">
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Contractor</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Ladies</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">HL QTY</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">PD QTY</span>
-                      <span className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider text-right">₹/Head</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Total</span>
+                      <span className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider text-right">₹/Head</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Basic</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Diff</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">P&L</span>
@@ -1535,7 +1535,7 @@ export default function DailyEntryPage() {
                         };
 
                         return (
-                          <div key={idx} className="grid grid-cols-[140px_80px_80px_80px_100px_80px_80px_80px_80px_32px] gap-1.5 items-center group">
+                          <div key={idx} className="grid grid-cols-[140px_80px_80px_80px_80px_100px_80px_80px_80px_32px] gap-1.5 items-center group">
                             <input
                               id={`nll-${idx}-0`}
                               type="text"
@@ -1580,6 +1580,9 @@ export default function DailyEntryPage() {
                               placeholder="0"
                               className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/10"
                             />
+                            {/* Total QTY (moved before ₹/Head) */}
+                            <span className="text-[11px] font-bold text-right px-1 text-gray-700">{totalQty > 0 ? totalQty.toFixed(1) : '-'}</span>
+
                             <input
                               id={`nll-${idx}-4`}
                               type="number"
@@ -1593,8 +1596,7 @@ export default function DailyEntryPage() {
                               className="w-full px-2 py-2 bg-amber-50/50 border border-amber-200 rounded-lg text-xs text-amber-900 text-right placeholder-amber-400 focus:bg-white focus:border-amber-400 focus:ring-2 focus:ring-amber-400/10"
                             />
                             
-                            {/* Auto calculations */}
-                            <span className="text-[11px] font-bold text-right px-1 text-gray-700">{totalQty > 0 ? totalQty.toFixed(1) : '-'}</span>
+                            {/* Auto calculations continued */}
                             <span className="text-[11px] font-bold text-right px-1 text-gray-500">₹{SALARY_BASIC}</span>
                             <span className={`text-[11px] font-bold text-right px-1 ${diff !== null && diff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                               {diff !== null ? `${diff >= 0 ? '+' : ''}${diff.toFixed(2)}` : '-'}

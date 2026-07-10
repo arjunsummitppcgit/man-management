@@ -565,8 +565,8 @@ export default function YieldReportPage() {
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">No. of Ladies</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">HL QTY</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">PD QTY</th>
-                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">Per Head Amt</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">Total QTY</th>
+                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">Per Head Amt</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">Salary Basic</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">Difference</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">Profit & Loss</th>
@@ -587,8 +587,8 @@ export default function YieldReportPage() {
                           <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{noLadies}</td>
                           <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{hlQty.toFixed(0)}</td>
                           <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{pdQty.toFixed(0)}</td>
-                          <td className={`px-4 py-3 text-sm whitespace-nowrap text-right font-bold ${perHead >= 300 ? 'text-emerald-600 bg-emerald-50/40 dark:bg-emerald-900/10' : 'text-rose-600 bg-rose-50/40 dark:bg-rose-900/10'}`}>{perHead.toFixed(2)}</td>
                           <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-bold">{totalQty.toFixed(0)}</td>
+                          <td className={`px-4 py-3 text-sm whitespace-nowrap text-right font-bold ${perHead >= 300 ? 'text-emerald-600 bg-emerald-50/40 dark:bg-emerald-900/10' : 'text-rose-600 bg-rose-50/40 dark:bg-rose-900/10'}`}>{perHead.toFixed(2)}</td>
                           <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap text-right">{SALARY_BASIC.toFixed(2)}</td>
                           <td className="px-4 py-3 text-sm whitespace-nowrap text-right">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${diff >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
