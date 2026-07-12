@@ -233,7 +233,7 @@ export interface SupervisorAttendanceRecord {
   is_present: number;
 }
 
-export type TabType = 'workforce' | 'sanitization' | 'processing' | 'yield' | 'non_local_ladies' | 'grades_va';
+export type TabType = 'workforce' | 'sanitization' | 'processing' | 'yield' | 'non_local_ladies' | 'hl_va';
 
 // ─── Yield Report Types ──────────────────────────────────────────────────────
 
@@ -287,28 +287,31 @@ export interface NonLocalLadyFormRow {
   per_head_amount: string;
 }
 
-// ─── Grades vs Value Addition (V/A) Types ────────────────────────────────────
+// ─── HL to VA Types ──────────────────────────────────────────────────────────
 
-export interface GradesVaEntry {
+export interface HlVaEntry {
   id: string;
   work_date: string;
-  grade: string;
-  pd: number;
-  pud: number;
-  pdto: number;
-  ezpl: number;
-  pvpd: number;
-  pvpdto: number;
+  batch_id: string;
+  count_text: string;
+  grade: string;            // auto-derived from count via standard yield chart
+  variety: string;          // PD | PDTO | PVPD | PVPDTO | EZPL | PUD
+  hl_kgs: number;
+  va_kgs: number;
+  location_id: string | null;
+  grader_name: string;
   created_at: string;
   updated_at: string;
+  // Joined
+  location?: { name: string } | null;
 }
 
-export interface GradesVaFormRow {
-  grade: string;
-  pd: string;      // strings for input binding
-  pud: string;
-  pdto: string;
-  ezpl: string;
-  pvpd: string;
-  pvpdto: string;
+export interface HlVaFormRow {
+  batch_id: string;
+  count_text: string;      // strings for input binding
+  variety: string;
+  hl_kgs: string;
+  va_kgs: string;
+  location_id: string;
+  grader_name: string;
 }

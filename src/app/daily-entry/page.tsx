@@ -14,10 +14,10 @@ import { useSupervisors } from '@/hooks/useSupervisors';
 import { useAuth } from '@/hooks/useAuth';
 import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
-import { useGradesVa } from '@/hooks/useGradesVa';
+import { useHlVa } from '@/hooks/useHlVa';
 import { lookupStandardYield, lookupCountRange, calculateYield, calculateYieldDifference, YIELD_CHART } from '@/lib/yieldChart';
-import { VA_GRADES, VA_COLUMNS } from '@/lib/gradesVa';
-import type { Supervisor, TabType, YieldFormRow, NonLocalLadyFormRow, GradesVaFormRow } from '@/types';
+import { VA_VARIETIES } from '@/lib/hlVa';
+import type { Supervisor, TabType, YieldFormRow, NonLocalLadyFormRow, HlVaFormRow } from '@/types';
 
 // ─── Supervisor Dropdown Component ───────────────────────────────────────────
 interface SupervisorDropdownProps {
@@ -253,11 +253,11 @@ export default function DailyEntryPage() {
   } = useNonLocalLadies();
 
   const {
-    entries: gvaEntries,
-    loading: gvaLoading,
-    fetchEntries: fetchGvaEntries,
-    saveEntries: saveGvaEntries,
-  } = useGradesVa();
+    entries: hlVaEntries,
+    loading: hlVaLoading,
+    fetchEntries: fetchHlVaEntries,
+    saveEntries: saveHlVaEntries,
+  } = useHlVa();
 
   const SALARY_BASIC = 350;
 
@@ -328,11 +328,17 @@ export default function DailyEntryPage() {
   }), []);
   const [nllRows, setNllRows] = useState<NonLocalLadyFormRow[]>([]);
 
-  // Grades VA form state — one fixed row per grade
-  const emptyGvaRows = useCallback((): GradesVaFormRow[] => (
-    VA_GRADES.map((grade) => ({ grade, pd: '', pud: '', pdto: '', ezpl: '', pvpd: '', pvpdto: '' }))
-  ), []);
-  const [gvaRows, setGvaRows] = useState<GradesVaFormRow[]>(emptyGvaRows);
+  // HL to VA form state — array of batch rows
+  const emptyHlVaRow = useCallback((): HlVaFormRow => ({
+    batch_id: '',
+    count_text: '',
+    variety: '',
+    hl_kgs: '',
+    va_kgs: '',
+    location_id: '',
+    grader_name: '',
+  }), []);
+  const [hlVaRows, setHlVaRows] = useState<HlVaFormRow[]>([]);
 
   // Set default location when locations load
   useEffect(() => {
@@ -349,8 +355,8 @@ export default function DailyEntryPage() {
       fetchYieldEntries(selectedDate);
     } else if (activeTab === 'non_local_ladies') {
       fetchNllEntries(selectedDate);
-    } else if (activeTab === 'grades_va') {
-      fetchGvaEntries(selectedDate);
+    } else if (activeTab === 'hl_va') {
+      fetchHlVaEntries(selectedDate);
     } else if (selectedLocation) {
       if (activeTab === 'workforce') {
         fetchWorkforce(selectedDate, selectedLocation);
@@ -361,25 +367,25 @@ export default function DailyEntryPage() {
         fetchProcessing(selectedDate, selectedLocation);
       }
     }
-  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing, fetchYieldEntries, fetchNllEntries, fetchGvaEntries]);
+  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing, fetchYieldEntries, fetchNllEntries, fetchHlVaEntries]);
 
-  // Pre-populate Grades VA rows from fetched data (fixed grade order)
+  // Pre-populate HL to VA rows from fetched data
   useEffect(() => {
-    setGvaRows(
-      VA_GRADES.map((grade) => {
-        const e = gvaEntries.find((entry) => entry.grade === grade);
-        return {
-          grade,
-          pd: e && Number(e.pd) ? e.pd.toString() : '',
-          pud: e && Number(e.pud) ? e.pud.toString() : '',
-          pdto: e && Number(e.pdto) ? e.pdto.toString() : '',
-          ezpl: e && Number(e.ezpl) ? e.ezpl.toString() : '',
-          pvpd: e && Number(e.pvpd) ? e.pvpd.toString() : '',
-          pvpdto: e && Number(e.pvpdto) ? e.pvpdto.toString() : '',
-        };
-      })
-    );
-  }, [gvaEntries]);
+    if (hlVaEntries.length > 0) {
+      setHlVaRows(hlVaEntries.map((e) => ({
+        batch_id: e.batch_id,
+        count_text: e.count_text,
+        variety: e.variety,
+        hl_kgs: e.hl_kgs?.toString() ?? '',
+        va_kgs: e.va_kgs?.toString() ?? '',
+        location_id: e.location_id ?? '',
+        grader_name: e.grader_name,
+      })));
+    } else if (activeTab === 'hl_va') {
+      setHlVaRows([emptyHlVaRow()]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hlVaEntries]);
 
   // Pre-populate NLL rows from fetched data
   useEffect(() => {
@@ -600,19 +606,19 @@ export default function DailyEntryPage() {
             per_head_amount: Math.max(0, parseFloat(r.per_head_amount) || 0),
           }));
         await saveNllEntries(selectedDate, validRows);
-      } else if (activeTab === 'grades_va') {
-        const validRows = gvaRows
+      } else if (activeTab === 'hl_va') {
+        const validRows = hlVaRows
+          .filter((r) => r.batch_id.trim() !== '')
           .map((r) => ({
-            grade: r.grade,
-            pd: Math.max(0, parseFloat(r.pd) || 0),
-            pud: Math.max(0, parseFloat(r.pud) || 0),
-            pdto: Math.max(0, parseFloat(r.pdto) || 0),
-            ezpl: Math.max(0, parseFloat(r.ezpl) || 0),
-            pvpd: Math.max(0, parseFloat(r.pvpd) || 0),
-            pvpdto: Math.max(0, parseFloat(r.pvpdto) || 0),
-          }))
-          .filter((r) => r.pd > 0 || r.pud > 0 || r.pdto > 0 || r.ezpl > 0 || r.pvpd > 0 || r.pvpdto > 0);
-        await saveGvaEntries(selectedDate, validRows);
+            batch_id: r.batch_id,
+            count_text: r.count_text,
+            variety: r.variety,
+            hl_kgs: Math.max(0, parseFloat(r.hl_kgs) || 0),
+            va_kgs: Math.max(0, parseFloat(r.va_kgs) || 0),
+            location_id: r.location_id || locations[0]?.id || '',
+            grader_name: r.grader_name,
+          }));
+        await saveHlVaEntries(selectedDate, validRows);
       }
       showToast(
         `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} data saved successfully!`,
@@ -631,9 +637,9 @@ export default function DailyEntryPage() {
     { key: 'workforce', label: 'Workforce' },
     { key: 'sanitization', label: 'Sanitization' },
     { key: 'processing', label: 'Processing' },
-    { key: 'yield', label: 'Yield' },
+    { key: 'yield', label: 'HONS TO HL' },
     { key: 'non_local_ladies', label: 'NL Ladies' },
-    { key: 'grades_va', label: 'Grades VA' },
+    { key: 'hl_va', label: 'HL to VA' },
   ];
 
   const isDataLoading =
@@ -642,7 +648,7 @@ export default function DailyEntryPage() {
     (activeTab === 'processing' && processingLoading) ||
     (activeTab === 'yield' && yieldLoading) ||
     (activeTab === 'non_local_ladies' && nllLoading) ||
-    (activeTab === 'grades_va' && gvaLoading);
+    (activeTab === 'hl_va' && hlVaLoading);
 
   // Show loading spinner while locations are loading
   if (locationsLoading) {
@@ -1669,107 +1675,267 @@ export default function DailyEntryPage() {
               </div>
             )}
 
-            {/* ─── Grades VA Tab ─────────────────────────────────────────── */}
-            {activeTab === 'grades_va' && (
+            {/* ─── HL to VA Tab ──────────────────────────────────────────── */}
+            {activeTab === 'hl_va' && (
               <div className="animate-fade-in space-y-4">
 
                 {/* Info Card */}
                 <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-2xl p-4 border border-indigo-200">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-lg">📦</span>
-                    <h3 className="text-sm font-semibold text-indigo-800">Grades vs Value Addition (V/A)</h3>
+                    <h3 className="text-sm font-semibold text-indigo-800">HL to VA</h3>
                   </div>
-                  <p className="text-xs text-indigo-700">Enter daily V/A quantities (KGS) for each grade. Row and column totals are auto-calculated. Leave blank for no production.</p>
+                  <p className="text-xs text-indigo-700">Enter batch-wise HL to VA quantities. Grade and Std % are auto-picked from the standard chart based on Count. Yield = VA / HL x 100.</p>
                 </div>
 
-                {/* Grades Grid */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
-                  <div className="min-w-[680px] p-3">
-                    {/* Header row */}
-                    <div className="grid grid-cols-[90px_repeat(6,1fr)_90px] gap-1.5 mb-2 px-1">
-                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider self-end">Grade</span>
-                      {VA_COLUMNS.map((col) => (
-                        <span key={col.key} className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-center self-end">{col.label}</span>
+                {/* Standard Yield Reference Chart */}
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const el = document.getElementById('hlva-chart-panel');
+                      if (el) el.classList.toggle('hidden');
+                    }}
+                    className="w-full flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">📊</span>
+                      <span className="text-sm font-semibold text-gray-700">Standard Yield Chart</span>
+                    </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                  </button>
+                  <div id="hlva-chart-panel" className="hidden mt-3 border-t border-gray-100 pt-3">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {YIELD_CHART.map((entry) => (
+                        <div key={entry.label} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                          <span className="text-xs font-medium text-gray-600">{entry.label}</span>
+                          <span className="text-xs font-bold text-teal-700">{entry.standardYield.toFixed(2)}%</span>
+                        </div>
                       ))}
-                      <span className="text-[10px] font-semibold text-indigo-500 uppercase tracking-wider text-right self-end">Total</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* HL to VA Grid */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+                  <div className="min-w-[1080px] p-3">
+                    {/* Header row */}
+                    <div className="grid grid-cols-[110px_90px_95px_85px_85px_110px_80px_100px_60px_60px_70px_32px] gap-1.5 mb-2 px-1 border-b border-gray-100 pb-2">
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Batch ID</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Count</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Variety</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">HL (KGS)</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">VA (KGS)</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Location</span>
+                      <span className="text-[10px] font-semibold text-indigo-500 uppercase tracking-wider text-center">Grade</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Grader Name</span>
+                      <span className="text-[10px] font-semibold text-teal-500 uppercase tracking-wider text-right">Yield</span>
+                      <span className="text-[10px] font-semibold text-purple-500 uppercase tracking-wider text-right">Std %</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Diff</span>
+                      <span></span>
                     </div>
 
-                    {/* Grade rows */}
+                    {/* Batch rows */}
                     <div className="space-y-1.5">
-                      {gvaRows.map((row, idx) => {
-                        const rowTotal = VA_COLUMNS.reduce((sum, col) => sum + (parseFloat(row[col.key]) || 0), 0);
+                      {hlVaRows.map((row, idx) => {
+                        const hlNum = parseFloat(row.hl_kgs) || 0;
+                        const vaNum = parseFloat(row.va_kgs) || 0;
+                        const yieldPct = calculateYield(hlNum, vaNum);
+                        const stdYield = lookupStandardYield(row.count_text);
+                        const grade = lookupCountRange(row.count_text);
+                        const yieldDiff = calculateYieldDifference(yieldPct, stdYield);
+
+                        const handleKeyDown = (e: React.KeyboardEvent, colIdx: number) => {
+                          let nextRow = idx;
+                          let nextCol = colIdx;
+                          if (e.key === 'ArrowUp') nextRow = Math.max(0, idx - 1);
+                          else if (e.key === 'ArrowDown') nextRow = Math.min(hlVaRows.length - 1, idx + 1);
+                          else if (e.key === 'ArrowLeft') nextCol = Math.max(0, colIdx - 1);
+                          else if (e.key === 'ArrowRight') nextCol = Math.min(6, colIdx + 1);
+                          else return;
+
+                          if (nextRow !== idx || nextCol !== colIdx) {
+                            e.preventDefault();
+                            const nextId = `hlva-${nextRow}-${nextCol}`;
+                            document.getElementById(nextId)?.focus();
+                          }
+                        };
+
                         return (
-                          <div key={row.grade} className="grid grid-cols-[90px_repeat(6,1fr)_90px] gap-1.5 items-center">
-                            <span className="text-xs font-bold text-gray-700 px-1">{row.grade}</span>
-                            {VA_COLUMNS.map((col, colIdx) => (
-                              <input
-                                key={col.key}
-                                id={`gva-${idx}-${col.key}`}
-                                type="number"
-                                inputMode="decimal"
-                                step="0.001"
-                                min="0"
-                                value={row[col.key]}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setGvaRows((prev) => prev.map((r, i) => i === idx ? { ...r, [col.key]: val } : r));
-                                }}
-                                onKeyDown={(e) => {
-                                  let nextRow = idx;
-                                  let nextCol = colIdx;
-                                  if (e.key === 'ArrowUp') nextRow = Math.max(0, idx - 1);
-                                  else if (e.key === 'ArrowDown') nextRow = Math.min(gvaRows.length - 1, idx + 1);
-                                  else if (e.key === 'ArrowLeft') nextCol = Math.max(0, colIdx - 1);
-                                  else if (e.key === 'ArrowRight') nextCol = Math.min(VA_COLUMNS.length - 1, colIdx + 1);
-                                  else return;
-                                  
-                                  if (nextRow !== idx || nextCol !== colIdx) {
-                                    e.preventDefault();
-                                    const nextId = `gva-${nextRow}-${VA_COLUMNS[nextCol].key}`;
-                                    document.getElementById(nextId)?.focus();
-                                  }
-                                }}
-                                placeholder="-"
-                                className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-300 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
-                              />
-                            ))}
-                            <span className={`text-xs font-bold text-right px-1 ${rowTotal > 0 ? 'text-indigo-700' : 'text-gray-300'}`}>
-                              {rowTotal > 0 ? rowTotal.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '-'}
+                          <div key={idx} className="grid grid-cols-[110px_90px_95px_85px_85px_110px_80px_100px_60px_60px_70px_32px] gap-1.5 items-center group">
+                            {/* Batch ID */}
+                            <input
+                              id={`hlva-${idx}-0`}
+                              type="text"
+                              value={row.batch_id}
+                              onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, batch_id: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 0)}
+                              placeholder="Batch ID"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+                            {/* Count */}
+                            <input
+                              id={`hlva-${idx}-1`}
+                              type="text"
+                              value={row.count_text}
+                              onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, count_text: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 1)}
+                              placeholder="Count"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+                            {/* Variety */}
+                            <select
+                              id={`hlva-${idx}-2`}
+                              value={row.variety}
+                              onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, variety: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 2)}
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 focus:border-teal-500 appearance-none"
+                            >
+                              <option value="">Variety...</option>
+                              {VA_VARIETIES.map((v) => (
+                                <option key={v} value={v}>{v}</option>
+                              ))}
+                            </select>
+                            {/* HL (KGS) */}
+                            <input
+                              id={`hlva-${idx}-3`}
+                              type="number"
+                              inputMode="decimal"
+                              step="0.001"
+                              value={row.hl_kgs}
+                              onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, hl_kgs: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 3)}
+                              placeholder="0.000"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+                            {/* VA (KGS) */}
+                            <input
+                              id={`hlva-${idx}-4`}
+                              type="number"
+                              inputMode="decimal"
+                              step="0.001"
+                              value={row.va_kgs}
+                              onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, va_kgs: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 4)}
+                              placeholder="0.000"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+                            {/* Location */}
+                            <select
+                              id={`hlva-${idx}-5`}
+                              value={row.location_id}
+                              onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, location_id: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 5)}
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 focus:border-teal-500 appearance-none"
+                            >
+                              <option value="">Location...</option>
+                              {locations.map((loc) => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                              ))}
+                            </select>
+                            {/* Grade (auto from count) */}
+                            <span className={`text-[11px] font-bold text-center px-1 py-1.5 rounded-lg ${grade ? 'bg-indigo-50 text-indigo-700' : 'text-gray-300'}`}>
+                              {grade || '-'}
                             </span>
+                            {/* Grader Name */}
+                            <input
+                              id={`hlva-${idx}-6`}
+                              type="text"
+                              value={row.grader_name}
+                              onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, grader_name: e.target.value } : r))}
+                              onKeyDown={(e) => handleKeyDown(e, 6)}
+                              placeholder="Name"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+
+                            {/* Calculated Values */}
+                            <span className="text-[11px] font-bold text-right px-1 text-teal-700">{yieldPct !== null ? `${yieldPct.toFixed(2)}%` : '-'}</span>
+                            <span className="text-[11px] font-bold text-right px-1 text-purple-700">{stdYield !== null ? `${stdYield.toFixed(2)}%` : '-'}</span>
+                            <span className={`text-[11px] font-bold text-right px-1 ${yieldDiff !== null && yieldDiff >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                              {yieldDiff !== null ? `${yieldDiff >= 0 ? '+' : ''}${yieldDiff.toFixed(2)}%` : '-'}
+                            </span>
+
+                            {/* Action */}
+                            <div className="flex justify-end pr-1">
+                              {hlVaRows.length > 1 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setHlVaRows((prev) => prev.filter((_, i) => i !== idx))}
+                                  className="w-6 h-6 flex items-center justify-center rounded bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setHlVaRows([emptyHlVaRow()])}
+                                  className="w-6 h-6 flex items-center justify-center rounded bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors opacity-0 group-hover:opacity-100"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9.75L14.25 12m0 0l2.25 2.25M14.25 12l2.25-2.25M14.25 12L12 14.25m-2.58 4.92l-6.375-6.375a1.125 1.125 0 010-1.59L9.42 4.83c.211-.211.498-.33.796-.33H19.5a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-9.284c-.298 0-.585-.119-.796-.33z" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
                     </div>
-
-                    {/* Column totals footer */}
-                    <div className="grid grid-cols-[90px_repeat(6,1fr)_90px] gap-1.5 items-center mt-2 pt-2 border-t-2 border-indigo-100 bg-indigo-50/60 rounded-lg px-1 py-2">
-                      <span className="text-xs font-bold text-indigo-800">TOTAL</span>
-                      {VA_COLUMNS.map((col) => {
-                        const colTotal = gvaRows.reduce((sum, r) => sum + (parseFloat(r[col.key]) || 0), 0);
-                        return (
-                          <span key={col.key} className="text-xs font-bold text-indigo-800 text-right px-1">
-                            {colTotal > 0 ? colTotal.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '-'}
-                          </span>
-                        );
-                      })}
-                      <span className="text-xs font-bold text-indigo-900 text-right px-1">
-                        {(() => {
-                          const grand = gvaRows.reduce((sum, r) => sum + VA_COLUMNS.reduce((s, col) => s + (parseFloat(r[col.key]) || 0), 0), 0);
-                          return grand > 0 ? grand.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) : '-';
-                        })()}
-                      </span>
-                    </div>
                   </div>
                 </div>
 
-                {/* Total V/A banner */}
-                <div className="bg-gradient-to-r from-indigo-50 to-indigo-100/50 rounded-2xl p-4 border border-indigo-200 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-indigo-700">Total V/A (QTY)</span>
-                  <span className="text-lg font-bold text-indigo-800">
-                    {gvaRows.reduce((sum, r) => sum + VA_COLUMNS.reduce((s, col) => s + (parseFloat(r[col.key]) || 0), 0), 0)
-                      .toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} kg
-                  </span>
-                </div>
+                {/* Add Batch Button */}
+                <button
+                  type="button"
+                  onClick={() => setHlVaRows((prev) => [...prev, emptyHlVaRow()])}
+                  className="w-full py-3 border-2 border-dashed border-gray-200 rounded-2xl text-sm font-semibold text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Add Batch
+                </button>
+
+                {/* Totals Banner */}
+                {hlVaRows.some((r) => parseFloat(r.hl_kgs) > 0 || parseFloat(r.va_kgs) > 0) && (
+                  <div className="bg-gradient-to-r from-indigo-50 to-indigo-100/50 rounded-2xl p-4 border border-indigo-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">📋</span>
+                      <span className="text-sm font-semibold text-indigo-700">Totals</span>
+                      <span className="ml-auto px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[10px] font-bold">
+                        {hlVaRows.filter((r) => r.batch_id.trim() !== '').length} batches
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-white/70 rounded-xl px-3 py-2.5 text-center">
+                        <p className="text-[10px] text-indigo-600 font-medium uppercase tracking-wide">Total HL</p>
+                        <p className="text-lg font-bold text-indigo-800">
+                          {hlVaRows.reduce((sum, r) => sum + (parseFloat(r.hl_kgs) || 0), 0).toFixed(1)} kg
+                        </p>
+                      </div>
+                      <div className="bg-white/70 rounded-xl px-3 py-2.5 text-center">
+                        <p className="text-[10px] text-indigo-600 font-medium uppercase tracking-wide">Total VA</p>
+                        <p className="text-lg font-bold text-indigo-800">
+                          {hlVaRows.reduce((sum, r) => sum + (parseFloat(r.va_kgs) || 0), 0).toFixed(1)} kg
+                        </p>
+                      </div>
+                      <div className="bg-white/70 rounded-xl px-3 py-2.5 text-center">
+                        <p className="text-[10px] text-indigo-600 font-medium uppercase tracking-wide">Overall Yield</p>
+                        <p className="text-lg font-bold text-indigo-800">
+                          {(() => {
+                            const totalHl = hlVaRows.reduce((sum, r) => sum + (parseFloat(r.hl_kgs) || 0), 0);
+                            const totalVa = hlVaRows.reduce((sum, r) => sum + (parseFloat(r.va_kgs) || 0), 0);
+                            return totalHl > 0 ? `${((totalVa / totalHl) * 100).toFixed(2)}%` : '-';
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Save Button */}
                 <button
@@ -1786,7 +1952,7 @@ export default function DailyEntryPage() {
                       Saving...
                     </>
                   ) : (
-                    'Save Grades VA Data'
+                    'Save HL to VA Data'
                   )}
                 </button>
               </div>

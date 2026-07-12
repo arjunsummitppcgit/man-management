@@ -201,22 +201,26 @@ export function useDashboard() {
         }));
 
       // ──────────────────────────────────────────
-      // 2.6. Grades V/A for yesterday — find the top grade by total quantity
+      // 2.6. HL to VA for yesterday — find the top grade by total VA quantity
       // ──────────────────────────────────────────
-      const { data: yesterdayGvaData, error: yesterdayGvaError } = await supabase
-        .from('grades_va')
-        .select('grade, pd, pud, pdto, ezpl, pvpd, pvpdto')
+      const { data: yesterdayHlVaData, error: yesterdayHlVaError } = await supabase
+        .from('hl_va_entries')
+        .select('grade, va_kgs')
         .eq('work_date', yesterdayDate);
 
-      if (yesterdayGvaError) throw yesterdayGvaError;
+      if (yesterdayHlVaError) throw yesterdayHlVaError;
 
       let yesterdayTopGrade: string | null = null;
       let yesterdayTopGradeQty = 0;
-      (yesterdayGvaData || []).forEach((row) => {
-        const total = (row.pd || 0) + (row.pud || 0) + (row.pdto || 0) + (row.ezpl || 0) + (row.pvpd || 0) + (row.pvpdto || 0);
+      const gradeTotals = new Map<string, number>();
+      (yesterdayHlVaData || []).forEach((row) => {
+        const grade = row.grade || 'Unknown';
+        gradeTotals.set(grade, (gradeTotals.get(grade) || 0) + (Number(row.va_kgs) || 0));
+      });
+      gradeTotals.forEach((total, grade) => {
         if (total > yesterdayTopGradeQty) {
           yesterdayTopGradeQty = total;
-          yesterdayTopGrade = row.grade;
+          yesterdayTopGrade = grade;
         }
       });
 
