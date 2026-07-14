@@ -785,7 +785,6 @@ export default function DashboardPage() {
         <GradeVaReport
           entries={hlVaEntries}
           date={selectedDate}
-          isDark={isDark}
         />
       </div>
 
