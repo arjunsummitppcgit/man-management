@@ -5,8 +5,10 @@ import PageHeader from '@/components/layout/PageHeader';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import EmptyState from '@/components/ui/EmptyState';
 import ProcessingCharts from '@/components/dashboard/ProcessingCharts';
+import GradeVaReport from '@/components/reports/GradeVaReport';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useLocations } from '@/hooks/useLocations';
+import { useHlVa } from '@/hooks/useHlVa';
 import { useAuth } from '@/hooks/useAuth';
 
 
@@ -46,6 +48,7 @@ export default function DashboardPage() {
 
   const { kpis, locationBreakdowns, processingTrend, loading, fetchDashboard } = useDashboard();
   const { locations, loading: locationsLoading } = useLocations();
+  const { entries: hlVaEntries, loading: hlVaLoading, fetchEntries: fetchHlVaEntries } = useHlVa();
 
   const today = new Date();
   const formattedDate = today.toLocaleDateString('en-IN', {
@@ -118,6 +121,11 @@ export default function DashboardPage() {
     if (locationsLoading) return; // wait for locations to load first
     fetchDashboard(selectedDate, selectedLocationId);
   }, [selectedDate, selectedLocationId, locationsLoading, fetchDashboard]);
+
+  // Fetch HL→VA entries for Grade Vs VA report
+  useEffect(() => {
+    fetchHlVaEntries(selectedDate);
+  }, [selectedDate, fetchHlVaEntries]);
 
 
   // KPI derived values with null safety
@@ -770,6 +778,15 @@ export default function DashboardPage() {
           <p className="text-xs text-teal-600 mt-1 font-medium">{progress}% complete</p>
         </div>
 
+      </div>
+
+      {/* Grade Vs VA Report */}
+      <div className="px-4 mb-4">
+        <GradeVaReport
+          entries={hlVaEntries}
+          date={selectedDate}
+          isDark={isDark}
+        />
       </div>
 
 
