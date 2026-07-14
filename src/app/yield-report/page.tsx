@@ -9,6 +9,7 @@ import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useHlVa } from '@/hooks/useHlVa';
 import { calculateYield, lookupStandardYield, lookupCountRange, calculateYieldDifference } from '@/lib/yieldChart';
 import { VA_VARIETIES, formatVaQty } from '@/lib/hlVa';
+import GradeVaReport from '@/components/reports/GradeVaReport';
 
 const SALARY_BASIC = 350;
 
@@ -313,6 +314,13 @@ export default function YieldReportPage() {
   }, [isSubUser, hvFrom, hvTo]);
 
   const { rangeEntries: hvEntries, rangeLoading: hvLoading, fetchRange: fetchHvRange } = useHlVa();
+
+  // Separate single-date fetch for the Grade Vs VA Report
+  const { entries: gradeVaEntries, fetchEntries: fetchGradeVaEntries } = useHlVa();
+
+  useEffect(() => {
+    if (selectedDate) fetchGradeVaEntries(selectedDate);
+  }, [selectedDate, fetchGradeVaEntries]);
 
   useEffect(() => {
     if (hvFrom && hvTo && hvFrom <= hvTo) {
@@ -1092,6 +1100,14 @@ export default function YieldReportPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* ─── Grade Vs VA Report ─────────────────────────────────────── */}
+        <div className="mb-8">
+          <GradeVaReport
+            entries={gradeVaEntries}
+            date={selectedDate}
+          />
         </div>
 
       </div>

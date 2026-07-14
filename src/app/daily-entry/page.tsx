@@ -17,7 +17,6 @@ import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useHlVa } from '@/hooks/useHlVa';
 import { lookupStandardYield, lookupCountRange, calculateYield, calculateYieldDifference, YIELD_CHART } from '@/lib/yieldChart';
 import { VA_VARIETIES } from '@/lib/hlVa';
-import GradeVaReport from '@/components/reports/GradeVaReport';
 import type { Supervisor, TabType, YieldFormRow, NonLocalLadyFormRow, HlVaFormRow } from '@/types';
 
 // ─── Supervisor Dropdown Component ───────────────────────────────────────────
@@ -1956,26 +1955,6 @@ export default function DailyEntryPage() {
                     'Save HL to VA Data'
                   )}
                 </button>
-              </div>
-            )}
-
-            {/* Grade Vs VA Report — inside hl_va tab, uses saved entries */}
-            {activeTab === 'hl_va' && (
-              <div className="mt-2">
-                <GradeVaReport
-                  entries={
-                    hlVaEntries.length > 0
-                      ? hlVaEntries
-                      : hlVaRows
-                          .filter(r => r.va_kgs && parseFloat(r.va_kgs) > 0)
-                          .map(r => ({
-                            grade: lookupCountRange(r.count_text) ?? r.count_text.trim(),
-                            variety: r.variety,
-                            va_kgs: r.va_kgs,
-                          }))
-                  }
-                  date={selectedDate}
-                />
               </div>
             )}
 
