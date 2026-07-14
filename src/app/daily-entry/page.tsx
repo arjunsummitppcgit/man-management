@@ -1959,15 +1959,21 @@ export default function DailyEntryPage() {
               </div>
             )}
 
-            {/* Live Grade Vs VA Report for currently entered data */}
-            {activeTab === 'hl_va' && hlVaRows.some(r => r.va_kgs && parseFloat(r.va_kgs) > 0) && (
-              <div className="mt-8">
+            {/* Grade Vs VA Report — inside hl_va tab, uses saved entries */}
+            {activeTab === 'hl_va' && (
+              <div className="mt-2">
                 <GradeVaReport
-                  entries={hlVaRows.map(r => ({
-                    grade: r.count_text.trim(),
-                    variety: r.variety,
-                    va_kgs: r.va_kgs
-                  }))}
+                  entries={
+                    hlVaEntries.length > 0
+                      ? hlVaEntries
+                      : hlVaRows
+                          .filter(r => r.va_kgs && parseFloat(r.va_kgs) > 0)
+                          .map(r => ({
+                            grade: lookupCountRange(r.count_text) ?? r.count_text.trim(),
+                            variety: r.variety,
+                            va_kgs: r.va_kgs,
+                          }))
+                  }
                   date={selectedDate}
                 />
               </div>

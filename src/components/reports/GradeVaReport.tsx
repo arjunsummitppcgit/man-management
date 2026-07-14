@@ -2,7 +2,6 @@
 
 import React, { useMemo } from 'react';
 import { formatVaQty } from '@/lib/hlVa';
-import type { HlVaEntry } from '@/types';
 
 // ─── Fixed grade row labels matching the Pre-Processing register ────────────
 // These are the industry-standard shrimp count grades.
