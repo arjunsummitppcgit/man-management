@@ -30,10 +30,9 @@ const REPORT_VARIETIES = ['PD', 'PDTO', 'PVPD', 'PVPDTO', 'EZPL'] as const;
 interface GradeVaReportProps {
   entries: { grade?: string; variety?: string; va_kgs?: number | string }[];
   date: string;
-  isDark?: boolean;
 }
 
-export default function GradeVaReport({ entries, date, isDark = false }: GradeVaReportProps) {
+export default function GradeVaReport({ entries, date }: GradeVaReportProps) {
   // Build the aggregation: grade → variety → sum(va_kgs)
   const { gradeVarietyMap, allGrades, varietyTotals, grandTotal } = useMemo(() => {
     const map = new Map<string, Map<string, number>>();
@@ -108,10 +107,10 @@ export default function GradeVaReport({ entries, date, isDark = false }: GradeVa
   };
 
   return (
-    <div className={`rounded-2xl overflow-hidden shadow-sm border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
+    <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
       {/* Header */}
-      <div className={`px-4 py-3 border-b ${isDark ? 'border-gray-700' : 'border-gray-100'} flex items-center justify-between`}>
-        <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-700'}`}>
+      <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-white">
           📊 Grade Vs VA Report
         </h3>
         <span className="px-2.5 py-0.5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 rounded-full text-[10px] font-bold">
@@ -155,16 +154,16 @@ export default function GradeVaReport({ entries, date, isDark = false }: GradeVa
               const rowTotal = getRowTotal(grade);
               const hasData = rowTotal > 0;
               const rowBg = idx % 2 === 0
-                ? (isDark ? 'bg-gray-800/30' : 'bg-white')
-                : (isDark ? 'bg-gray-800/10' : 'bg-gray-50/50');
+                ? 'bg-white dark:bg-gray-800/30'
+                : 'bg-gray-50/50 dark:bg-gray-800/10';
 
               return (
                 <tr
                   key={grade}
-                  className={`${rowBg} ${hasData ? '' : 'opacity-70'} hover:bg-amber-50/30 dark:hover:bg-amber-900/5 transition-colors border-b ${isDark ? 'border-gray-700/50' : 'border-gray-100'}`}
+                  className={`${rowBg} ${hasData ? '' : 'opacity-70'} hover:bg-amber-50/30 dark:hover:bg-amber-900/5 transition-colors border-b border-gray-100 dark:border-gray-700/50`}
                 >
                   {/* Grade label */}
-                  <td className={`px-3 py-2.5 font-bold ${isDark ? 'text-white' : 'text-gray-900'} border-r ${isDark ? 'border-gray-700/50' : 'border-gray-100'}`}>
+                  <td className="px-3 py-2.5 font-bold text-gray-900 dark:text-white border-r border-gray-100 dark:border-gray-700/50">
                     {grade}
                   </td>
 
@@ -174,10 +173,10 @@ export default function GradeVaReport({ entries, date, isDark = false }: GradeVa
                     return (
                       <td
                         key={v}
-                        className={`text-center px-2 py-2.5 font-semibold border-r ${isDark ? 'border-gray-700/50' : 'border-gray-100'} ${
+                        className={`text-center px-2 py-2.5 font-semibold border-r border-gray-100 dark:border-gray-700/50 ${
                           val > 0
-                            ? (isDark ? 'text-amber-300' : 'text-gray-800')
-                            : (isDark ? 'text-gray-600' : 'text-gray-300')
+                            ? 'text-gray-800 dark:text-amber-300'
+                            : 'text-gray-300 dark:text-gray-600'
                         }`}
                       >
                         {val > 0 ? formatVaQty(val) : '-'}
@@ -188,8 +187,8 @@ export default function GradeVaReport({ entries, date, isDark = false }: GradeVa
                   {/* Row total */}
                   <td className={`text-center px-2 py-2.5 font-bold ${
                     rowTotal > 0
-                      ? (isDark ? 'text-amber-200' : 'text-gray-900')
-                      : (isDark ? 'text-gray-600' : 'text-gray-300')
+                      ? 'text-gray-900 dark:text-amber-200'
+                      : 'text-gray-300 dark:text-gray-600'
                   }`}>
                     {rowTotal > 0 ? formatVaQty(rowTotal) : '-'}
                   </td>
@@ -198,8 +197,8 @@ export default function GradeVaReport({ entries, date, isDark = false }: GradeVa
             })}
 
             {/* TOTAL Row */}
-            <tr className={`font-bold border-t-2 ${isDark ? 'bg-gray-900 border-amber-600 text-gray-100' : 'bg-amber-50 border-amber-400 text-gray-900'}`}>
-              <td className={`px-3 py-3 font-extrabold border-r ${isDark ? 'border-gray-700/50' : 'border-gray-200'}`}>
+            <tr className="font-bold border-t-2 bg-amber-50 dark:bg-gray-900 border-amber-400 dark:border-amber-600 text-gray-900 dark:text-gray-100">
+              <td className="px-3 py-3 font-extrabold border-r border-gray-200 dark:border-gray-700/50">
                 TOTAL
               </td>
               {REPORT_VARIETIES.map((v) => {
@@ -207,10 +206,10 @@ export default function GradeVaReport({ entries, date, isDark = false }: GradeVa
                 return (
                   <td
                     key={v}
-                    className={`text-center px-2 py-3 font-bold border-r ${isDark ? 'border-gray-700/50' : 'border-gray-200'} ${
+                    className={`text-center px-2 py-3 font-bold border-r border-gray-200 dark:border-gray-700/50 ${
                       colTotal > 0
-                        ? (isDark ? 'text-amber-300' : 'text-gray-900')
-                        : (isDark ? 'text-gray-600' : 'text-gray-300')
+                        ? 'text-gray-900 dark:text-amber-300'
+                        : 'text-gray-300 dark:text-gray-600'
                     }`}
                   >
                     {colTotal > 0 ? formatVaQty(colTotal) : '-'}
@@ -218,9 +217,7 @@ export default function GradeVaReport({ entries, date, isDark = false }: GradeVa
                 );
               })}
               {/* Grand total — highlighted */}
-              <td className={`text-center px-2 py-3 font-extrabold ${
-                isDark ? 'bg-amber-700/30 text-amber-200' : 'bg-amber-200/60 text-amber-900'
-              }`}>
+              <td className="text-center px-2 py-3 font-extrabold bg-amber-200/60 dark:bg-amber-700/30 text-amber-900 dark:text-amber-200">
                 {grandTotal > 0 ? formatVaQty(grandTotal) : '-'}
               </td>
             </tr>
