@@ -29,7 +29,7 @@ const REPORT_GRADE_ORDER = [
 const REPORT_VARIETIES = ['PD', 'PDTO', 'PVPD', 'PVPDTO', 'EZPL'] as const;
 
 interface GradeVaReportProps {
-  entries: HlVaEntry[];
+  entries: { grade?: string; variety?: string; va_kgs?: number | string }[];
   date: string;
   isDark?: boolean;
 }
