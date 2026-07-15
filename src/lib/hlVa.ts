@@ -29,16 +29,16 @@ export interface HlVaYieldEntry {
 }
 
 export const HLVA_YIELD_CHART: HlVaYieldEntry[] = [
-  { label: '13-15',  min: 13,  max: 15,  pd: 83.0, pdto: 89.0, ezpl: 99.5 },
-  { label: '16-20',  min: 16,  max: 20,  pd: 83.0, pdto: 89.0, ezpl: 99.5 },
-  { label: '21-25',  min: 21,  max: 25,  pd: 82.0, pdto: 88.5, ezpl: 99.5 },
-  { label: '26-30',  min: 26,  max: 30,  pd: 82.0, pdto: 88.0, ezpl: 99.5 },
-  { label: '31-40',  min: 31,  max: 40,  pd: 81.5, pdto: 87.0, ezpl: 99.5 },
-  { label: '41-50',  min: 41,  max: 50,  pd: 81.0, pdto: 86.0, ezpl: 99.0 },
-  { label: '51-60',  min: 51,  max: 60,  pd: 81.0, pdto: 85.0, ezpl: 99.0 },
-  { label: '61-70',  min: 61,  max: 70,  pd: 80.0, pdto: 85.0, ezpl: 99.0 },
-  { label: '71-90',  min: 71,  max: 90,  pd: 80.0, pdto: 84.0, ezpl: 99.0 },
-  { label: '91-110', min: 91,  max: 110, pd: 79.0, pdto: 83.0, ezpl: 98.0 },
+  { label: '13/15',  min: 13,  max: 15,  pd: 83.0, pdto: 89.0, ezpl: 99.5 },
+  { label: '16/20',  min: 16,  max: 20,  pd: 83.0, pdto: 89.0, ezpl: 99.5 },
+  { label: '21/25',  min: 21,  max: 25,  pd: 82.0, pdto: 88.5, ezpl: 99.5 },
+  { label: '26/30',  min: 26,  max: 30,  pd: 82.0, pdto: 88.0, ezpl: 99.5 },
+  { label: '31/40',  min: 31,  max: 40,  pd: 81.5, pdto: 87.0, ezpl: 99.5 },
+  { label: '41/50',  min: 41,  max: 50,  pd: 81.0, pdto: 86.0, ezpl: 99.0 },
+  { label: '51/60',  min: 51,  max: 60,  pd: 81.0, pdto: 85.0, ezpl: 99.0 },
+  { label: '61/70',  min: 61,  max: 70,  pd: 80.0, pdto: 85.0, ezpl: 99.0 },
+  { label: '71/90',  min: 71,  max: 90,  pd: 80.0, pdto: 84.0, ezpl: 99.0 },
+  { label: '91/110', min: 91,  max: 110, pd: 79.0, pdto: 83.0, ezpl: 98.0 },
 ];
 
 // Map a variety to its yield-chart column. Blank/unknown varieties fall back to

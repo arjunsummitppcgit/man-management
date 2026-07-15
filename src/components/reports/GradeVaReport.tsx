@@ -1,25 +1,15 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { formatVaQty } from '@/lib/hlVa';
+import { formatVaQty, HLVA_YIELD_CHART } from '@/lib/hlVa';
 
 // ─── Fixed grade row labels matching the Pre-Processing register ────────────
-// These are the industry-standard shrimp count grades.
-// The report will show ALL these rows (even if empty for the date),
-// plus any extra grades found in data that aren't in this list.
+// Derived from the HL→VA standard yield chart (single source of truth) so the
+// register rows always match the grades that entries are auto-tagged with,
+// wrapped with the jumbo (8/12) boundary and the 111/ABOVE + MIX catch-all rows.
 const REPORT_GRADE_ORDER = [
   '8/12',
-  '13/15',
-  '16/20',
-  '21/25',
-  '26/30',
-  '31/35',
-  '31/40',
-  '41/50',
-  '51/60',
-  '61/70',
-  '71/90',
-  '91/110',
+  ...HLVA_YIELD_CHART.map((e) => e.label),
   '111/ABOVE',
   'MIX',
 ] as const;
