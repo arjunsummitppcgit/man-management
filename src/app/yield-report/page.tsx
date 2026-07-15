@@ -342,6 +342,41 @@ export default function YieldReportPage() {
     };
   }, [hvEntries]);
 
+  // ── Combined location-wise summary for the selected date ──
+  // HON to HL column = HL kgs produced (HON→HL output)
+  // HL to VA  column = VA kgs produced (HL→VA output)
+  const combinedLocationSummary = useMemo(() => {
+    const map = new Map<string, { honToHl: number; hlToVa: number }>();
+    const bucket = (loc: string) => {
+      let agg = map.get(loc);
+      if (!agg) {
+        agg = { honToHl: 0, hlToVa: 0 };
+        map.set(loc, agg);
+      }
+      return agg;
+    };
+
+    entries.forEach((e) => {
+      bucket(e.location?.name || 'Unknown').honToHl += Number(e.hl_kgs) || 0;
+    });
+    gradeVaEntries.forEach((e) => {
+      bucket(e.location?.name || 'Unknown').hlToVa += Number(e.va_kgs) || 0;
+    });
+
+    const rows = Array.from(map.entries())
+      .map(([location, v]) => ({ location, honToHl: v.honToHl, hlToVa: v.hlToVa }))
+      .sort((a, b) => a.location.localeCompare(b.location));
+    const totals = rows.reduce(
+      (acc, r) => {
+        acc.honToHl += r.honToHl;
+        acc.hlToVa += r.hlToVa;
+        return acc;
+      },
+      { honToHl: 0, hlToVa: 0 }
+    );
+    return { rows, totals };
+  }, [entries, gradeVaEntries]);
+
   // Apply filters
   const hvFiltered = useMemo(() => {
     return hvEntries.filter((entry) => {
@@ -508,6 +543,51 @@ export default function YieldReportPage() {
       />
 
       <div className="px-4 mt-2 space-y-6">
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            LOCATION-WISE SUMMARY: HON→HL & HL→VA (selected date)
+        ═══════════════════════════════════════════════════════════════════ */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-4 pt-4 pb-3 flex items-center gap-2">
+            <span className="text-lg">📍</span>
+            <h3 className="text-sm font-bold text-gray-900 dark:text-white">Location-wise Summary (HON→HL &amp; HL→VA)</h3>
+          </div>
+          {loading ? (
+            <div className="p-6 flex justify-center">
+              <LoadingSpinner />
+            </div>
+          ) : combinedLocationSummary.rows.length === 0 ? (
+            <div className="px-4 pb-5 text-center text-sm text-gray-400">No entries for this date.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100 dark:border-gray-800">
+                    <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Location</th>
+                    <th className="px-4 py-3 text-[10px] font-semibold text-teal-500 uppercase tracking-wider whitespace-nowrap text-right">HON to HL (KGS)</th>
+                    <th className="px-4 py-3 text-[10px] font-semibold text-indigo-500 uppercase tracking-wider whitespace-nowrap text-right">HL to VA (KGS)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {combinedLocationSummary.rows.map((row) => (
+                    <tr key={row.location} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
+                      <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap">{row.location}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{formatVaQty(row.honToHl)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{formatVaQty(row.hlToVa)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-teal-50 dark:bg-teal-900/30 border-t-2 border-teal-100 dark:border-teal-800">
+                    <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap">TOTAL</td>
+                    <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">{formatVaQty(combinedLocationSummary.totals.honToHl)}</td>
+                    <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">{formatVaQty(combinedLocationSummary.totals.hlToVa)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
             SECTION 1: HON TO HL YIELDS
