@@ -812,3 +812,107 @@ input:focus, select:focus, textarea:focus {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   CARD WINDOWS — app-wide box visibility.
+   Every standard card (.bg-white.rounded-2xl) gets a clearly visible border in
+   BOTH light & dark mode, a soft raised (3D) shadow, and a teal glow on hover.
+   Its table header and footer/total rows get a subtle raised bevel. Sticky
+   report cells (.sticky) are excluded so their column separators stay intact.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Light mode: visible border + depth ── */
+.bg-white.rounded-2xl {
+  border-width: 1px;
+  border-style: solid;
+  border-color: #cbd5e1 !important; /* slate-300 — clearly visible on light bg */
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 6px 16px -8px rgba(15, 23, 42, 0.12);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.bg-white.rounded-2xl:hover {
+  border-color: #14b8a6 !important; /* teal glow */
+  box-shadow:
+    0 2px 4px rgba(15, 23, 42, 0.06),
+    0 12px 28px -10px rgba(20, 184, 166, 0.30);
+}
+
+/* ── Dark mode: visible border + depth ── */
+.dark .bg-white.rounded-2xl {
+  border-color: #3b4a5f !important; /* brighter than #1f2937, stands out on dark bg */
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 8px 22px -10px rgba(0, 0, 0, 0.65);
+}
+.dark .bg-white.rounded-2xl:hover {
+  border-color: #2dd4bf !important; /* bright teal glow */
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 14px 32px -10px rgba(45, 212, 191, 0.32);
+}
+
+/* ── 3D raised table header cells (skip sticky report columns) ── */
+.bg-white.rounded-2xl table thead th:not(.sticky) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 3px -1px rgba(15, 23, 42, 0.12);
+}
+.dark .bg-white.rounded-2xl table thead th:not(.sticky) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -2px 3px -1px rgba(0, 0, 0, 0.45);
+}
+
+/* ── 3D raised footer / total row cells (skip sticky report columns) ── */
+.bg-white.rounded-2xl table tfoot td:not(.sticky) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 3px -1px rgba(15, 23, 42, 0.10);
+}
+.dark .bg-white.rounded-2xl table tfoot td:not(.sticky) {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -2px 3px -1px rgba(0, 0, 0, 0.4);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DARK-MODE TEXT VISIBILITY SAFETY NET
+   Catch-all overrides for dark-toned text utilities used across the app that
+   had no .dark override. Without these they render dark-on-dark (or inherit
+   unpredictably) and become unreadable. Each maps to an appropriately light /
+   bright tone, following the existing override patterns.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Grays */
+.dark .text-gray-450 { color: #9ca3af !important; }
+.dark .text-gray-550 { color: #9ca3af !important; }
+.dark .text-gray-650 { color: #d1d5db !important; }
+.dark .text-gray-750 { color: #e5e7eb !important; }
+.dark .text-gray-800 { color: #e5e7eb !important; }
+.dark .text-gray-950 { color: #f9fafb !important; }
+
+/* Amber */
+.dark .text-amber-700 { color: #fbbf24 !important; }
+.dark .text-amber-800 { color: #fcd34d !important; }
+.dark .text-amber-900 { color: #fde68a !important; }
+
+/* Emerald */
+.dark .text-emerald-700 { color: #34d399 !important; }
+.dark .text-emerald-800 { color: #6ee7b7 !important; }
+
+/* Indigo */
+.dark .text-indigo-650 { color: #a5b4fc !important; }
+.dark .text-indigo-850 { color: #c7d2fe !important; }
+
+/* Orange */
+.dark .text-orange-850 { color: #ffedd5 !important; }
+
+/* Purple */
+.dark .text-purple-650 { color: #c084fc !important; }
+.dark .text-purple-750 { color: #e9d5ff !important; }
+
+/* Rose */
+.dark .text-rose-650 { color: #fb7185 !important; }
+.dark .text-rose-700 { color: #fb7185 !important; }
+.dark .text-rose-850 { color: #fecdd3 !important; }
+
