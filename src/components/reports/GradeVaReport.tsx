@@ -116,19 +116,19 @@ export default function GradeVaReport({ entries, date }: GradeVaReportProps) {
             <tr>
               <th
                 colSpan={REPORT_VARIETIES.length + 2}
-                className="bg-amber-200 text-amber-950 text-center py-2 px-3 font-bold text-sm tracking-wide border-b border-amber-300"
+                className="bg-indigo-100 text-indigo-950 text-center py-2 px-3 font-bold text-sm tracking-wide border-b border-indigo-200"
               >
                 GRADES VS (V/A)
               </th>
             </tr>
-            <tr className="bg-red-300 text-red-900">
-              <th className="text-left px-3 py-2.5 font-bold min-w-[90px] tracking-wide border-r border-red-400/50">
+            <tr className="bg-indigo-200 text-indigo-950">
+              <th className="text-left px-3 py-2.5 font-bold min-w-[90px] tracking-wide border-r border-indigo-300/60">
                 GRADES
               </th>
               {REPORT_VARIETIES.map((v) => (
                 <th
                   key={v}
-                  className="text-center px-2 py-2.5 font-bold whitespace-nowrap min-w-[80px] border-r border-red-400/50"
+                  className="text-center px-2 py-2.5 font-bold whitespace-nowrap min-w-[80px] border-r border-indigo-300/60"
                 >
                   {v}
                 </th>
