@@ -16,7 +16,7 @@ import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useHlVa } from '@/hooks/useHlVa';
 import { lookupStandardYield, lookupCountRange, calculateYield, calculateYieldDifference, YIELD_CHART } from '@/lib/yieldChart';
-import { VA_VARIETIES } from '@/lib/hlVa';
+import { VA_VARIETIES, lookupHlVaStandardYield, lookupHlVaCountRange } from '@/lib/hlVa';
 import type { Supervisor, TabType, YieldFormRow, NonLocalLadyFormRow, HlVaFormRow } from '@/types';
 
 // ─── Supervisor Dropdown Component ───────────────────────────────────────────
@@ -1685,7 +1685,7 @@ export default function DailyEntryPage() {
                     <span className="text-lg">📦</span>
                     <h3 className="text-sm font-semibold text-indigo-800">HL to VA</h3>
                   </div>
-                  <p className="text-xs text-indigo-700">Enter batch-wise HL to VA quantities. Grade and Std % are auto-picked from the standard chart based on Count. Yield = VA / HL x 100.</p>
+                  <p className="text-xs text-indigo-700">Enter batch-wise HL to VA quantities. Grade is auto-picked from Count, and Std % from the standard chart based on Count and Variety. Yield = VA / HL x 100.</p>
                 </div>
 
                 {/* HL to VA Grid */}
@@ -1713,8 +1713,8 @@ export default function DailyEntryPage() {
                         const hlNum = parseFloat(row.hl_kgs) || 0;
                         const vaNum = parseFloat(row.va_kgs) || 0;
                         const yieldPct = calculateYield(hlNum, vaNum);
-                        const stdYield = lookupStandardYield(row.count_text);
-                        const grade = lookupCountRange(row.count_text);
+                        const stdYield = lookupHlVaStandardYield(row.count_text, row.variety);
+                        const grade = lookupHlVaCountRange(row.count_text);
                         const yieldDiff = calculateYieldDifference(yieldPct, stdYield);
 
                         const handleKeyDown = (e: React.KeyboardEvent, colIdx: number) => {

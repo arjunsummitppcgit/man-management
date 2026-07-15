@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { lookupCountRange } from '@/lib/yieldChart';
+import { lookupHlVaCountRange } from '@/lib/hlVa';
 import type { HlVaEntry } from '@/types';
 
 export function useHlVa() {
@@ -85,7 +85,7 @@ export function useHlVa() {
           work_date: date,
           batch_id: row.batch_id,
           count_text: row.count_text,
-          grade: lookupCountRange(row.count_text) || '',
+          grade: lookupHlVaCountRange(row.count_text) || '',
           variety: row.variety,
           hl_kgs: row.hl_kgs,
           va_kgs: row.va_kgs,

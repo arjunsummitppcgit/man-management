@@ -7,8 +7,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useHlVa } from '@/hooks/useHlVa';
-import { calculateYield, lookupStandardYield, lookupCountRange, calculateYieldDifference } from '@/lib/yieldChart';
-import { VA_VARIETIES, formatVaQty } from '@/lib/hlVa';
+import { calculateYield, lookupStandardYield, calculateYieldDifference } from '@/lib/yieldChart';
+import { VA_VARIETIES, formatVaQty, lookupHlVaStandardYield, lookupHlVaCountRange } from '@/lib/hlVa';
 import GradeVaReport from '@/components/reports/GradeVaReport';
 
 const SALARY_BASIC = 350;
@@ -352,7 +352,7 @@ export default function YieldReportPage() {
         const hlNum = Number(entry.hl_kgs) || 0;
         const vaNum = Number(entry.va_kgs) || 0;
         const yieldPct = calculateYield(hlNum, vaNum);
-        const stdYield = lookupStandardYield(entry.count_text);
+        const stdYield = lookupHlVaStandardYield(entry.count_text, entry.variety);
         const diff = calculateYieldDifference(yieldPct, stdYield);
         if (diff === null) return false;
         if (hvDiffFilter === 'Positive' && diff < 0) return false;
@@ -380,7 +380,7 @@ export default function YieldReportPage() {
   const hvTopGrade = useMemo(() => {
     const byGrade = new Map<string, number>();
     hvFiltered.forEach((e) => {
-      const g = e.grade || lookupCountRange(e.count_text) || 'Unknown';
+      const g = e.grade || lookupHlVaCountRange(e.count_text) || 'Unknown';
       byGrade.set(g, (byGrade.get(g) || 0) + (Number(e.va_kgs) || 0));
     });
     let top: { grade: string; total: number } | null = null;
@@ -1051,9 +1051,9 @@ export default function YieldReportPage() {
                       const hlNum = Number(entry.hl_kgs) || 0;
                       const vaNum = Number(entry.va_kgs) || 0;
                       const yieldPct = calculateYield(hlNum, vaNum);
-                      const stdYield = lookupStandardYield(entry.count_text);
+                      const stdYield = lookupHlVaStandardYield(entry.count_text, entry.variety);
                       const diff = calculateYieldDifference(yieldPct, stdYield);
-                      const grade = entry.grade || lookupCountRange(entry.count_text) || '-';
+                      const grade = entry.grade || lookupHlVaCountRange(entry.count_text) || '-';
                       return (
                         <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group">
                           <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800/80 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">{entry.work_date}</td>
