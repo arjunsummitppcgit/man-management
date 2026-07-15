@@ -8,7 +8,7 @@ import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useHlVa } from '@/hooks/useHlVa';
 import { calculateYield, lookupStandardYield, calculateYieldDifference } from '@/lib/yieldChart';
-import { VA_VARIETIES, formatVaQty, lookupHlVaStandardYield, lookupHlVaCountRange } from '@/lib/hlVa';
+import { formatVaQty, lookupHlVaStandardYield, lookupHlVaCountRange } from '@/lib/hlVa';
 import GradeVaReport from '@/components/reports/GradeVaReport';
 
 const SALARY_BASIC = 350;
@@ -288,13 +288,8 @@ export default function YieldReportPage() {
     : null;
 
   // ── HL to VA data ──────────────────────────────────────────────────────────
-  const MONTH_START = TODAY.slice(0, 8) + '01';
   const [hvFrom, setHvFrom] = useState(YESTERDAY);
   const [hvTo, setHvTo] = useState(YESTERDAY);
-  const [hvDiffFilter, setHvDiffFilter] = useState('All');
-  const [hvLocationFilter, setHvLocationFilter] = useState('All');
-  const [hvGraderFilter, setHvGraderFilter] = useState('All');
-  const [hvVarietyFilter, setHvVarietyFilter] = useState<string[]>([]);   // empty = all varieties
 
   // Follow the Daily Report date navigation: whenever the shared report date
   // changes (header arrows / Report Date picker), snap the HL to VA range to
@@ -327,20 +322,6 @@ export default function YieldReportPage() {
       fetchHvRange(hvFrom, hvTo);
     }
   }, [hvFrom, hvTo, fetchHvRange]);
-
-  // Derive filter options
-  const { hvLocations, hvGraders } = useMemo(() => {
-    const locSet = new Set<string>();
-    const gradSet = new Set<string>();
-    hvEntries.forEach((entry) => {
-      if (entry.location?.name) locSet.add(entry.location.name);
-      if (entry.grader_name) gradSet.add(entry.grader_name);
-    });
-    return {
-      hvLocations: Array.from(locSet).sort(),
-      hvGraders: Array.from(gradSet).sort(),
-    };
-  }, [hvEntries]);
 
   // ── Combined location-wise summary for the selected date ──
   // HON to HL column = HL kgs produced (HON→HL output)
@@ -377,27 +358,10 @@ export default function YieldReportPage() {
     return { rows, totals };
   }, [entries, gradeVaEntries]);
 
-  // Apply filters
-  const hvFiltered = useMemo(() => {
-    return hvEntries.filter((entry) => {
-      if (hvLocationFilter !== 'All' && (entry.location?.name || 'Unknown') !== hvLocationFilter) return false;
-      if (hvGraderFilter !== 'All' && entry.grader_name !== hvGraderFilter) return false;
-      if (hvVarietyFilter.length > 0 && !hvVarietyFilter.includes(entry.variety)) return false;
-      if (hvDiffFilter !== 'All') {
-        const hlNum = Number(entry.hl_kgs) || 0;
-        const vaNum = Number(entry.va_kgs) || 0;
-        const yieldPct = calculateYield(hlNum, vaNum);
-        const stdYield = lookupHlVaStandardYield(entry.count_text, entry.variety);
-        const diff = calculateYieldDifference(yieldPct, stdYield);
-        if (diff === null) return false;
-        if (hvDiffFilter === 'Positive' && diff < 0) return false;
-        if (hvDiffFilter === 'Negative' && diff >= 0) return false;
-      }
-      return true;
-    });
-  }, [hvEntries, hvDiffFilter, hvLocationFilter, hvGraderFilter, hvVarietyFilter]);
+  // All HL→VA entries in the selected range (no filters)
+  const hvFiltered = hvEntries;
 
-  // Totals over filtered entries
+  // Totals over entries
   const hvTotals = useMemo(() => {
     return hvFiltered.reduce(
       (acc, entry) => {
@@ -425,34 +389,6 @@ export default function YieldReportPage() {
     return top as { grade: string; total: number } | null;
   }, [hvFiltered]);
 
-  const toggleHvVariety = (variety: string) => {
-    setHvVarietyFilter((prev) =>
-      prev.includes(variety) ? prev.filter((v) => v !== variety) : [...prev, variety]
-    );
-  };
-
-  // Quick range presets
-  const applyHvPreset = (preset: 'today' | 'yesterday' | 'last7' | 'thisMonth' | 'lastMonth') => {
-    const now = new Date();
-    const iso = (d: Date) => d.toISOString().split('T')[0];
-    if (preset === 'today') {
-      setHvFrom(TODAY); setHvTo(TODAY);
-    } else if (preset === 'yesterday') {
-      setHvFrom(YESTERDAY); setHvTo(YESTERDAY);
-    } else if (preset === 'last7') {
-      setHvFrom(iso(new Date(Date.now() - 6 * 86400000))); setHvTo(TODAY);
-    } else if (preset === 'thisMonth') {
-      setHvFrom(MONTH_START); setHvTo(TODAY);
-    } else if (preset === 'lastMonth') {
-      const firstLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const endLast = new Date(now.getFullYear(), now.getMonth(), 0);
-      // Use UTC-safe manual formatting to avoid timezone shifts
-      const pad = (n: number) => String(n).padStart(2, '0');
-      setHvFrom(`${firstLast.getFullYear()}-${pad(firstLast.getMonth() + 1)}-${pad(firstLast.getDate())}`);
-      setHvTo(`${endLast.getFullYear()}-${pad(endLast.getMonth() + 1)}-${pad(endLast.getDate())}`);
-    }
-  };
-
   // Report Date navigation (Sections 1 & 2) — shift selectedDate by ±1 day.
   // Stays in local calendar fields throughout (no toISOString) so the date
   // doesn't shift across the UTC boundary for timezones ahead of UTC.
@@ -474,31 +410,8 @@ export default function YieldReportPage() {
     setSelectedDate(next);
   };
 
-  // Which quick preset (if any) the current HL to VA range matches, plus a
-  // human-readable label — so it's obvious the section is showing "Yesterday".
-  const PRESET_LABELS: Record<string, string> = {
-    today: 'Today',
-    yesterday: 'Yesterday',
-    last7: 'Last 7 Days',
-    thisMonth: 'This Month',
-    lastMonth: 'Last Month',
-  };
+  // Human-readable label for the current HL to VA date range.
   const hvMeta = useMemo(() => {
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const now = new Date();
-    const last7From = new Date(Date.now() - 6 * 86400000).toISOString().split('T')[0];
-    const firstLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const endLast = new Date(now.getFullYear(), now.getMonth(), 0);
-    const lastMonthFrom = `${firstLast.getFullYear()}-${pad(firstLast.getMonth() + 1)}-${pad(firstLast.getDate())}`;
-    const lastMonthTo = `${endLast.getFullYear()}-${pad(endLast.getMonth() + 1)}-${pad(endLast.getDate())}`;
-
-    let preset: string | null = null;
-    if (hvFrom === hvTo && hvFrom === TODAY) preset = 'today';
-    else if (hvFrom === hvTo && hvFrom === YESTERDAY) preset = 'yesterday';
-    else if (hvFrom === last7From && hvTo === TODAY) preset = 'last7';
-    else if (hvFrom === MONTH_START && hvTo === TODAY) preset = 'thisMonth';
-    else if (hvFrom === lastMonthFrom && hvTo === lastMonthTo) preset = 'lastMonth';
-
     const fmt = (s: string) => {
       try {
         return new Date(s + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -507,8 +420,8 @@ export default function YieldReportPage() {
       }
     };
     const label = hvFrom === hvTo ? fmt(hvFrom) : `${fmt(hvFrom)} – ${fmt(hvTo)}`;
-    return { preset, label };
-  }, [hvFrom, hvTo, TODAY, YESTERDAY, MONTH_START]);
+    return { label };
+  }, [hvFrom, hvTo]);
 
   return (
     <div className="animate-fade-in pb-20 lg:pb-6">
@@ -926,11 +839,6 @@ export default function YieldReportPage() {
         <div className="space-y-4">
           <div className="pt-2 pb-1 flex items-center gap-2.5 flex-wrap">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">HL to VA</h2>
-            {hvMeta.preset && (
-              <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-bold uppercase tracking-wide">
-                {PRESET_LABELS[hvMeta.preset]}
-              </span>
-            )}
             <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">{hvMeta.label}</span>
           </div>
 
@@ -958,108 +866,6 @@ export default function YieldReportPage() {
                   onChange={(e) => setHvTo(e.target.value)}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-indigo-500"
                 />
-              </div>
-            </div>
-            {/* Quick presets */}
-            <div className="flex flex-wrap gap-2">
-              {([
-                { key: 'today', label: 'Today' },
-                { key: 'yesterday', label: 'Yesterday' },
-                ...(!isSubUser ? [
-                  { key: 'last7', label: 'Last 7 Days' },
-                  { key: 'thisMonth', label: 'This Month' },
-                  { key: 'lastMonth', label: 'Last Month' },
-                ] : []),
-              ] as { key: 'today' | 'yesterday' | 'last7' | 'thisMonth' | 'lastMonth'; label: string }[]).map((p) => (
-                <button
-                  key={p.key}
-                  type="button"
-                  onClick={() => applyHvPreset(p.key)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                    hvMeta.preset === p.key
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Filters: Variety + Difference / Location / Grader */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-4">
-            {/* Variety filter */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Variety</label>
-                {hvVarietyFilter.length > 0 && (
-                  <button type="button" onClick={() => setHvVarietyFilter([])} className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700">
-                    Show All
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {VA_VARIETIES.map((v) => {
-                  const active = hvVarietyFilter.length === 0 || hvVarietyFilter.includes(v);
-                  return (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => toggleHvVariety(v)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-colors border ${
-                        active
-                          ? 'bg-indigo-600 text-white border-indigo-600'
-                          : 'bg-gray-50 text-gray-400 border-gray-200 hover:bg-gray-100'
-                      }`}
-                    >
-                      {v}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-[11px] text-gray-400 mt-1.5">Tap a variety to filter the table to specific varieties only.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Difference</label>
-                <select
-                  value={hvDiffFilter}
-                  onChange={(e) => setHvDiffFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="All">All</option>
-                  <option value="Positive">Positive (+)</option>
-                  <option value="Negative">Negative (-)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Location</label>
-                <select
-                  value={hvLocationFilter}
-                  onChange={(e) => setHvLocationFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="All">All Locations</option>
-                  {hvLocations.map((loc) => (
-                    <option key={loc} value={loc}>{loc}</option>
-                  ))}
-                  <option value="Unknown">Unknown</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Grader Name</label>
-                <select
-                  value={hvGraderFilter}
-                  onChange={(e) => setHvGraderFilter(e.target.value)}
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="All">All Graders</option>
-                  {hvGraders.map((grader) => (
-                    <option key={grader} value={grader}>{grader}</option>
-                  ))}
-                </select>
               </div>
             </div>
           </div>
@@ -1100,12 +906,6 @@ export default function YieldReportPage() {
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 mb-3 text-indigo-600 text-xl">📦</div>
                 <p className="text-sm font-semibold text-gray-900">No Data Available</p>
                 <p className="text-sm text-gray-500 mt-1">There are no HL to VA entries between {hvFrom} and {hvTo}.</p>
-              </div>
-            ) : hvFiltered.length === 0 ? (
-              <div className="p-8 text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 mb-3 text-indigo-600 text-xl">🔍</div>
-                <p className="text-sm font-semibold text-gray-900">No Matches Found</p>
-                <p className="text-sm text-gray-500 mt-1">Try adjusting your filters to see more results.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
