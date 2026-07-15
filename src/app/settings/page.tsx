@@ -364,13 +364,16 @@ export default function SettingsPage() {
             
             <button
               onClick={handleToggleLightMode}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500/20 active:scale-95 ${
-                isLightMode ? 'bg-teal-650' : 'bg-gray-200'
+              className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500/40 active:scale-95 ${
+                isLightMode
+                  ? 'bg-teal-500 border-teal-500'
+                  : 'bg-gray-300 border-gray-400 dark:bg-gray-600 dark:border-gray-500'
               }`}
               aria-label="Toggle theme mode"
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                style={{ backgroundColor: '#ffffff' }}
+                className={`inline-block h-4 w-4 transform rounded-full shadow-md transition-transform ${
                   isLightMode ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
@@ -394,13 +397,16 @@ export default function SettingsPage() {
             
             <button
               onClick={handleToggleLiveAnalytics}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500/20 active:scale-95 ${
-                showLiveAnalytics ? 'bg-teal-650' : 'bg-gray-200'
+              className={`relative inline-flex h-6 w-11 items-center rounded-full border transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500/40 active:scale-95 ${
+                showLiveAnalytics
+                  ? 'bg-teal-500 border-teal-500'
+                  : 'bg-gray-300 border-gray-400 dark:bg-gray-600 dark:border-gray-500'
               }`}
               aria-label="Toggle live analytics"
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                style={{ backgroundColor: '#ffffff' }}
+                className={`inline-block h-4 w-4 transform rounded-full shadow-md transition-transform ${
                   showLiveAnalytics ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
