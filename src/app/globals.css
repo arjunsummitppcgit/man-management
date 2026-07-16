@@ -883,6 +883,111 @@ input:focus, select:focus, textarea:focus {
    bright tone, following the existing override patterns.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANALYTICS PAGE — inner side panel, section swap animation, filter bar
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Inner report side panel: soft glass card */
+.ana-panel {
+  background: linear-gradient(165deg, #ffffff 0%, #f0fdfa 100%);
+  border: 1px solid #cbd5e1;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 10px 28px -14px rgba(4, 47, 46, 0.18);
+}
+.dark .ana-panel {
+  background: linear-gradient(165deg, #111827 0%, #0d1e21 100%);
+  border-color: #3b4a5f;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 12px 30px -14px rgba(0, 0, 0, 0.6);
+}
+
+/* Panel nav items: slide-in entrance + hover nudge + glowing active pill */
+.ana-nav-item {
+  opacity: 0;
+  animation: sideSlideIn 0.5s var(--ease-mac) both;
+  transition:
+    background-color 0.3s var(--ease-mac),
+    transform 0.3s var(--ease-mac),
+    box-shadow 0.3s var(--ease-mac);
+}
+.ana-nav-item:hover {
+  background-color: rgba(13, 148, 136, 0.06);
+  transform: translateX(3px);
+}
+.ana-nav-item:active {
+  transform: translateX(3px) scale(0.97);
+}
+.dark .ana-nav-item:hover {
+  background-color: rgba(20, 184, 166, 0.1);
+}
+.ana-nav-active,
+.ana-nav-active:hover {
+  background: rgba(13, 148, 136, 0.09);
+  box-shadow:
+    inset 0 0 0 1px rgba(20, 184, 166, 0.25),
+    0 6px 18px -8px var(--glow, rgba(13, 148, 136, 0.45));
+  transform: none;
+}
+.dark .ana-nav-active,
+.dark .ana-nav-active:hover {
+  background: rgba(20, 184, 166, 0.14);
+  box-shadow:
+    inset 0 0 0 1px rgba(45, 212, 191, 0.3),
+    0 6px 18px -8px var(--glow, rgba(45, 212, 191, 0.45));
+}
+.dark .ana-nav-item .text-gray-900 { color: #f9fafb; }
+.dark .ana-nav-item .text-gray-600 { color: #9ca3af; }
+
+/* Section content swap: rise & fade whenever the active report changes */
+@keyframes anaSwap {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.ana-swap {
+  animation: anaSwap 0.45s var(--ease-mac) both;
+}
+
+/* Active date-preset pill */
+.ana-preset-active {
+  background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+}
+
+/* Stat chips: gentle lift on hover (mobile + desktop) */
+.ana-chip {
+  transition: transform 0.35s var(--ease-mac), box-shadow 0.35s var(--ease-mac);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ana-nav-item,
+  .ana-swap {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+  .ana-nav-item,
+  .ana-chip {
+    transition: none !important;
+  }
+}
+
+/* Dark-mode support for analytics accent tints not covered above */
+.dark .bg-sky-50 { background-color: rgba(14, 165, 233, 0.15) !important; }
+.dark .text-sky-600 { color: #38bdf8 !important; }
+.dark .bg-cyan-50 { background-color: rgba(6, 182, 212, 0.15) !important; }
+.dark .text-cyan-600 { color: #22d3ee !important; }
+.dark .bg-rose-100 { background-color: rgba(244, 63, 94, 0.22) !important; }
+.dark .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.22) !important; }
+.dark .hover\:bg-teal-50\/40:hover { background-color: rgba(13, 148, 136, 0.12) !important; }
+.dark .text-rose-600.bg-rose-50,
+.dark .bg-rose-50 .text-rose-600 { color: #fb7185 !important; }
+
 /* Grays */
 .dark .text-gray-450 { color: #9ca3af !important; }
 .dark .text-gray-550 { color: #9ca3af !important; }

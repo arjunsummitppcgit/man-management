@@ -1,0 +1,216 @@
+'use client';
+
+import React, { useMemo } from 'react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from 'recharts';
+import type { Location } from '@/types';
+import type { AnalyticsData, SanitizationRow } from '@/hooks/useAnalytics';
+import {
+  ChipRow,
+  ChartCard,
+  EmptyChart,
+  AnalyticsTable,
+  ExportButtons,
+  chartTheme,
+  fmtInt,
+  fmtDay,
+} from './shared';
+
+// Persons involved in sanitization work per the daily entry form
+const PERSON_FIELDS: (keyof SanitizationRow)[] = [
+  'cleaning_labour',
+  'nmr_labour',
+  'washroom_cleaning',
+  'grading_machine_cleaning',
+];
+
+const personsOf = (r: SanitizationRow) =>
+  PERSON_FIELDS.reduce((s, f) => s + (Number(r[f]) || 0), 0);
+
+export default function SanitizationSection({
+  data,
+  locations,
+  locationFilter,
+  isDark,
+  rangeLabel,
+}: {
+  data: AnalyticsData;
+  locations: Location[];
+  locationFilter: string | null;
+  isDark: boolean;
+  rangeLabel: string;
+}) {
+  const theme = chartTheme(isDark);
+
+  const rows = useMemo(
+    () => data.sanitization.filter((r) => !locationFilter || r.location_id === locationFilter),
+    [data.sanitization, locationFilter]
+  );
+
+  const totalCrates = rows.reduce((s, r) => s + (r.crates_cleaning || 0), 0);
+  const totalNets = rows.reduce((s, r) => s + (r.nets_cleaning || 0), 0);
+  const totalPersons = rows.reduce((s, r) => s + personsOf(r), 0);
+  const activeDays = new Set(rows.filter((r) => (r.crates_cleaning || 0) + (r.nets_cleaning || 0) + personsOf(r) > 0).map((r) => r.work_date)).size;
+
+  const chips = [
+    {
+      label: 'Crates Cleaned',
+      value: fmtInt(totalCrates),
+      sub: `total in ${rangeLabel}`,
+      accent: 'from-sky-500 to-cyan-500',
+      icon: '📦',
+    },
+    {
+      label: 'Nets Cleaned',
+      value: fmtInt(totalNets),
+      sub: `total in ${rangeLabel}`,
+      accent: 'from-teal-500 to-emerald-500',
+      icon: '🕸️',
+    },
+    {
+      label: 'Persons Deployed',
+      value: fmtInt(totalPersons),
+      sub: 'cleaning, NMR, washroom, grading',
+      accent: 'from-amber-400 to-orange-500',
+      icon: '🧑‍🔧',
+    },
+    {
+      label: 'Active Days',
+      value: fmtInt(activeDays),
+      sub: 'days with sanitization work',
+      accent: 'from-indigo-500 to-violet-600',
+      icon: '📅',
+    },
+  ];
+
+  // Daily trend: crates / nets / persons
+  const byDate = useMemo(() => {
+    const map = new Map<string, { Crates: number; Nets: number; Persons: number }>();
+    for (const r of rows) {
+      const cur = map.get(r.work_date) || { Crates: 0, Nets: 0, Persons: 0 };
+      cur.Crates += r.crates_cleaning || 0;
+      cur.Nets += r.nets_cleaning || 0;
+      cur.Persons += personsOf(r);
+      map.set(r.work_date, cur);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, vals]) => ({ date: fmtDay(date), ...vals }))
+      .filter((d) => d.Crates > 0 || d.Nets > 0 || d.Persons > 0);
+  }, [rows]);
+
+  // By location
+  const byLocation = useMemo(() => {
+    const visibleLocs = locationFilter ? locations.filter((l) => l.id === locationFilter) : locations;
+    return visibleLocs
+      .map((loc) => {
+        const locRows = rows.filter((r) => r.location_id === loc.id);
+        return {
+          name: loc.name,
+          Crates: locRows.reduce((s, r) => s + (r.crates_cleaning || 0), 0),
+          Nets: locRows.reduce((s, r) => s + (r.nets_cleaning || 0), 0),
+          Persons: locRows.reduce((s, r) => s + personsOf(r), 0),
+        };
+      })
+      .filter((r) => r.Crates > 0 || r.Nets > 0 || r.Persons > 0);
+  }, [rows, locations, locationFilter]);
+
+  const hasData = totalCrates > 0 || totalNets > 0 || totalPersons > 0;
+
+  const tableHeaders = ['Date', 'Crates', 'Nets', 'Cleaning Labour', 'NMR', 'Washroom', 'Grading M/C', 'Persons Total'];
+  const tableRows = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const r of rows) {
+      const cur = map.get(r.work_date) || [0, 0, 0, 0, 0, 0, 0];
+      cur[0] += r.crates_cleaning || 0;
+      cur[1] += r.nets_cleaning || 0;
+      cur[2] += r.cleaning_labour || 0;
+      cur[3] += r.nmr_labour || 0;
+      cur[4] += r.washroom_cleaning || 0;
+      cur[5] += r.grading_machine_cleaning || 0;
+      cur[6] += personsOf(r);
+      map.set(r.work_date, cur);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, vals]) => [fmtDay(date), ...vals.map((v) => (v > 0 ? fmtInt(v) : 0))])
+      .filter((row) => row.slice(1).some((v) => v !== 0));
+  }, [rows]);
+
+  const footer = [
+    'Total',
+    fmtInt(totalCrates),
+    fmtInt(totalNets),
+    fmtInt(rows.reduce((s, r) => s + (r.cleaning_labour || 0), 0)),
+    fmtInt(rows.reduce((s, r) => s + (r.nmr_labour || 0), 0)),
+    fmtInt(rows.reduce((s, r) => s + (r.washroom_cleaning || 0), 0)),
+    fmtInt(rows.reduce((s, r) => s + (r.grading_machine_cleaning || 0), 0)),
+    fmtInt(totalPersons),
+  ];
+
+  return (
+    <div className="space-y-4 lg:space-y-5">
+      <ChipRow chips={chips} />
+
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 lg:gap-5">
+        <ChartCard title="Daily Sanitization" subtitle={`crates, nets & persons per day · ${rangeLabel}`} className="xl:col-span-7">
+          {hasData && byDate.length > 0 ? (
+            <ResponsiveContainer width="100%" height={270}>
+              <BarChart data={byDate} margin={{ top: 4, right: 8, left: -14, bottom: 0 }} barGap={3}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.gridStroke} />
+                <XAxis dataKey="date" tick={theme.axisTick} tickLine={false} axisLine={false} />
+                <YAxis tick={theme.axisTick} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={theme.tooltipStyle} cursor={theme.cursorFill} />
+                <Legend iconType="circle" iconSize={9} wrapperStyle={{ fontSize: 12, fontWeight: 600 }} />
+                <Bar dataKey="Crates" fill="#0ea5e9" radius={[6, 6, 0, 0]} maxBarSize={22} animationDuration={900} />
+                <Bar dataKey="Nets" fill="#0d9488" radius={[6, 6, 0, 0]} maxBarSize={22} animationDuration={900} />
+                <Bar dataKey="Persons" fill="#f59e0b" radius={[6, 6, 0, 0]} maxBarSize={22} animationDuration={900} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyChart message={`No sanitization work recorded in ${rangeLabel}`} />
+          )}
+        </ChartCard>
+
+        <ChartCard title="By Location" subtitle="crates, nets & persons per location" className="xl:col-span-5">
+          {byLocation.length > 0 ? (
+            <ResponsiveContainer width="100%" height={270}>
+              <BarChart data={byLocation} margin={{ top: 4, right: 8, left: -10, bottom: 0 }} barGap={3}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={theme.gridStroke} />
+                <XAxis dataKey="name" tick={theme.axisTick} tickLine={false} axisLine={false} />
+                <YAxis tick={theme.axisTick} tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={theme.tooltipStyle} cursor={theme.cursorFill} />
+                <Legend iconType="circle" iconSize={9} wrapperStyle={{ fontSize: 11, fontWeight: 600 }} />
+                <Bar dataKey="Crates" fill="#0ea5e9" radius={[6, 6, 0, 0]} maxBarSize={24} animationDuration={900} />
+                <Bar dataKey="Nets" fill="#0d9488" radius={[6, 6, 0, 0]} maxBarSize={24} animationDuration={900} />
+                <Bar dataKey="Persons" fill="#f59e0b" radius={[6, 6, 0, 0]} maxBarSize={24} animationDuration={900} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyChart message="No location has sanitization work in this period" />
+          )}
+        </ChartCard>
+      </div>
+
+      <ChartCard title="Sanitization Detail" subtitle="crates / nets / persons per day">
+        <div className="flex justify-end mb-3">
+          <ExportButtons
+            title={`Sanitization Report — ${rangeLabel}`}
+            headers={tableHeaders}
+            rows={[...tableRows, footer]}
+            filename="sanitization-report"
+          />
+        </div>
+        <AnalyticsTable headers={tableHeaders} rows={tableRows} footer={footer} />
+      </ChartCard>
+    </div>
+  );
+}

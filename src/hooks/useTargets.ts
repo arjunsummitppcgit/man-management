@@ -34,7 +34,7 @@ export function useTargets() {
         .order('created_at', { ascending: true });
 
       if (locationError) throw locationError;
-      setLocationTargets(locationData || []);
+      setLocationTargets((locationData || []) as MonthlyTarget[]);
     } catch (error) {
       console.error('Error fetching targets:', error);
       setCombinedTarget(null);
