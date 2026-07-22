@@ -43,6 +43,11 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Unauthenticated API calls get a JSON 401, not a redirect-to-login HTML page
+  if (!user && pathname.startsWith('/api/')) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
+
   // Unauthenticated user trying to access a protected route → redirect to /login
   if (!user && pathname !== '/login') {
     const loginUrl = request.nextUrl.clone();

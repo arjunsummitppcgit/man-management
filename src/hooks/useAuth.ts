@@ -5,18 +5,10 @@ import { supabase } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
 // ─── Sub-user email list ──────────────────────────────────────────────────────
-// These 4 accounts are restricted to today's date only.
-// Admin is anyone NOT in this list.
-const SUB_USER_EMAILS = [
-  'ramakrishna@ppc.com',
-  'sairam@ppc.com',
-  'manisha@ppc.com',
-];
-
-export function isSubUserEmail(email: string | undefined): boolean {
-  if (!email) return false;
-  return SUB_USER_EMAILS.includes(email.toLowerCase().trim());
-}
+// Moved to src/lib/auth/subUsers.ts so server routes (e.g. the assistant API)
+// enforce the same restrictions. Re-exported for existing imports.
+export { isSubUserEmail } from '@/lib/auth/subUsers';
+import { isSubUserEmail } from '@/lib/auth/subUsers';
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 interface AuthState {
