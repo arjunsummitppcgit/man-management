@@ -295,7 +295,7 @@ export interface HlVaEntry {
   batch_id: string;
   count_text: string;
   grade: string;            // auto-derived from count via standard yield chart
-  variety: string;          // PD | PDTO | PVPD | PVPDTO | EZPL | PUD
+  variety: string;          // PD | PDTO | PVPD | PVPDTO | EZPL | PUD | BTFLY
   hl_kgs: number;
   va_kgs: number;
   location_id: string | null;

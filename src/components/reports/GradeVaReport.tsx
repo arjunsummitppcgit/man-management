@@ -14,8 +14,9 @@ const REPORT_GRADE_ORDER = [
   'MIX',
 ] as const;
 
-// VA variety columns to show in the report (matches the register, excludes PUD)
-const REPORT_VARIETIES = ['PD', 'PDTO', 'PVPD', 'PVPDTO', 'EZPL'] as const;
+// VA variety columns to show in the report (matches the register, excludes PUD).
+// BTFLY sits last, just before the TOTAL column.
+const REPORT_VARIETIES = ['PD', 'PDTO', 'PVPD', 'PVPDTO', 'EZPL', 'BTFLY'] as const;
 
 interface GradeVaReportProps {
   entries: { grade?: string; variety?: string; va_kgs?: number | string }[];

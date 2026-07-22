@@ -10,20 +10,21 @@ export const VA_VARIETIES = [
   'PVPDTO',
   'EZPL',
   'PUD',
+  'BTFLY',
 ] as const;
 
 export type VaVariety = (typeof VA_VARIETIES)[number];
 
 // ─── HL to VA Standard Yield Chart ────────────────────────────────────────────
 // Standard yield % by HL count range, split across three variety groups:
-//   pd   → PD / PUD / PVPD
+//   pd   → PD / PUD / PVPD / BTFLY
 //   pdto → PDTO / PVPDTO
 //   ezpl → EZPL
 export interface HlVaYieldEntry {
   label: string; // Display label, e.g. "13-15"
   min: number;   // Inclusive lower bound
   max: number;   // Inclusive upper bound
-  pd: number;    // PD / PUD / PVPD standard yield %
+  pd: number;    // PD / PUD / PVPD / BTFLY standard yield %
   pdto: number;  // PDTO / PVPDTO standard yield %
   ezpl: number;  // EZPL standard yield %
 }
@@ -50,7 +51,7 @@ function varietyColumn(variety: string): 'pd' | 'pdto' | 'ezpl' {
       return 'pdto';
     case 'EZPL':
       return 'ezpl';
-    default: // PD, PUD, PVPD, and blank
+    default: // PD, PUD, PVPD, BTFLY, and blank
       return 'pd';
   }
 }
