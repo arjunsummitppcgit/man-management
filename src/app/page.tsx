@@ -456,91 +456,6 @@ export default function DashboardPage() {
         </div>
 
 
-        {/* Supervisors — Full-width big card with all names */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">👔</span>
-              <span className="text-sm font-semibold text-gray-700">Supervisors Present</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-3xl font-bold text-teal-600">{kpis?.supervisorsPresent ?? 0}</span>
-              {(kpis?.supervisorsPresent ?? 0) > 10 && (
-                <span className="px-2 py-0.5 bg-teal-50 text-teal-600 rounded-full text-[10px] font-bold">scroll ↕</span>
-              )}
-            </div>
-          </div>
-
-          {/* Names grid — scrollable after 10 supervisors */}
-          {(kpis?.supervisorNames ?? []).length === 0 ? (
-            <div className="flex items-center justify-center py-6 bg-gray-50 rounded-xl">
-              <p className="text-sm text-gray-400">No supervisors present today</p>
-            </div>
-          ) : (
-            <div
-              className="overflow-y-auto"
-              style={{ maxHeight: (kpis?.supervisorsPresent ?? 0) > 10 ? '220px' : 'none' }}
-            >
-              <div className="grid grid-cols-2 gap-2">
-                {(kpis?.supervisorNames ?? []).map((name, idx) => (
-                  <div
-                    key={`${name}-${idx}`}
-                    className="flex items-center gap-2.5 bg-teal-50 border border-teal-100 rounded-xl px-3 py-2.5"
-                  >
-                    {/* Avatar circle with initial */}
-                    <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center flex-shrink-0 text-sm font-bold">
-                      {name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-sm font-semibold text-teal-800 truncate">{name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Location breakdown sub-line */}
-          {kpis?.supervisorBreakdown && (
-            <p className="text-xs text-gray-450 mt-3 pt-3 border-t border-gray-100 font-medium">
-              📍 {kpis.supervisorBreakdown}
-            </p>
-          )}
-
-          {/* Unassigned Supervisors Section */}
-          <div className="border-t border-gray-100 dark:border-gray-800 mt-3.5 pt-3.5">
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">💤</span>
-                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unassigned Today</span>
-              </div>
-              <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-450 rounded-full text-[10px] font-bold">
-                {kpis?.unassignedSupervisorNames?.length ?? 0} standby
-              </span>
-            </div>
-
-            {(kpis?.unassignedSupervisorNames ?? []).length === 0 ? (
-              <div className="flex items-center justify-center py-4 bg-gray-50 dark:bg-gray-800/40 rounded-xl">
-                <p className="text-xs text-gray-400 dark:text-gray-500">All supervisors are assigned today</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {(kpis?.unassignedSupervisorNames ?? []).map((name, idx) => (
-                  <div
-                    key={`${name}-${idx}`}
-                    className="flex items-center gap-2 bg-amber-50/40 dark:bg-amber-950/20 border border-amber-100/60 dark:border-amber-900/30 rounded-xl px-2.5 py-2"
-                  >
-                    {/* Avatar circle with initial */}
-                    <div className="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold shadow-sm shadow-amber-500/20">
-                      {name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-xs font-semibold text-amber-800 dark:text-amber-250 truncate">{name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* WIP Breakdown Table */}
         {locationBreakdowns.length > 0 && (
           <div className={`rounded-2xl overflow-hidden shadow-sm border ${isDark ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
@@ -748,6 +663,91 @@ export default function DashboardPage() {
               <p className="text-[9px] text-purple-500 dark:text-purple-400 font-medium uppercase tracking-wide leading-tight">Masks</p>
               <p className="text-lg font-bold text-purple-700 dark:text-purple-300 mt-0.5">{kpis?.yesterdayMasks ?? 0} pcs</p>
             </div>
+          </div>
+        </div>
+
+        {/* Supervisors — Full-width big card with all names */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">👔</span>
+              <span className="text-sm font-semibold text-gray-700">Supervisors Present</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-3xl font-bold text-teal-600">{kpis?.supervisorsPresent ?? 0}</span>
+              {(kpis?.supervisorsPresent ?? 0) > 10 && (
+                <span className="px-2 py-0.5 bg-teal-50 text-teal-600 rounded-full text-[10px] font-bold">scroll ↕</span>
+              )}
+            </div>
+          </div>
+
+          {/* Names grid — scrollable after 10 supervisors */}
+          {(kpis?.supervisorNames ?? []).length === 0 ? (
+            <div className="flex items-center justify-center py-6 bg-gray-50 rounded-xl">
+              <p className="text-sm text-gray-400">No supervisors present today</p>
+            </div>
+          ) : (
+            <div
+              className="overflow-y-auto"
+              style={{ maxHeight: (kpis?.supervisorsPresent ?? 0) > 10 ? '220px' : 'none' }}
+            >
+              <div className="grid grid-cols-2 gap-2">
+                {(kpis?.supervisorNames ?? []).map((name, idx) => (
+                  <div
+                    key={`${name}-${idx}`}
+                    className="flex items-center gap-2.5 bg-teal-50 border border-teal-100 rounded-xl px-3 py-2.5"
+                  >
+                    {/* Avatar circle with initial */}
+                    <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                      {name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-sm font-semibold text-teal-800 truncate">{name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Location breakdown sub-line */}
+          {kpis?.supervisorBreakdown && (
+            <p className="text-xs text-gray-450 mt-3 pt-3 border-t border-gray-100 font-medium">
+              📍 {kpis.supervisorBreakdown}
+            </p>
+          )}
+
+          {/* Unassigned Supervisors Section */}
+          <div className="border-t border-gray-100 dark:border-gray-800 mt-3.5 pt-3.5">
+            <div className="flex items-center justify-between mb-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">💤</span>
+                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Unassigned Today</span>
+              </div>
+              <span className="px-2 py-0.5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-450 rounded-full text-[10px] font-bold">
+                {kpis?.unassignedSupervisorNames?.length ?? 0} standby
+              </span>
+            </div>
+
+            {(kpis?.unassignedSupervisorNames ?? []).length === 0 ? (
+              <div className="flex items-center justify-center py-4 bg-gray-50 dark:bg-gray-800/40 rounded-xl">
+                <p className="text-xs text-gray-400 dark:text-gray-500">All supervisors are assigned today</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {(kpis?.unassignedSupervisorNames ?? []).map((name, idx) => (
+                  <div
+                    key={`${name}-${idx}`}
+                    className="flex items-center gap-2 bg-amber-50/40 dark:bg-amber-950/20 border border-amber-100/60 dark:border-amber-900/30 rounded-xl px-2.5 py-2"
+                  >
+                    {/* Avatar circle with initial */}
+                    <div className="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold shadow-sm shadow-amber-500/20">
+                      {name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-xs font-semibold text-amber-800 dark:text-amber-250 truncate">{name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
