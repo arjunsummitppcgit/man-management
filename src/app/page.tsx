@@ -307,7 +307,7 @@ export default function DashboardPage() {
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-2xl">👷</span>
-            <span className="text-sm font-semibold text-gray-700">Workforce & Sanitization Breakdown</span>
+            <span className="text-sm font-semibold text-gray-700">Workforce & Labour Breakdown</span>
           </div>
 
           <div className="border-t border-gray-100 pt-3">
@@ -377,9 +377,17 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Sanitization — headcount, cleaned quantity and day notes in one card */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-2xl">🧹</span>
+            <span className="text-sm font-semibold text-gray-700">Sanitization</span>
+          </div>
 
           {/* Sanitization Headcount */}
-          <div className="border-t border-gray-100 pt-3 mt-3">
+          <div className="border-t border-gray-100 pt-3">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">Sanitization Breakdown</p>
               <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs font-bold">
@@ -409,29 +417,42 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Cleaned Quantity (Yesterday) */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-2xl">🧹</span>
-            <span className="text-sm font-semibold text-gray-700">
+          {/* Cleaned Quantity (Yesterday) */}
+          <div className="border-t border-gray-100 pt-3 mt-3">
+            <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide mb-2">
               Cleaned Quantity {yesterdayFormatted && `(Yesterday: ${yesterdayFormatted})`}
-            </span>
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Crates Cleaning */}
+              <div className="bg-purple-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center text-center">
+                <p className="text-[10px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Crates Cleaning</p>
+                <p className="text-xl font-bold text-purple-700 mt-0.5">{kpis?.yesterdayCratesCleaning ?? 0}</p>
+              </div>
+              {/* Nets Cleaning */}
+              <div className="bg-purple-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center text-center">
+                <p className="text-[10px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Nets Cleaning</p>
+                <p className="text-xl font-bold text-purple-700 mt-0.5">{kpis?.yesterdayNetsCleaning ?? 0}</p>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            {/* Crates Cleaning */}
-            <div className="bg-purple-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center text-center">
-              <p className="text-[10px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Crates Cleaning</p>
-              <p className="text-xl font-bold text-purple-700 mt-0.5">{kpis?.yesterdayCratesCleaning ?? 0}</p>
+          {/* Day Notes (Yesterday) — only shown when a note was written */}
+          {kpis?.yesterdayNotes && kpis.yesterdayNotes.length > 0 && (
+            <div className="border-t border-gray-100 pt-3 mt-3">
+              <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-2">
+                Notes {yesterdayFormatted && `(Yesterday: ${yesterdayFormatted})`}
+              </p>
+              <div className="space-y-2">
+                {kpis.yesterdayNotes.map((n, i) => (
+                  <div key={i} className="bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40 rounded-xl px-3 py-2">
+                    <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide mb-0.5">{n.location}</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{n.note}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            {/* Nets Cleaning */}
-            <div className="bg-purple-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center text-center">
-              <p className="text-[10px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Nets Cleaning</p>
-              <p className="text-xl font-bold text-purple-700 mt-0.5">{kpis?.yesterdayNetsCleaning ?? 0}</p>
-            </div>
-          </div>
+          )}
         </div>
 
 
@@ -729,26 +750,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-
-        {/* Day Notes (Yesterday) — only shown when a note was written */}
-        {kpis?.yesterdayNotes && kpis.yesterdayNotes.length > 0 && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-2xl">📝</span>
-              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Notes {yesterdayFormatted && `(Yesterday: ${yesterdayFormatted})`}
-              </span>
-            </div>
-            <div className="space-y-2">
-              {kpis.yesterdayNotes.map((n, i) => (
-                <div key={i} className="bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/40 rounded-xl px-3 py-2">
-                  <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide mb-0.5">{n.location}</p>
-                  <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{n.note}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Monthly Progress — full width */}
         <div className="bg-gradient-to-br from-teal-50 to-teal-100/50 rounded-2xl p-4 shadow-sm border border-teal-200 hover:shadow-md transition-shadow">
