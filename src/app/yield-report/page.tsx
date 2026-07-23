@@ -296,6 +296,7 @@ export default function YieldReportPage() {
   const [hvBatchFilter, setHvBatchFilter] = useState<string[]>([]);
   const [hvCountFilter, setHvCountFilter] = useState<string[]>([]);
   const [hvVarietyFilter, setHvVarietyFilter] = useState<string[]>([]);
+  const [hvGradeFilter, setHvGradeFilter] = useState<string[]>([]);
 
   // Follow the Daily Report date navigation: whenever the shared report date
   // changes (header arrows / Report Date picker), snap the HL to VA range to
@@ -340,6 +341,7 @@ export default function YieldReportPage() {
     setHvBatchFilter([]);
     setHvCountFilter([]);
     setHvVarietyFilter([]);
+    setHvGradeFilter([]);
   }
 
   // ── Combined location-wise summary for the selected date ──
@@ -382,10 +384,13 @@ export default function YieldReportPage() {
     const batch = new Set<string>();
     const count = new Set<string>();
     const variety = new Set<string>();
+    const grade = new Set<string>();
     hvEntries.forEach((e) => {
       if (e.batch_id) batch.add(String(e.batch_id));
       if (e.count_text) count.add(String(e.count_text));
       if (e.variety) variety.add(String(e.variety));
+      const g = e.grade || lookupHlVaCountRange(e.count_text);
+      if (g) grade.add(String(g));
     });
     const natural = (a: string, b: string) =>
       a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
@@ -393,21 +398,26 @@ export default function YieldReportPage() {
       batch: Array.from(batch).sort(natural),
       count: Array.from(count).sort(natural),
       variety: Array.from(variety).sort(natural),
+      grade: Array.from(grade).sort(natural),
     };
   }, [hvEntries]);
 
   // HL→VA entries after applying the column-header filters
   const hvFiltered = useMemo(() => {
-    if (!hvBatchFilter.length && !hvCountFilter.length && !hvVarietyFilter.length) {
+    if (!hvBatchFilter.length && !hvCountFilter.length && !hvVarietyFilter.length && !hvGradeFilter.length) {
       return hvEntries;
     }
     return hvEntries.filter((e) => {
       if (hvBatchFilter.length && !hvBatchFilter.includes(String(e.batch_id ?? ''))) return false;
       if (hvCountFilter.length && !hvCountFilter.includes(String(e.count_text ?? ''))) return false;
       if (hvVarietyFilter.length && !hvVarietyFilter.includes(String(e.variety ?? ''))) return false;
+      if (hvGradeFilter.length) {
+        const g = String(e.grade || lookupHlVaCountRange(e.count_text) || '');
+        if (!hvGradeFilter.includes(g)) return false;
+      }
       return true;
     });
-  }, [hvEntries, hvBatchFilter, hvCountFilter, hvVarietyFilter]);
+  }, [hvEntries, hvBatchFilter, hvCountFilter, hvVarietyFilter, hvGradeFilter]);
 
   // Totals over entries
   const hvTotals = useMemo(() => {
@@ -962,7 +972,7 @@ export default function YieldReportPage() {
                 <p className="text-sm text-gray-500 mt-1">No batches match the selected column filters.</p>
                 <button
                   type="button"
-                  onClick={() => { setHvBatchFilter([]); setHvCountFilter([]); setHvVarietyFilter([]); }}
+                  onClick={() => { setHvBatchFilter([]); setHvCountFilter([]); setHvVarietyFilter([]); setHvGradeFilter([]); }}
                   className="mt-3 text-sm font-semibold text-indigo-600 hover:underline"
                 >
                   Clear filters
@@ -1001,7 +1011,14 @@ export default function YieldReportPage() {
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">HL (KGS)</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">VA (KGS)</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Location</th>
-                      <th className="px-4 py-3 text-[10px] font-semibold text-indigo-500 uppercase tracking-wider whitespace-nowrap">Grade</th>
+                      <th className="px-4 py-3 text-[10px] font-semibold text-indigo-500 uppercase tracking-wider whitespace-nowrap">
+                        <ColumnFilter
+                          label="Grade"
+                          options={hvColumnOptions.grade}
+                          selected={hvGradeFilter}
+                          onChange={setHvGradeFilter}
+                        />
+                      </th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Grader Name</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-teal-500 uppercase tracking-wider whitespace-nowrap text-right">Yield</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-purple-500 uppercase tracking-wider whitespace-nowrap text-right">Std %</th>
