@@ -7,6 +7,8 @@ import type { YieldEntry } from '@/types';
 export function useYield() {
   const [entries, setEntries] = useState<YieldEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [batchEntries, setBatchEntries] = useState<YieldEntry[]>([]);
+  const [batchLoading, setBatchLoading] = useState(false);
 
   /**
    * Fetch all yield entries for a given date (across all locations).
@@ -27,6 +29,30 @@ export function useYield() {
       setEntries([]);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  /**
+   * Fetch all yield entries for a given batch id across every date.
+   * Case-insensitive exact match on batch_id.
+   */
+  const fetchByBatch = useCallback(async (batchId: string) => {
+    setBatchLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('yield_entries')
+        .select('*, location:locations(id, name, code)')
+        .ilike('batch_id', batchId)
+        .order('work_date', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setBatchEntries(data || []);
+    } catch (error) {
+      console.error('Error fetching yield entries by batch:', error);
+      setBatchEntries([]);
+    } finally {
+      setBatchLoading(false);
     }
   }, []);
 
@@ -104,7 +130,10 @@ export function useYield() {
   return {
     entries,
     loading,
+    batchEntries,
+    batchLoading,
     fetchYieldEntries,
+    fetchByBatch,
     saveYieldEntries,
     deleteYieldEntry,
   };

@@ -10,6 +10,8 @@ export function useHlVa() {
   const [loading, setLoading] = useState(false);
   const [rangeEntries, setRangeEntries] = useState<HlVaEntry[]>([]);
   const [rangeLoading, setRangeLoading] = useState(false);
+  const [batchEntries, setBatchEntries] = useState<HlVaEntry[]>([]);
+  const [batchLoading, setBatchLoading] = useState(false);
 
   /**
    * Fetch all HL -> VA entries for a single date (daily entry form).
@@ -53,6 +55,30 @@ export function useHlVa() {
       setRangeEntries([]);
     } finally {
       setRangeLoading(false);
+    }
+  }, []);
+
+  /**
+   * Fetch all HL -> VA entries for a given batch id across every date.
+   * Case-insensitive exact match on batch_id.
+   */
+  const fetchByBatch = useCallback(async (batchId: string) => {
+    setBatchLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('hl_va_entries')
+        .select('*, location:locations(name)')
+        .ilike('batch_id', batchId)
+        .order('work_date', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setBatchEntries(data || []);
+    } catch (error) {
+      console.error('Error fetching hl_va entries by batch:', error);
+      setBatchEntries([]);
+    } finally {
+      setBatchLoading(false);
     }
   }, []);
 
@@ -112,8 +138,11 @@ export function useHlVa() {
     loading,
     rangeEntries,
     rangeLoading,
+    batchEntries,
+    batchLoading,
     fetchEntries,
     fetchRange,
+    fetchByBatch,
     saveEntries,
   };
 }
