@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '@/components/layout/PageHeader';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
+import ColumnFilter from '@/components/ui/ColumnFilter';
 import { useAuth } from '@/hooks/useAuth';
 import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
@@ -291,6 +292,11 @@ export default function YieldReportPage() {
   const [hvFrom, setHvFrom] = useState(YESTERDAY);
   const [hvTo, setHvTo] = useState(YESTERDAY);
 
+  // Column-header filters for the HL to VA table (multi-select per column)
+  const [hvBatchFilter, setHvBatchFilter] = useState<string[]>([]);
+  const [hvCountFilter, setHvCountFilter] = useState<string[]>([]);
+  const [hvVarietyFilter, setHvVarietyFilter] = useState<string[]>([]);
+
   // Follow the Daily Report date navigation: whenever the shared report date
   // changes (header arrows / Report Date picker), snap the HL to VA range to
   // that same single day. Presets and manual pickers can still override afterward.
@@ -322,6 +328,19 @@ export default function YieldReportPage() {
       fetchHvRange(hvFrom, hvTo);
     }
   }, [hvFrom, hvTo, fetchHvRange]);
+
+  // Clear column filters whenever the date range changes (avoids stale
+  // selections that no longer exist in the newly fetched data set). Done by
+  // comparing against the previous render's range — React's recommended
+  // alternative to a state-syncing effect.
+  const hvRangeKey = `${hvFrom}|${hvTo}`;
+  const [hvPrevRangeKey, setHvPrevRangeKey] = useState(hvRangeKey);
+  if (hvRangeKey !== hvPrevRangeKey) {
+    setHvPrevRangeKey(hvRangeKey);
+    setHvBatchFilter([]);
+    setHvCountFilter([]);
+    setHvVarietyFilter([]);
+  }
 
   // ── Combined location-wise summary for the selected date ──
   // HON to HL column = HL kgs produced (HON→HL output)
@@ -358,8 +377,37 @@ export default function YieldReportPage() {
     return { rows, totals };
   }, [entries, gradeVaEntries]);
 
-  // All HL→VA entries in the selected range (no filters)
-  const hvFiltered = hvEntries;
+  // Distinct values for the HL→VA column-header filter dropdowns
+  const hvColumnOptions = useMemo(() => {
+    const batch = new Set<string>();
+    const count = new Set<string>();
+    const variety = new Set<string>();
+    hvEntries.forEach((e) => {
+      if (e.batch_id) batch.add(String(e.batch_id));
+      if (e.count_text) count.add(String(e.count_text));
+      if (e.variety) variety.add(String(e.variety));
+    });
+    const natural = (a: string, b: string) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    return {
+      batch: Array.from(batch).sort(natural),
+      count: Array.from(count).sort(natural),
+      variety: Array.from(variety).sort(natural),
+    };
+  }, [hvEntries]);
+
+  // HL→VA entries after applying the column-header filters
+  const hvFiltered = useMemo(() => {
+    if (!hvBatchFilter.length && !hvCountFilter.length && !hvVarietyFilter.length) {
+      return hvEntries;
+    }
+    return hvEntries.filter((e) => {
+      if (hvBatchFilter.length && !hvBatchFilter.includes(String(e.batch_id ?? ''))) return false;
+      if (hvCountFilter.length && !hvCountFilter.includes(String(e.count_text ?? ''))) return false;
+      if (hvVarietyFilter.length && !hvVarietyFilter.includes(String(e.variety ?? ''))) return false;
+      return true;
+    });
+  }, [hvEntries, hvBatchFilter, hvCountFilter, hvVarietyFilter]);
 
   // Totals over entries
   const hvTotals = useMemo(() => {
@@ -907,15 +955,49 @@ export default function YieldReportPage() {
                 <p className="text-sm font-semibold text-gray-900">No Data Available</p>
                 <p className="text-sm text-gray-500 mt-1">There are no HL to VA entries between {hvFrom} and {hvTo}.</p>
               </div>
+            ) : hvFiltered.length === 0 ? (
+              <div className="p-8 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 mb-3 text-indigo-600 text-xl">🔍</div>
+                <p className="text-sm font-semibold text-gray-900">No Matches Found</p>
+                <p className="text-sm text-gray-500 mt-1">No batches match the selected column filters.</p>
+                <button
+                  type="button"
+                  onClick={() => { setHvBatchFilter([]); setHvCountFilter([]); setHvVarietyFilter([]); }}
+                  className="mt-3 text-sm font-semibold text-indigo-600 hover:underline"
+                >
+                  Clear filters
+                </button>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-100 dark:border-gray-800">
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap sticky left-0 bg-gray-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">Date</th>
-                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Batch ID</th>
-                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Count</th>
-                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Variety</th>
+                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        <ColumnFilter
+                          label="Batch ID"
+                          options={hvColumnOptions.batch}
+                          selected={hvBatchFilter}
+                          onChange={setHvBatchFilter}
+                        />
+                      </th>
+                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        <ColumnFilter
+                          label="Count"
+                          options={hvColumnOptions.count}
+                          selected={hvCountFilter}
+                          onChange={setHvCountFilter}
+                        />
+                      </th>
+                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        <ColumnFilter
+                          label="Variety"
+                          options={hvColumnOptions.variety}
+                          selected={hvVarietyFilter}
+                          onChange={setHvVarietyFilter}
+                        />
+                      </th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">HL (KGS)</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">VA (KGS)</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Location</th>
