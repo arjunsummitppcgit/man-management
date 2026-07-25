@@ -315,3 +315,46 @@ export interface HlVaFormRow {
   location_id: string;
   grader_name: string;
 }
+
+// ─── Maintenance Task Types ("My Tasks") ─────────────────────────────────────
+
+export type TaskStatus = 'pending' | 'resolved';
+export type TaskPriority = 'low' | 'normal' | 'high';
+
+export interface MaintenanceFollowup {
+  id: string;
+  task_id: string;
+  note: string;
+  followup_on: string;
+  created_at: string;
+}
+
+export interface MaintenanceTask {
+  id: string;
+  title: string;            // short label on the box, e.g. 'Exhaust fan'
+  problem: string;          // e.g. 'Exhaust fan not working'
+  assigned_to: string;
+  assigned_phone: string | null;
+  location_id: string | null;
+  priority: TaskPriority;
+  status: TaskStatus;
+  escalated_on: string;
+  next_followup_on: string | null;
+  resolved_on: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  location?: { name: string } | null;
+  followups?: MaintenanceFollowup[];
+}
+
+export interface MaintenanceTaskFormData {
+  title: string;
+  problem: string;
+  assigned_to: string;
+  assigned_phone: string;
+  location_id: string;
+  priority: TaskPriority;
+  escalated_on: string;
+  next_followup_on: string;
+}

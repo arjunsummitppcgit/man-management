@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import PageHeader from '@/components/layout/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import { useLocations } from '@/hooks/useLocations';
@@ -9,6 +10,7 @@ import { supabase } from '@/lib/supabase/client';
 import { exportToPDF, exportToExcel } from '@/lib/export';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
+import { getTodayString } from '@/lib/utils';
 
 
 const REPORT_TYPES = [
@@ -45,6 +47,9 @@ export default function SettingsPage() {
   const [previewRows, setPreviewRows] = useState<(string | number)[][]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  // My Tasks summary (maintenance tasks)
+  const [taskCounts, setTaskCounts] = useState({ pending: 0, due: 0 });
+
   // User email from auth and check dark mode
   const [userEmail, setUserEmail] = useState('');
   useEffect(() => {
@@ -53,6 +58,25 @@ export default function SettingsPage() {
     });
     setIsLightMode(!document.documentElement.classList.contains('dark'));
     setShowLiveAnalytics(localStorage.getItem('showLiveAnalytics') !== 'false');
+  }, []);
+
+  // Pending / due-today counts for the My Tasks card badge
+  useEffect(() => {
+    supabase
+      .from('maintenance_tasks')
+      .select('next_followup_on')
+      .eq('status', 'pending')
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Error fetching maintenance task counts:', error);
+          return;
+        }
+        const today = getTodayString();
+        setTaskCounts({
+          pending: data?.length || 0,
+          due: (data || []).filter((t) => t.next_followup_on && t.next_followup_on <= today).length,
+        });
+      });
   }, []);
 
   // Fetch Report Preview Data when dateFrom, dateTo, or reportType changes
@@ -304,6 +328,38 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        {/* My Tasks — maintenance issues & follow-ups (admin-only) */}
+        {!isSubUser && (
+          <Link
+            href="/maintenance-tasks"
+            className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100 transition-transform active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-orange-600">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-semibold text-gray-700">My Tasks</h3>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  {taskCounts.pending > 0
+                    ? `${taskCounts.pending} pending maintenance task${taskCounts.pending > 1 ? 's' : ''}`
+                    : 'Maintenance issues & follow-ups'}
+                </p>
+              </div>
+              {taskCounts.due > 0 && (
+                <span className="px-2 py-0.5 bg-rose-50 text-rose-600 text-[10px] font-semibold rounded-full flex-shrink-0">
+                  {taskCounts.due} due
+                </span>
+              )}
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 flex-shrink-0">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </div>
+          </Link>
+        )}
 
         {/* Manage Locations (admin-only) */}
         {!isSubUser && (
