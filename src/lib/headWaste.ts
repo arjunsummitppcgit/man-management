@@ -17,6 +17,14 @@ import type { YieldEntry, HlVaEntry } from '@/types';
 export const HEAD_WASTE_RATE = 0.32; // of HON processed
 export const VA_WASTE_RATE = 0.18;   // of HL consumed
 
+/**
+ * Each waste figure is also carried at a multiple of the raw quantity. The
+ * factor is set by the user on the report and remembered in localStorage under
+ * WASTE_MULTIPLIER_KEY; this is only the starting value.
+ */
+export const DEFAULT_WASTE_MULTIPLIER = 2.5;
+export const WASTE_MULTIPLIER_KEY = 'headWasteMultiplier';
+
 /** Varieties that generate no meaningful waste at the HL → VA stage. */
 export const NO_WASTE_VARIETIES = ['EZPL'];
 
@@ -50,22 +58,29 @@ export interface HeadWasteRow {
   hon: number;       // HON processed (HON → HL input)
   hl: number;        // HL produced (HON → HL output)
   headWaste: number; // hon × 32%
+  headWasteX: number; // headWaste × multiplier
   hlUsed: number;    // HL consumed by HL → VA, excluding no-waste varieties
   hlEzpl: number;    // HL consumed by EZPL batches — excluded from the waste base
   va: number;        // VA produced, all varieties
   vaWaste: number;   // hlUsed × 18%
+  vaWasteX: number;  // vaWaste × multiplier
   totalWaste: number;
+  totalWasteX: number; // totalWaste × multiplier
 }
 
 const emptyRow = (key: string, label: string): HeadWasteRow => ({
-  key, label, hon: 0, hl: 0, headWaste: 0, hlUsed: 0, hlEzpl: 0, va: 0, vaWaste: 0, totalWaste: 0,
+  key, label, hon: 0, hl: 0, headWaste: 0, headWasteX: 0, hlUsed: 0, hlEzpl: 0, va: 0,
+  vaWaste: 0, vaWasteX: 0, totalWaste: 0, totalWasteX: 0,
 });
 
 /** Fill in the derived waste figures once the raw quantities are summed. */
-function withWaste(row: HeadWasteRow): HeadWasteRow {
+function withWaste(row: HeadWasteRow, multiplier: number): HeadWasteRow {
   row.headWaste = row.hon * HEAD_WASTE_RATE;
   row.vaWaste = row.hlUsed * VA_WASTE_RATE;
   row.totalWaste = row.headWaste + row.vaWaste;
+  row.headWasteX = row.headWaste * multiplier;
+  row.vaWasteX = row.vaWaste * multiplier;
+  row.totalWasteX = row.totalWaste * multiplier;
   return row;
 }
 
@@ -80,37 +95,31 @@ function accumulate(target: HeadWasteRow, source: HeadWasteRow): void {
 export interface HeadWasteStatement {
   inHouseRows: HeadWasteRow[];  // always all three, zero-filled when idle
   inHouseTotal: HeadWasteRow;
-  outside: HeadWasteRow;        // every non in-house location, collapsed
-  outsideLocations: string[];   // names behind the outside row
-  grandTotal: HeadWasteRow;
 }
 
 export function buildHeadWasteStatement(
   yieldEntries: YieldEntry[],
-  hlVaEntries: HlVaEntry[]
+  hlVaEntries: HlVaEntry[],
+  multiplier: number = DEFAULT_WASTE_MULTIPLIER
 ): HeadWasteStatement {
   const inHouse = new Map<string, HeadWasteRow>(
     IN_HOUSE_LOCATIONS.map((l) => [l.key, emptyRow(l.key, l.label)])
   );
-  const outside = emptyRow('outside', 'Outside locations');
-  const outsideNames = new Set<string>();
 
-  // Route an entry to its in-house row, or to the collapsed outside row
-  const bucket = (name: string | null | undefined): HeadWasteRow => {
-    const row = inHouse.get(locationKey(name));
-    if (row) return row;
-    outsideNames.add(name || 'Unknown');
-    return outside;
-  };
+  // Hired outside capacity isn't our waste to account for — those entries are skipped
+  const bucket = (name: string | null | undefined): HeadWasteRow | undefined =>
+    inHouse.get(locationKey(name));
 
   yieldEntries.forEach((e) => {
     const row = bucket(e.location?.name);
+    if (!row) return;
     row.hon += Number(e.hon_kgs) || 0;
     row.hl += Number(e.hl_kgs) || 0;
   });
 
   hlVaEntries.forEach((e) => {
     const row = bucket(e.location?.name);
+    if (!row) return;
     const hl = Number(e.hl_kgs) || 0;
     row.va += Number(e.va_kgs) || 0;
     if (isNoWasteVariety(e.variety)) {
@@ -120,24 +129,11 @@ export function buildHeadWasteStatement(
     }
   });
 
-  const inHouseRows = IN_HOUSE_LOCATIONS.map((l) => withWaste(inHouse.get(l.key)!));
+  const inHouseRows = IN_HOUSE_LOCATIONS.map((l) => withWaste(inHouse.get(l.key)!, multiplier));
 
   const inHouseTotal = emptyRow('inhouse-total', 'Total (In-house)');
   inHouseRows.forEach((r) => accumulate(inHouseTotal, r));
-  withWaste(inHouseTotal);
+  withWaste(inHouseTotal, multiplier);
 
-  withWaste(outside);
-
-  const grandTotal = emptyRow('grand-total', 'Grand Total');
-  accumulate(grandTotal, inHouseTotal);
-  accumulate(grandTotal, outside);
-  withWaste(grandTotal);
-
-  return {
-    inHouseRows,
-    inHouseTotal,
-    outside,
-    outsideLocations: Array.from(outsideNames).sort(),
-    grandTotal,
-  };
+  return { inHouseRows, inHouseTotal };
 }
