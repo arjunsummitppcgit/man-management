@@ -28,7 +28,6 @@ interface LocationRow {
   Target: number;
   Achieved: number;
   TargetLabel: string;
-  AchievedLabel: string;
   pct: number;
   pctLabel: string;
   pctBasis: PctBasis;
@@ -63,46 +62,34 @@ function LocationTooltip({
   );
 }
 
-/** Custom label renderer for Achieved bar — separates value and percentage with different styles. */
-function AchievedBarLabel(props: any) {
-  const { x, y, value, index, viewBox } = props;
-  if (!viewBox) return null;
+/**
+ * Achieved-bar label: kgs in the bar's teal, then the percentage in bigger amber type.
+ * recharts clones this element per data point with `index` and `viewBox` — it does NOT
+ * pass the row, so the data is looked up from `rows` by index.
+ */
+function AchievedBarLabel({
+  rows,
+  index,
+  viewBox,
+}: {
+  rows?: LocationRow[];
+  index?: number;
+  viewBox?: { x?: number; y?: number; width?: number; height?: number };
+}) {
+  const row = rows && index != null ? rows[index] : undefined;
+  if (!row || !viewBox || viewBox.x == null || viewBox.y == null) return null;
 
-  const row = props.payload as LocationRow;
-  const achievedText = fmt(row.Achieved);
-  const pctText = row.pctLabel;
+  const x = viewBox.x + (viewBox.width ?? 0) + 8;
+  const y = viewBox.y + (viewBox.height ?? 0) / 2;
 
-  // Position the label to the right of the bar
-  const labelX = viewBox.x + viewBox.width + 8;
-  const labelY = viewBox.y + viewBox.height / 2;
-
+  // Both runs share one <text> so the tspan flows after the number without measuring it
   return (
-    <g>
-      {/* Achieved value — small, normal teal */}
-      <text
-        x={labelX}
-        y={labelY - 4}
-        textAnchor="start"
-        dominantBaseline="middle"
-        fontSize={10}
-        fontWeight={700}
-        fill="#0d9488"
-      >
-        {achievedText}
-      </text>
-      {/* Percentage — larger, bright color (emerald) for visibility */}
-      <text
-        x={labelX}
-        y={labelY + 8}
-        textAnchor="start"
-        dominantBaseline="middle"
-        fontSize={13}
-        fontWeight={800}
-        fill="#10b981"
-      >
-        {pctText}
-      </text>
-    </g>
+    <text x={x} y={y} textAnchor="start" dominantBaseline="central" fontSize={10} fontWeight={700} fill="#0d9488">
+      {fmt(row.Achieved)}
+      <tspan dx={7} fontSize={14} fontWeight={800} fill="#f59e0b">
+        {row.pctLabel}
+      </tspan>
+    </text>
   );
 }
 
@@ -245,7 +232,6 @@ export default function VaTargetSection({
           Target,
           Achieved,
           TargetLabel: Target > 0 ? fmt(Target) : '',
-          AchievedLabel: `${fmt(Achieved)}  ·  ${pctLabel}`,
           pct: pctValue,
           pctLabel,
           pctBasis: basis,
@@ -399,7 +385,7 @@ export default function VaTargetSection({
                     <LabelList dataKey="TargetLabel" position="right" style={{ fontSize: 10, fontWeight: 700, fill: isDark ? '#7c8aa0' : '#94a3b8' }} />
                   </Bar>
                   <Bar dataKey="Achieved" fill="#0d9488" radius={[0, 8, 8, 0]} maxBarSize={16} animationDuration={1100}>
-                    <LabelList content={<AchievedBarLabel />} />
+                    <LabelList content={<AchievedBarLabel rows={locationRows} />} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
