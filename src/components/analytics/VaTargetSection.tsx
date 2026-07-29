@@ -63,6 +63,49 @@ function LocationTooltip({
   );
 }
 
+/** Custom label renderer for Achieved bar — separates value and percentage with different styles. */
+function AchievedBarLabel(props: any) {
+  const { x, y, value, index, viewBox } = props;
+  if (!viewBox) return null;
+
+  const row = props.payload as LocationRow;
+  const achievedText = fmt(row.Achieved);
+  const pctText = row.pctLabel;
+
+  // Position the label to the right of the bar
+  const labelX = viewBox.x + viewBox.width + 8;
+  const labelY = viewBox.y + viewBox.height / 2;
+
+  return (
+    <g>
+      {/* Achieved value — small, normal teal */}
+      <text
+        x={labelX}
+        y={labelY - 4}
+        textAnchor="start"
+        dominantBaseline="middle"
+        fontSize={10}
+        fontWeight={700}
+        fill="#0d9488"
+      >
+        {achievedText}
+      </text>
+      {/* Percentage — larger, bright color (emerald) for visibility */}
+      <text
+        x={labelX}
+        y={labelY + 8}
+        textAnchor="start"
+        dominantBaseline="middle"
+        fontSize={13}
+        fontWeight={800}
+        fill="#10b981"
+      >
+        {pctText}
+      </text>
+    </g>
+  );
+}
+
 function PaceTile({
   label,
   value,
@@ -356,7 +399,7 @@ export default function VaTargetSection({
                     <LabelList dataKey="TargetLabel" position="right" style={{ fontSize: 10, fontWeight: 700, fill: isDark ? '#7c8aa0' : '#94a3b8' }} />
                   </Bar>
                   <Bar dataKey="Achieved" fill="#0d9488" radius={[0, 8, 8, 0]} maxBarSize={16} animationDuration={1100}>
-                    <LabelList dataKey="AchievedLabel" position="right" style={{ fontSize: 10, fontWeight: 700, fill: '#0d9488' }} />
+                    <LabelList content={<AchievedBarLabel />} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
