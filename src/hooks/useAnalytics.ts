@@ -79,6 +79,8 @@ export interface AnalyticsData {
   sanitization: SanitizationRow[];
   // VA target context (month of the range end)
   monthLabel: string;
+  monthYear: number; // e.g. 2026
+  monthNumber: number; // 1-12
   combinedTarget: MonthlyTarget | null;
   locationTargets: MonthlyTarget[];
   monthHlVa: HlVaRow[]; // hl_va entries across the whole target month
@@ -91,6 +93,8 @@ const EMPTY: AnalyticsData = {
   nonLocal: [],
   sanitization: [],
   monthLabel: '',
+  monthYear: 0,
+  monthNumber: 0,
   combinedTarget: null,
   locationTargets: [],
   monthHlVa: [],
@@ -196,6 +200,8 @@ export function useAnalytics() {
         nonLocal: nonLocalRes.data || [],
         sanitization: sanitizationRes.data || [],
         monthLabel: format(anchor, 'MMMM yyyy'),
+        monthYear: year,
+        monthNumber: month,
         combinedTarget: combinedTargetRes.data as MonthlyTarget | null,
         locationTargets: (locationTargetsRes.data || []) as MonthlyTarget[],
         monthHlVa: monthHlVaRes.data || [],

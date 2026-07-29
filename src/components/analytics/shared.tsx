@@ -65,6 +65,7 @@ export interface Chip {
   sub: string;
   accent: string; // tailwind gradient e.g. 'from-teal-500 to-teal-600'
   icon: string;
+  action?: React.ReactNode; // optional control rendered under the icon (e.g. an Edit button)
 }
 
 export function ChipRow({ chips }: { chips: Chip[] }) {
@@ -84,7 +85,10 @@ export function ChipRow({ chips }: { chips: Chip[] }) {
               </p>
               <p className="text-[11px] text-gray-400 mt-1 font-medium truncate">{chip.sub}</p>
             </div>
-            <span className="text-xl flex-shrink-0" aria-hidden>{chip.icon}</span>
+            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+              <span className="text-xl" aria-hidden>{chip.icon}</span>
+              {chip.action}
+            </div>
           </div>
         </div>
       ))}

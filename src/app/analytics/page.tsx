@@ -245,7 +245,14 @@ export default function AnalyticsPage() {
             </div>
           ) : (
             <div className="ana-swap" key={active}>
-              {active === 'va-target' && <VaTargetSection data={data} locations={locations} isDark={isDark} />}
+              {active === 'va-target' && (
+                <VaTargetSection
+                  data={data}
+                  locations={locations}
+                  isDark={isDark}
+                  onRefresh={() => fetchAnalytics(fromDate, toDate)}
+                />
+              )}
               {active === 'hon-hl' && <ProcessingSection mode="hon_hl" {...sectionProps} />}
               {active === 'hl-va' && <ProcessingSection mode="hl_va" {...sectionProps} />}
               {active === 'labour' && <LabourSection {...sectionProps} />}

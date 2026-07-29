@@ -336,6 +336,15 @@ export default function YieldReportPage() {
     }
   }, [selectedDate]);
 
+  // The filter boxes don't print, so a narrowed HON→HL table says so on paper instead
+  const printFilterLabel = useMemo(() => {
+    const parts: string[] = [];
+    if (diffFilter !== 'All') parts.push(`Difference: ${diffFilter}`);
+    if (locationFilter !== 'All') parts.push(`Location: ${locationFilter}`);
+    if (graderFilter !== 'All') parts.push(`Grader: ${graderFilter}`);
+    return parts.join(' · ');
+  }, [diffFilter, locationFilter, graderFilter]);
+
   return (
     <div className="animate-fade-in pb-20 lg:pb-6">
       {/* Screen header carries date navigation; paper gets its own masthead below */}
@@ -443,10 +452,15 @@ export default function YieldReportPage() {
         <div className="space-y-4">
           <div className="pt-2 pb-1">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">HON to HL yields</h2>
+            {printFilterLabel && (
+              <p className="hidden print:block text-[10px] font-semibold text-gray-600 mt-0.5">
+                Filtered — {printFilterLabel}
+              </p>
+            )}
           </div>
 
-          {/* Date Selector */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+          {/* Date Selector — a screen control, the printed masthead carries the date */}
+          <div className="print:hidden bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
             <label className="text-sm font-semibold text-gray-700">Report Date</label>
             {isSubUser ? (
               <input
@@ -470,8 +484,8 @@ export default function YieldReportPage() {
             )}
           </div>
 
-          {/* HON to HL Filters */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* HON to HL Filters — screen only; the print run shows what they narrowed to */}
+          <div className="print:hidden bg-white rounded-2xl p-4 shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Difference</label>
               <select
@@ -706,8 +720,8 @@ export default function YieldReportPage() {
             <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">{hvMeta.label}</span>
           </div>
 
-          {/* Date Range + Presets */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+          {/* Date Range + Presets — screen only; the section heading carries the range */}
+          <div className="print:hidden bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">From Date</label>
