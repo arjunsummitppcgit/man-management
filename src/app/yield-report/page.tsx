@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '@/components/layout/PageHeader';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import ColumnFilter from '@/components/ui/ColumnFilter';
+import PrintButton from '@/components/ui/PrintButton';
 import { useAuth } from '@/hooks/useAuth';
 import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
@@ -39,14 +40,7 @@ export default function YieldReportPage() {
   }, [isSubUser, selectedDate]);
 
   // ── HON to HL Yields data ─────────────────────────────────────────────────
-  const {
-    entries,
-    loading,
-    fetchYieldEntries,
-    batchEntries: honHlBatch,
-    batchLoading: honHlBatchLoading,
-    fetchByBatch: fetchYieldByBatch,
-  } = useYield();
+  const { entries, loading, fetchYieldEntries } = useYield();
 
   useEffect(() => {
     if (selectedDate) {
@@ -99,164 +93,6 @@ export default function YieldReportPage() {
   }, [filteredEntries]);
 
   const totalYieldPct = calculateYield(totalHon, totalHl);
-
-  // ── Location-wise summary of the day's HON→HL entries (all entries, unfiltered) ──
-  const locationSummary = useMemo(() => {
-    const map = new Map<string, { batches: number; hon: number; hl: number; stdWeighted: number; honWithStd: number }>();
-    entries.forEach((e) => {
-      const loc = e.location?.name || 'Unknown';
-      let agg = map.get(loc);
-      if (!agg) {
-        agg = { batches: 0, hon: 0, hl: 0, stdWeighted: 0, honWithStd: 0 };
-        map.set(loc, agg);
-      }
-      const hon = Number(e.hon_kgs) || 0;
-      const hl = Number(e.hl_kgs) || 0;
-      agg.batches += 1;
-      agg.hon += hon;
-      agg.hl += hl;
-      const std = lookupStandardYield(e.count_text);
-      if (std !== null && hon > 0) {
-        agg.stdWeighted += std * hon;
-        agg.honWithStd += hon;
-      }
-    });
-    return Array.from(map.entries())
-      .map(([location, a]) => {
-        const yieldPct = a.hon > 0 ? (a.hl / a.hon) * 100 : null;
-        const stdPct = a.honWithStd > 0 ? a.stdWeighted / a.honWithStd : null;
-        const diff = yieldPct !== null && stdPct !== null ? yieldPct - stdPct : null;
-        return { location, batches: a.batches, hon: a.hon, hl: a.hl, yieldPct, stdPct, diff };
-      })
-      .sort((x, y) => x.location.localeCompare(y.location));
-  }, [entries]);
-
-  const summaryTotals = useMemo(() => {
-    const hon = locationSummary.reduce((s, r) => s + r.hon, 0);
-    const hl = locationSummary.reduce((s, r) => s + r.hl, 0);
-    const batches = locationSummary.reduce((s, r) => s + r.batches, 0);
-    const yieldPct = hon > 0 ? (hl / hon) * 100 : null;
-    return { hon, hl, batches, yieldPct };
-  }, [locationSummary]);
-
-  // Open a styled, print-ready window (user can "Save as PDF" from the print dialog)
-  const handlePrintSummary = () => {
-    if (locationSummary.length === 0) return;
-    const dateLabel = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', {
-      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-    });
-    const fmt = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-    const pct = (v: number | null) => (v !== null ? `${v.toFixed(2)}%` : '-');
-    const diffBadge = (v: number | null) =>
-      v !== null
-        ? `<span class="badge ${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? '+' : ''}${v.toFixed(2)}%</span>`
-        : '-';
-
-    const rowsHtml = locationSummary
-      .map(
-        (r, i) => `
-        <tr class="${i % 2 === 0 ? 'even' : 'odd'}">
-          <td class="loc">${r.location}</td>
-          <td class="num">${r.batches}</td>
-          <td class="num">${fmt(r.hon)}</td>
-          <td class="num">${fmt(r.hl)}</td>
-          <td class="num bold teal">${pct(r.yieldPct)}</td>
-          <td class="num bold purple">${pct(r.stdPct)}</td>
-          <td class="num">${diffBadge(r.diff)}</td>
-        </tr>`
-      )
-      .join('');
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8" />
-<title>HON to HL Yields — ${dateLabel}</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937; padding: 28px; background: #fff; }
-  .header { background: linear-gradient(135deg, #0d9488 0%, #0f766e 55%, #115e59 100%); color: #fff; border-radius: 16px; padding: 22px 26px; display: flex; justify-content: space-between; align-items: center; }
-  .header h1 { font-size: 21px; letter-spacing: 0.3px; }
-  .header .sub { font-size: 12px; opacity: 0.85; margin-top: 4px; }
-  .header .brand { text-align: right; }
-  .header .brand .name { font-size: 14px; font-weight: 700; }
-  .header .brand .tag { font-size: 10px; opacity: 0.8; }
-  .chips { display: flex; gap: 12px; margin: 18px 0; }
-  .chip { flex: 1; border-radius: 14px; padding: 14px 16px; border: 1px solid #e5e7eb; }
-  .chip .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; }
-  .chip .value { font-size: 20px; font-weight: 800; margin-top: 4px; }
-  .chip.hon { background: #f0fdfa; border-color: #99f6e4; } .chip.hon .label { color: #0d9488; } .chip.hon .value { color: #115e59; }
-  .chip.hl { background: #eef2ff; border-color: #c7d2fe; } .chip.hl .label { color: #4f46e5; } .chip.hl .value { color: #3730a3; }
-  .chip.yield { background: #ecfdf5; border-color: #a7f3d0; } .chip.yield .label { color: #059669; } .chip.yield .value { color: #065f46; }
-  .chip.batches { background: #fffbeb; border-color: #fde68a; } .chip.batches .label { color: #d97706; } .chip.batches .value { color: #92400e; }
-  table { width: 100%; border-collapse: collapse; border-radius: 14px; overflow: hidden; box-shadow: 0 0 0 1px #e5e7eb; }
-  thead th { background: #0d9488; color: #fff; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; padding: 11px 14px; text-align: right; }
-  thead th:first-child { text-align: left; }
-  td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid #f3f4f6; }
-  td.loc { font-weight: 700; color: #111827; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  td.bold { font-weight: 700; }
-  td.teal { color: #0f766e; }
-  td.purple { color: #6d28d9; }
-  tr.even td { background: #fafafa; }
-  .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 800; }
-  .badge.pos { background: #d1fae5; color: #047857; }
-  .badge.neg { background: #ffe4e6; color: #be123c; }
-  tfoot td { background: #ccfbf1; font-weight: 800; color: #134e4a; border-top: 2px solid #5eead4; padding: 12px 14px; }
-  .footer { margin-top: 20px; font-size: 10px; color: #9ca3af; text-align: center; }
-  @page { size: A4; margin: 12mm; }
-</style>
-</head>
-<body>
-  <div class="header">
-    <div>
-      <h1>HON to HL Yields — Location-wise Summary</h1>
-      <div class="sub">${dateLabel}</div>
-    </div>
-    <div class="brand">
-      <div class="name">PPC Manager</div>
-      <div class="tag">Prawn Processing Control</div>
-    </div>
-  </div>
-  <div class="chips">
-    <div class="chip batches"><div class="label">Batches</div><div class="value">${summaryTotals.batches}</div></div>
-    <div class="chip hon"><div class="label">Total HON (KGS)</div><div class="value">${fmt(summaryTotals.hon)}</div></div>
-    <div class="chip hl"><div class="label">Total HL (KGS)</div><div class="value">${fmt(summaryTotals.hl)}</div></div>
-    <div class="chip yield"><div class="label">Overall Yield</div><div class="value">${pct(summaryTotals.yieldPct)}</div></div>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>Location</th><th>Batches</th><th>HON (KGS)</th><th>HL (KGS)</th><th>Yield %</th><th>Std %</th><th>Difference</th>
-      </tr>
-    </thead>
-    <tbody>${rowsHtml}</tbody>
-    <tfoot>
-      <tr>
-        <td>TOTAL</td>
-        <td class="num">${summaryTotals.batches}</td>
-        <td class="num">${fmt(summaryTotals.hon)}</td>
-        <td class="num">${fmt(summaryTotals.hl)}</td>
-        <td class="num">${pct(summaryTotals.yieldPct)}</td>
-        <td class="num"></td>
-        <td class="num"></td>
-      </tr>
-    </tfoot>
-  </table>
-  <div class="footer">Generated by PPC Manager on ${new Date().toLocaleString('en-IN')}</div>
-  <script>window.onload = function () { setTimeout(function () { window.print(); }, 250); };</script>
-</body>
-</html>`;
-
-    const w = window.open('', '_blank');
-    if (!w) {
-      alert('Please allow pop-ups for this site to print the summary.');
-      return;
-    }
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-  };
 
   // ── Non Local Ladies data ──────────────────────────────────────────────────
   const { entries: nllEntries, loading: nllLoading, fetchEntries: fetchNllEntries } = useNonLocalLadies();
@@ -325,55 +161,12 @@ export default function YieldReportPage() {
 
   const { rangeEntries: hvEntries, rangeLoading: hvLoading, fetchRange: fetchHvRange } = useHlVa();
 
-  // Separate single-date fetch for the Grade Vs VA Report + batch search
-  const {
-    entries: gradeVaEntries,
-    fetchEntries: fetchGradeVaEntries,
-    batchEntries: hlVaBatch,
-    batchLoading: hlVaBatchLoading,
-    fetchByBatch: fetchHlVaByBatch,
-  } = useHlVa();
+  // Separate single-date fetch for the Grade Vs VA Report
+  const { entries: gradeVaEntries, fetchEntries: fetchGradeVaEntries } = useHlVa();
 
   useEffect(() => {
     if (selectedDate) fetchGradeVaEntries(selectedDate);
   }, [selectedDate, fetchGradeVaEntries]);
-
-  // ── Batch pipeline search: look up one batch id across ALL dates ────────────
-  const [batchSearch, setBatchSearch] = useState('');
-  const [batchQuery, setBatchQuery] = useState('');
-
-  const runBatchSearch = () => {
-    const q = batchSearch.trim();
-    setBatchQuery(q);
-    if (q) {
-      fetchYieldByBatch(q);
-      fetchHlVaByBatch(q);
-    }
-  };
-
-  const honHlBatchTotals = useMemo(() => {
-    return honHlBatch.reduce(
-      (acc, e) => {
-        acc.hon += Number(e.hon_kgs) || 0;
-        acc.hl += Number(e.hl_kgs) || 0;
-        return acc;
-      },
-      { hon: 0, hl: 0 }
-    );
-  }, [honHlBatch]);
-  const honHlBatchYield = calculateYield(honHlBatchTotals.hon, honHlBatchTotals.hl);
-
-  const hlVaBatchTotals = useMemo(() => {
-    return hlVaBatch.reduce(
-      (acc, e) => {
-        acc.hl += Number(e.hl_kgs) || 0;
-        acc.va += Number(e.va_kgs) || 0;
-        return acc;
-      },
-      { hl: 0, va: 0 }
-    );
-  }, [hlVaBatch]);
-  const hlVaBatchYield = calculateYield(hlVaBatchTotals.hl, hlVaBatchTotals.va);
 
   useEffect(() => {
     if (hvFrom && hvTo && hvFrom <= hvTo) {
@@ -532,8 +325,21 @@ export default function YieldReportPage() {
     return { label };
   }, [hvFrom, hvTo]);
 
+  // Full date for the printed masthead — the on-screen chip is abbreviated
+  const printDateLabel = useMemo(() => {
+    try {
+      return new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      });
+    } catch {
+      return selectedDate;
+    }
+  }, [selectedDate]);
+
   return (
     <div className="animate-fade-in pb-20 lg:pb-6">
+      {/* Screen header carries date navigation; paper gets its own masthead below */}
+      <div className="print:hidden">
       <PageHeader
         title="Daily Report"
         rightAction={
@@ -563,8 +369,28 @@ export default function YieldReportPage() {
           </div>
         }
       />
+      </div>
 
       <div className="px-4 mt-2 space-y-6">
+
+        {/* Paper-only masthead — the on-screen header is dropped when printing */}
+        <div className="hidden print:block border-b-2 border-teal-600 pb-2 mb-2">
+          <div className="flex items-end justify-between">
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">Daily Report</h1>
+              <p className="text-xs text-gray-600">{printDateLabel}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-bold text-teal-700">PPC Manager</div>
+              <div className="text-[10px] text-gray-500">Prawn Processing Control</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Print the whole report — offered again at the foot of the page */}
+        <div className="flex justify-end print:hidden">
+          <PrintButton label="Print full report / Save as PDF" />
+        </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
             LOCATION-WISE SUMMARY: HON→HL & HL→VA (selected date)
@@ -641,77 +467,6 @@ export default function YieldReportPage() {
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500"
               />
-            )}
-          </div>
-
-          {/* Location-wise Summary */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="px-4 pt-4 pb-3 flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">📍</span>
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white">Location-wise Summary</h3>
-              </div>
-              <button
-                type="button"
-                onClick={handlePrintSummary}
-                disabled={loading || locationSummary.length === 0}
-                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white text-xs font-semibold rounded-xl shadow-sm shadow-teal-600/25 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-              >
-                🖨️ Print / Save as PDF
-              </button>
-            </div>
-            {loading ? (
-              <div className="p-6 flex justify-center">
-                <LoadingSpinner />
-              </div>
-            ) : locationSummary.length === 0 ? (
-              <div className="px-4 pb-5 text-center text-sm text-gray-400">No yield entries for this date.</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-100 dark:border-gray-800">
-                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Location</th>
-                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">Batches</th>
-                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">HON (KGS)</th>
-                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">HL (KGS)</th>
-                      <th className="px-4 py-3 text-[10px] font-semibold text-teal-500 uppercase tracking-wider whitespace-nowrap text-right">Yield %</th>
-                      <th className="px-4 py-3 text-[10px] font-semibold text-purple-500 uppercase tracking-wider whitespace-nowrap text-right">Std %</th>
-                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">Difference</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {locationSummary.map((row) => (
-                      <tr key={row.location} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
-                        <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap">{row.location}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap text-right">{row.batches}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{row.hon.toFixed(3)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{row.hl.toFixed(3)}</td>
-                        <td className="px-4 py-3 text-sm font-bold text-teal-700 dark:text-teal-400 whitespace-nowrap text-right">{row.yieldPct !== null ? `${row.yieldPct.toFixed(2)}%` : '-'}</td>
-                        <td className="px-4 py-3 text-sm font-bold text-purple-700 dark:text-purple-400 whitespace-nowrap text-right">{row.stdPct !== null ? `${row.stdPct.toFixed(2)}%` : '-'}</td>
-                        <td className="px-4 py-3 text-sm whitespace-nowrap text-right">
-                          {row.diff !== null ? (
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${row.diff >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                              {row.diff >= 0 ? '+' : ''}{row.diff.toFixed(2)}%
-                            </span>
-                          ) : '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-teal-50 dark:bg-teal-900/30 border-t-2 border-teal-100 dark:border-teal-800">
-                      <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap">TOTAL</td>
-                      <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">{summaryTotals.batches}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">{summaryTotals.hon.toFixed(3)}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">{summaryTotals.hl.toFixed(3)}</td>
-                      <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">{summaryTotals.yieldPct !== null ? `${summaryTotals.yieldPct.toFixed(2)}%` : '-'}</td>
-                      <td className="px-4 py-3"></td>
-                      <td className="px-4 py-3"></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
             )}
           </div>
 
@@ -1140,210 +895,6 @@ export default function YieldReportPage() {
           />
         </div>
 
-        {/* ─── Batch Pipeline (search a Batch ID across all dates) ─────── */}
-        <div className="space-y-4 mb-8">
-          <div className="pt-2 pb-1">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-              Batch Pipeline
-              <span className="ml-2 text-sm font-semibold text-gray-400">HON → HL &amp; HL → VA</span>
-            </h2>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Search a Batch ID to see all its HON→HL and HL→VA entries across every date.
-            </p>
-          </div>
-
-          {/* Search box */}
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-            <form onSubmit={(e) => { e.preventDefault(); runBatchSearch(); }} className="flex gap-2">
-              <input
-                type="text"
-                value={batchSearch}
-                onChange={(e) => setBatchSearch(e.target.value)}
-                placeholder="Enter Batch ID (e.g. 26F04/3) and press Enter"
-                className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-indigo-500 focus:outline-none"
-              />
-              <button
-                type="submit"
-                className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors whitespace-nowrap"
-              >
-                Search
-              </button>
-            </form>
-          </div>
-
-          {batchQuery === '' ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-indigo-50 mb-3 text-indigo-600 text-xl">🔎</div>
-              <p className="text-sm font-semibold text-gray-900">Search a Batch</p>
-              <p className="text-sm text-gray-500 mt-1">Enter a Batch ID above to view its full pipeline history.</p>
-            </div>
-          ) : (
-            <>
-              {/* HON → HL table */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-50 text-teal-700">HON → HL</span>
-                  <span className="text-sm text-gray-500">Batch <span className="font-semibold text-gray-900">{batchQuery}</span></span>
-                </div>
-                {honHlBatchLoading ? (
-                  <div className="p-8 flex justify-center"><LoadingSpinner /></div>
-                ) : honHlBatch.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <p className="text-sm font-semibold text-gray-900">No HON→HL Entries</p>
-                    <p className="text-sm text-gray-500 mt-1">No HON→HL records found for batch {batchQuery}.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-gray-50 border-b border-gray-100 dark:border-gray-800">
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap sticky left-0 bg-gray-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">Batch ID</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Date</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Count</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">HON (KGS)</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">HL (KGS)</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-teal-500 uppercase tracking-wider whitespace-nowrap text-right">Yield</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-purple-500 uppercase tracking-wider whitespace-nowrap text-right">Std Yield</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">Diff</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Location</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Grader</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {honHlBatch.map((entry) => {
-                          const honNum = Number(entry.hon_kgs) || 0;
-                          const hlNum = Number(entry.hl_kgs) || 0;
-                          const yieldPct = calculateYield(honNum, hlNum);
-                          const stdYield = lookupStandardYield(entry.count_text);
-                          const diff = calculateYieldDifference(yieldPct, stdYield);
-                          return (
-                            <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group">
-                              <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800/80 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">{entry.batch_id}</td>
-                              <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{entry.work_date}</td>
-                              <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{entry.count_text}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{honNum.toFixed(3)}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{hlNum.toFixed(3)}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-bold">{yieldPct !== null ? `${yieldPct.toFixed(2)}%` : '-'}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-bold">{stdYield !== null ? `${stdYield.toFixed(2)}%` : '-'}</td>
-                              <td className="px-4 py-3 text-sm whitespace-nowrap text-right">
-                                {diff !== null ? (
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${diff >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                                    {diff >= 0 ? '+' : ''}{diff.toFixed(2)}%
-                                  </span>
-                                ) : '-'}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{entry.location?.name || 'Unknown'}</td>
-                              <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{entry.grader_name}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr className="bg-teal-50 dark:bg-teal-900/30 border-t-2 border-teal-100 dark:border-teal-800">
-                          <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap sticky left-0 bg-teal-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#ccfbf1] dark:shadow-[1px_0_0_0_#0f766e]">TOTALS</td>
-                          <td className="px-4 py-3 text-sm text-teal-800 whitespace-nowrap">{honHlBatch.length} entries</td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">{honHlBatchTotals.hon.toFixed(3)}</td>
-                          <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">{honHlBatchTotals.hl.toFixed(3)}</td>
-                          <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">{honHlBatchYield !== null ? `${honHlBatchYield.toFixed(2)}%` : '-'}</td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3"></td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              {/* HL → VA table */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2">
-                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700">HL → VA</span>
-                  <span className="text-sm text-gray-500">Batch <span className="font-semibold text-gray-900">{batchQuery}</span></span>
-                </div>
-                {hlVaBatchLoading ? (
-                  <div className="p-8 flex justify-center"><LoadingSpinner /></div>
-                ) : hlVaBatch.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <p className="text-sm font-semibold text-gray-900">No HL→VA Entries</p>
-                    <p className="text-sm text-gray-500 mt-1">No HL→VA records found for batch {batchQuery}.</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="bg-gray-50 border-b border-gray-100 dark:border-gray-800">
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap sticky left-0 bg-gray-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">Batch ID</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Date</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Count</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Variety</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">HL (KGS)</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">VA (KGS)</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Location</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-indigo-500 uppercase tracking-wider whitespace-nowrap">Grade</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-teal-500 uppercase tracking-wider whitespace-nowrap text-right">Yield</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-purple-500 uppercase tracking-wider whitespace-nowrap text-right">Std %</th>
-                          <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">Diff</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-50">
-                        {hlVaBatch.map((entry) => {
-                          const hlNum = Number(entry.hl_kgs) || 0;
-                          const vaNum = Number(entry.va_kgs) || 0;
-                          const yieldPct = calculateYield(hlNum, vaNum);
-                          const stdYield = lookupHlVaStandardYield(entry.count_text, entry.variety);
-                          const diff = calculateYieldDifference(yieldPct, stdYield);
-                          const grade = entry.grade || lookupHlVaCountRange(entry.count_text) || '-';
-                          return (
-                            <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group">
-                              <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800/80 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">{entry.batch_id}</td>
-                              <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{entry.work_date}</td>
-                              <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{entry.count_text}</td>
-                              <td className="px-4 py-3 text-sm whitespace-nowrap">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700">{entry.variety || '-'}</span>
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{hlNum.toFixed(3)}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{vaNum.toFixed(3)}</td>
-                              <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{entry.location?.name || 'Unknown'}</td>
-                              <td className="px-4 py-3 text-sm font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap">{grade}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-bold">{yieldPct !== null ? `${yieldPct.toFixed(2)}%` : '-'}</td>
-                              <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-bold">{stdYield !== null ? `${stdYield.toFixed(2)}%` : '-'}</td>
-                              <td className="px-4 py-3 text-sm whitespace-nowrap text-right">
-                                {diff !== null ? (
-                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${diff >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                                    {diff >= 0 ? '+' : ''}{diff.toFixed(2)}%
-                                  </span>
-                                ) : '-'}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr className="bg-indigo-50 dark:bg-indigo-900/30 border-t-2 border-indigo-100 dark:border-indigo-800">
-                          <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap sticky left-0 bg-indigo-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#e0e7ff] dark:shadow-[1px_0_0_0_#3730a3]">TOTALS</td>
-                          <td className="px-4 py-3 text-sm text-indigo-800 dark:text-indigo-300 whitespace-nowrap">{hlVaBatch.length} entries</td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap text-right">{hlVaBatchTotals.hl.toFixed(3)}</td>
-                          <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap text-right">{hlVaBatchTotals.va.toFixed(3)}</td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap text-right">{hlVaBatchYield !== null ? `${hlVaBatchYield.toFixed(2)}%` : '-'}</td>
-                          <td className="px-4 py-3"></td>
-                          <td className="px-4 py-3"></td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
         {/* ─── Head Waste Statement ───────────────────────────────────── */}
         <div className="mb-8">
           <HeadWasteReport
@@ -1351,6 +902,16 @@ export default function YieldReportPage() {
             hlVaEntries={gradeVaEntries}
             date={selectedDate}
           />
+        </div>
+
+        {/* Same action as the top of the page, for whoever has scrolled this far */}
+        <div className="flex justify-end pb-4 print:hidden">
+          <PrintButton label="Print full report / Save as PDF" />
+        </div>
+
+        {/* Paper-only footer */}
+        <div className="hidden print:block border-t border-gray-300 pt-2 text-[9px] text-gray-500 text-center">
+          Generated by PPC Manager — {printDateLabel}
         </div>
 
       </div>

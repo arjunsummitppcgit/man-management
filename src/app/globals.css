@@ -1089,3 +1089,102 @@ input:focus, select:focus, textarea:focus {
 .dark .text-rose-700 { color: #fb7185 !important; }
 .dark .text-rose-850 { color: #fecdd3 !important; }
 
+
+/* ─── Print / Save as PDF ───────────────────────────────────────────────────
+   Reports print straight from the page (see components/ui/PrintButton.tsx).
+   That helper strips the `dark` class off <html> first, so light-mode colours
+   already apply here and these rules only have to deal with layout: drop the
+   app chrome, unclip the scrollers, and tighten the dense number tables so a
+   wide one still fits A4. */
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  /* Keep coloured table headers, badges and totals rows — Chrome drops
+     backgrounds otherwise */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    height: auto !important;
+  }
+
+  /* Navigation and interactive controls mean nothing on paper */
+  .no-print,
+  .sidebar-shell,
+  button {
+    display: none !important;
+  }
+
+  /* The sidebar gutter and the phone-width column are dropped so the report
+     uses the full sheet */
+  .print-full-width {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    background: #fff !important;
+  }
+
+  main {
+    padding-bottom: 0 !important;
+  }
+
+  /* Horizontal scrollers clip everything past the fold when printed */
+  .overflow-x-auto,
+  .overflow-hidden,
+  .overflow-y-auto {
+    overflow: visible !important;
+  }
+
+  /* Flatten the card treatment — shadows and entry animations waste ink */
+  [class*='shadow-'] {
+    box-shadow: none !important;
+  }
+
+  .animate-fade-in,
+  [class*='animate-'] {
+    animation: none !important;
+  }
+
+  /* Repeat table headers across pages and never split a row down the middle */
+  thead {
+    display: table-header-group;
+  }
+
+  tr,
+  img {
+    break-inside: avoid;
+  }
+
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  /* Dense numeric tables need to be tighter to survive A4 portrait */
+  table {
+    width: 100% !important;
+    font-size: 10px !important;
+  }
+
+  th,
+  td {
+    padding: 4px 6px !important;
+  }
+
+  /* Start a fresh sheet where a section asks for one */
+  .print-page-break {
+    break-before: page;
+  }
+}

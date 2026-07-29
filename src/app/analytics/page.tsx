@@ -15,6 +15,7 @@ import PerHeadSection from '@/components/analytics/PerHeadSection';
 import WorkforceSection from '@/components/analytics/WorkforceSection';
 import ChemicalsSection from '@/components/analytics/ChemicalsSection';
 import SanitizationSection from '@/components/analytics/SanitizationSection';
+import BatchPipeline from '@/components/reports/BatchPipeline';
 
 type SectionKey =
   | 'va-target'
@@ -24,7 +25,8 @@ type SectionKey =
   | 'per-head'
   | 'workforce'
   | 'chemicals'
-  | 'sanitization';
+  | 'sanitization'
+  | 'batch-pipeline';
 
 const SECTIONS: {
   key: SectionKey;
@@ -42,7 +44,11 @@ const SECTIONS: {
   { key: 'workforce', label: 'Workforce', desc: 'full attendance picture', icon: '👥', gradient: 'from-purple-500 to-fuchsia-600', glow: 'rgba(168,85,247,0.45)' },
   { key: 'chemicals', label: 'Essentials & Chemicals', desc: 'usage by type & location', icon: '🧪', gradient: 'from-rose-500 to-pink-600', glow: 'rgba(244,63,94,0.45)' },
   { key: 'sanitization', label: 'Sanitization', desc: 'crates, nets & persons', icon: '🧼', gradient: 'from-cyan-500 to-sky-600', glow: 'rgba(6,182,212,0.45)' },
+  { key: 'batch-pipeline', label: 'Batch Pipeline', desc: 'one batch across all dates', icon: '🔎', gradient: 'from-indigo-500 to-purple-600', glow: 'rgba(99,102,241,0.45)' },
 ];
+
+/** Batch Pipeline searches every date, so the shared date/location filters don't apply to it. */
+const IGNORES_FILTERS: SectionKey[] = ['batch-pipeline'];
 
 function rangeForPreset(preset: PresetKey): { from: string; to: string } {
   const today = new Date();
@@ -212,20 +218,27 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          <FilterBar
-            preset={preset}
-            onPreset={handlePreset}
-            fromDate={fromDate}
-            toDate={toDate}
-            onFromDate={setFromDate}
-            onToDate={setToDate}
-            locations={locations}
-            locationFilter={locationFilter}
-            onLocationFilter={setLocationFilter}
-            showLocation={active !== 'va-target'}
-          />
+          {!IGNORES_FILTERS.includes(active) && (
+            <FilterBar
+              preset={preset}
+              onPreset={handlePreset}
+              fromDate={fromDate}
+              toDate={toDate}
+              onFromDate={setFromDate}
+              onToDate={setToDate}
+              locations={locations}
+              locationFilter={locationFilter}
+              onLocationFilter={setLocationFilter}
+              showLocation={active !== 'va-target'}
+            />
+          )}
 
-          {loading ? (
+          {active === 'batch-pipeline' ? (
+            // Runs its own search and loading state — not tied to the analytics fetch
+            <div className="ana-swap" key={active}>
+              <BatchPipeline />
+            </div>
+          ) : loading ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3">
               <LoadingSpinner />
               <p className="text-xs text-gray-400 font-medium">Crunching the numbers…</p>
