@@ -21,11 +21,9 @@ import {
   ExportButtons,
   chartTheme,
   fmtInt,
+  fmtAvg,
   fmtDay,
 } from './shared';
-
-/** Headcount averages read better with one decimal — "85.6/day" isn't an exact count. */
-const fmtAvg = (v: number) => v.toLocaleString('en-IN', { maximumFractionDigits: 1 });
 
 const LABOUR_TYPES: { key: keyof WorkforceRow; label: string; color: string }[] = [
   { key: 'labour_kg_basic', label: 'KG Basic', color: '#0d9488' },

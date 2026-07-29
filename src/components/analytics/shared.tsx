@@ -12,6 +12,9 @@ export const fmt = (v: number) =>
 
 export const fmtInt = (v: number) => v.toLocaleString('en-IN', { maximumFractionDigits: 0 });
 
+/** Per-day averages read better with one decimal — "85.6/day" isn't an exact count. */
+export const fmtAvg = (v: number) => v.toLocaleString('en-IN', { maximumFractionDigits: 1 });
+
 export const fmtDay = (date: string) => {
   try {
     return format(parseISO(date), 'd MMM');

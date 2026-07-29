@@ -21,6 +21,7 @@ import {
   ExportButtons,
   chartTheme,
   fmtInt,
+  fmtAvg,
   fmtDay,
 } from './shared';
 
@@ -60,25 +61,30 @@ export default function SanitizationSection({
   const totalPersons = rows.reduce((s, r) => s + personsOf(r), 0);
   const activeDays = new Set(rows.filter((r) => (r.crates_cleaning || 0) + (r.nets_cleaning || 0) + personsOf(r) > 0).map((r) => r.work_date)).size;
 
+  // Averaged over days that actually had sanitization work, not every calendar day
+  const avgCrates = activeDays > 0 ? totalCrates / activeDays : 0;
+  const avgNets = activeDays > 0 ? totalNets / activeDays : 0;
+  const avgPersons = activeDays > 0 ? totalPersons / activeDays : 0;
+
   const chips = [
     {
       label: 'Crates Cleaned',
       value: fmtInt(totalCrates),
-      sub: `total in ${rangeLabel}`,
+      sub: activeDays > 0 ? `avg ${fmtAvg(avgCrates)} per active day` : `total in ${rangeLabel}`,
       accent: 'from-sky-500 to-cyan-500',
       icon: '📦',
     },
     {
       label: 'Nets Cleaned',
       value: fmtInt(totalNets),
-      sub: `total in ${rangeLabel}`,
+      sub: activeDays > 0 ? `avg ${fmtAvg(avgNets)} per active day` : `total in ${rangeLabel}`,
       accent: 'from-teal-500 to-emerald-500',
       icon: '🕸️',
     },
     {
       label: 'Persons Deployed',
       value: fmtInt(totalPersons),
-      sub: 'cleaning, NMR, washroom, grading',
+      sub: activeDays > 0 ? `avg ${fmtAvg(avgPersons)} per active day` : 'cleaning, NMR, washroom, grading',
       accent: 'from-amber-400 to-orange-500',
       icon: '🧑‍🔧',
     },
@@ -156,6 +162,18 @@ export default function SanitizationSection({
     fmtInt(totalPersons),
   ];
 
+  const perActiveDay = (total: number) => (activeDays > 0 ? fmtAvg(total / activeDays) : '—');
+  const avgRow = [
+    `Average / active day (${activeDays} day${activeDays === 1 ? '' : 's'})`,
+    perActiveDay(totalCrates),
+    perActiveDay(totalNets),
+    perActiveDay(rows.reduce((s, r) => s + (r.cleaning_labour || 0), 0)),
+    perActiveDay(rows.reduce((s, r) => s + (r.nmr_labour || 0), 0)),
+    perActiveDay(rows.reduce((s, r) => s + (r.washroom_cleaning || 0), 0)),
+    perActiveDay(rows.reduce((s, r) => s + (r.grading_machine_cleaning || 0), 0)),
+    perActiveDay(totalPersons),
+  ];
+
   return (
     <div className="space-y-4 lg:space-y-5">
       <ChipRow chips={chips} />
@@ -200,16 +218,40 @@ export default function SanitizationSection({
         </ChartCard>
       </div>
 
-      <ChartCard title="Sanitization Detail" subtitle="crates / nets / persons per day">
+      <ChartCard
+        title="Sanitization Detail"
+        subtitle={
+          activeDays > 0
+            ? `crates / nets / persons per day · ${rangeLabel} · ${activeDays} active day${activeDays === 1 ? '' : 's'}`
+            : 'crates / nets / persons per day'
+        }
+      >
         <div className="flex justify-end mb-3">
           <ExportButtons
             title={`Sanitization Report — ${rangeLabel}`}
             headers={tableHeaders}
-            rows={[...tableRows, footer]}
+            rows={[...tableRows, footer, avgRow]}
             filename="sanitization-report"
           />
         </div>
         <AnalyticsTable headers={tableHeaders} rows={tableRows} footer={footer} />
+        {activeDays > 0 && (
+          <div className="mt-3 grid grid-cols-3 gap-2.5">
+            {[
+              { label: 'Crates', value: avgCrates, color: '#0ea5e9' },
+              { label: 'Nets', value: avgNets, color: '#0d9488' },
+              { label: 'Persons', value: avgPersons, color: '#f59e0b' },
+            ].map((t) => (
+              <div key={t.label} className="bg-gray-50 rounded-xl p-2.5">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">{t.label}</p>
+                <p className="text-base font-bold mt-0.5 font-display tracking-tight" style={{ color: t.color }}>
+                  {fmtAvg(t.value)}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">avg per active day</p>
+              </div>
+            ))}
+          </div>
+        )}
       </ChartCard>
     </div>
   );
