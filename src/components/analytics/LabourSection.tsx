@@ -24,6 +24,9 @@ import {
   fmtDay,
 } from './shared';
 
+/** Headcount averages read better with one decimal — "85.6/day" isn't an exact count. */
+const fmtAvg = (v: number) => v.toLocaleString('en-IN', { maximumFractionDigits: 1 });
+
 const LABOUR_TYPES: { key: keyof WorkforceRow; label: string; color: string }[] = [
   { key: 'labour_kg_basic', label: 'KG Basic', color: '#0d9488' },
   { key: 'labour_daily_wage', label: 'Daily Wage', color: '#f59e0b' },
@@ -51,20 +54,27 @@ export default function LabourSection({
     [data.workforce, locationFilter]
   );
 
+  /** Days that actually have attendance recorded — the divisor for a daily average. */
+  const recordedDays = useMemo(() => new Set(rows.map((r) => r.work_date)).size, [rows]);
+
   const typeTotals = useMemo(
     () =>
-      LABOUR_TYPES.map((t) => ({
-        ...t,
-        total: rows.reduce((s, r) => s + (Number(r[t.key]) || 0), 0),
-      })),
-    [rows]
+      LABOUR_TYPES.map((t) => {
+        const total = rows.reduce((s, r) => s + (Number(r[t.key]) || 0), 0);
+        return { ...t, total, avg: recordedDays > 0 ? total / recordedDays : 0 };
+      }),
+    [rows, recordedDays]
   );
   const grandTotal = typeTotals.reduce((s, t) => s + t.total, 0);
+  const grandAvg = recordedDays > 0 ? grandTotal / recordedDays : 0;
 
   const chips = typeTotals.map((t, i) => ({
     label: t.label,
     value: fmtInt(t.total),
-    sub: grandTotal > 0 ? `${((t.total / grandTotal) * 100).toFixed(1)}% of labour` : 'no labour recorded',
+    sub:
+      grandTotal > 0
+        ? `avg ${fmtAvg(t.avg)}/day · ${((t.total / grandTotal) * 100).toFixed(1)}%`
+        : 'no labour recorded',
     accent: ['from-teal-500 to-emerald-500', 'from-amber-400 to-orange-500', 'from-indigo-500 to-violet-600', 'from-rose-500 to-pink-600'][i],
     icon: ['🧺', '💵', '🏢', '🚌'][i],
   }));
@@ -127,6 +137,11 @@ export default function LabourSection({
     [rows]
   );
   const footer = ['Total', ...typeTotals.map((t) => (t.total > 0 ? fmtInt(t.total) : '—')), fmtInt(grandTotal)];
+  const avgRow = [
+    `Average / day (${recordedDays} day${recordedDays === 1 ? '' : 's'})`,
+    ...typeTotals.map((t) => (t.total > 0 ? fmtAvg(t.avg) : '—')),
+    fmtAvg(grandAvg),
+  ];
 
   return (
     <div className="space-y-4 lg:space-y-5">
@@ -188,16 +203,41 @@ export default function LabourSection({
         </ChartCard>
       </div>
 
-      <ChartCard title="Labour Attendance Detail" subtitle="daily headcount by labour type">
+      <ChartCard
+        title="Labour Attendance Detail"
+        subtitle={
+          hasData
+            ? `daily headcount by labour type · ${rangeLabel} · ${recordedDays} day${recordedDays === 1 ? '' : 's'} recorded`
+            : 'daily headcount by labour type'
+        }
+      >
         <div className="flex justify-end mb-3">
           <ExportButtons
             title={`Labour Attendance — ${rangeLabel}`}
             headers={tableHeaders}
-            rows={[...tableRows, footer]}
+            rows={[...tableRows, footer, avgRow]}
             filename="labour-attendance"
           />
         </div>
         <AnalyticsTable headers={tableHeaders} rows={tableRows} footer={footer} />
+        {hasData && (
+          <div className="mt-3 grid grid-cols-2 lg:grid-cols-5 gap-2.5">
+            {typeTotals.map((t) => (
+              <div key={t.label} className="bg-gray-50 rounded-xl p-2.5">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">{t.label}</p>
+                <p className="text-base font-bold mt-0.5 font-display tracking-tight" style={{ color: t.color }}>
+                  {fmtAvg(t.avg)}
+                </p>
+                <p className="text-[10px] text-gray-400 font-medium">avg per day</p>
+              </div>
+            ))}
+            <div className="bg-teal-50 rounded-xl p-2.5">
+              <p className="text-[10px] font-bold text-teal-700 uppercase tracking-wider truncate">All Labour</p>
+              <p className="text-base font-bold text-teal-800 mt-0.5 font-display tracking-tight">{fmtAvg(grandAvg)}</p>
+              <p className="text-[10px] text-teal-700 font-medium">avg per day</p>
+            </div>
+          </div>
+        )}
       </ChartCard>
     </div>
   );
