@@ -253,7 +253,31 @@ export interface SupervisorAttendanceRecord {
   is_present: number;
 }
 
-export type TabType = 'workforce' | 'sanitization' | 'processing' | 'yield' | 'non_local_ladies' | 'hl_va';
+export type TabType = 'workforce' | 'sanitization' | 'processing' | 'yield' | 'non_local_ladies' | 'hl_va' | 'grading';
+
+// ─── Grading Data ────────────────────────────────────────────────────────────
+
+/** A stored grading register row. Every value is optional — see migration 025. */
+export interface GradingEntry {
+  id: string;
+  work_date: string;
+  unit_key: string;
+  start_time: string | null;
+  stop_time: string | null;
+  total_grading_qty: number | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Form state for one register row; times are 'HH:MM' from the time inputs. */
+export interface GradingFormRow {
+  unit_key: string;
+  start_time: string;
+  stop_time: string;
+  total_grading_qty: string;
+  note: string;
+}
 
 // ─── Yield Report Types ──────────────────────────────────────────────────────
 

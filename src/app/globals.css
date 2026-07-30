@@ -980,6 +980,8 @@ input:focus, select:focus, textarea:focus {
 /* Dark-mode support for analytics accent tints not covered above */
 .dark .bg-sky-50 { background-color: rgba(14, 165, 233, 0.15) !important; }
 .dark .text-sky-600 { color: #38bdf8 !important; }
+/* Grading register totals row — matches the indigo-900 / teal-900 treatment above */
+.dark .text-sky-900 { color: #f0f9ff !important; /* sky-50, extremely clear on dark background */ }
 .dark .bg-cyan-50 { background-color: rgba(6, 182, 212, 0.15) !important; }
 .dark .text-cyan-600 { color: #22d3ee !important; }
 .dark .bg-rose-100 { background-color: rgba(244, 63, 94, 0.22) !important; }

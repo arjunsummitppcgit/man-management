@@ -15,9 +15,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useHlVa } from '@/hooks/useHlVa';
+import { useGrading } from '@/hooks/useGrading';
+import { GRADING_UNITS, runningHours, formatHours } from '@/lib/grading';
 import { lookupStandardYield, lookupCountRange, calculateYield, calculateYieldDifference, YIELD_CHART } from '@/lib/yieldChart';
 import { VA_VARIETIES, lookupHlVaStandardYield, lookupHlVaCountRange } from '@/lib/hlVa';
-import type { Supervisor, TabType, YieldFormRow, NonLocalLadyFormRow, HlVaFormRow } from '@/types';
+import type { Supervisor, TabType, YieldFormRow, NonLocalLadyFormRow, HlVaFormRow, GradingFormRow } from '@/types';
 
 // ─── Supervisor Dropdown Component ───────────────────────────────────────────
 interface SupervisorDropdownProps {
@@ -259,6 +261,13 @@ export default function DailyEntryPage() {
     saveEntries: saveHlVaEntries,
   } = useHlVa();
 
+  const {
+    entries: gradingEntries,
+    loading: gradingLoading,
+    fetchEntries: fetchGradingEntries,
+    saveEntries: saveGradingEntries,
+  } = useGrading();
+
   const SALARY_BASIC = 350;
 
   // Workforce form state
@@ -342,6 +351,20 @@ export default function DailyEntryPage() {
   }), []);
   const [hlVaRows, setHlVaRows] = useState<HlVaFormRow[]>([]);
 
+  // Grading register — one fixed row per grading unit, so the shape never varies
+  const emptyGradingRows = useCallback(
+    (): GradingFormRow[] =>
+      GRADING_UNITS.map((u) => ({
+        unit_key: u.key,
+        start_time: '',
+        stop_time: '',
+        total_grading_qty: '',
+        note: '',
+      })),
+    []
+  );
+  const [gradingRows, setGradingRows] = useState<GradingFormRow[]>(emptyGradingRows);
+
   // Set default location when locations load
   useEffect(() => {
     if (locations.length > 0 && !selectedLocation) {
@@ -359,6 +382,9 @@ export default function DailyEntryPage() {
       fetchNllEntries(selectedDate);
     } else if (activeTab === 'hl_va') {
       fetchHlVaEntries(selectedDate);
+    } else if (activeTab === 'grading') {
+      // Covers all PPCs at once, so it keys off the date alone
+      fetchGradingEntries(selectedDate);
     } else if (selectedLocation) {
       if (activeTab === 'workforce') {
         fetchWorkforce(selectedDate, selectedLocation);
@@ -369,7 +395,26 @@ export default function DailyEntryPage() {
         fetchProcessing(selectedDate, selectedLocation);
       }
     }
-  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing, fetchYieldEntries, fetchNllEntries, fetchHlVaEntries]);
+  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing, fetchYieldEntries, fetchNllEntries, fetchHlVaEntries, fetchGradingEntries]);
+
+  // Pre-populate the grading register from fetched data, keeping every unit's row
+  // present whether or not it was recorded
+  useEffect(() => {
+    setGradingRows(
+      GRADING_UNITS.map((u) => {
+        const entry = gradingEntries.find((e) => e.unit_key === u.key);
+        return {
+          unit_key: u.key,
+          // Postgres TIME comes back as 'HH:MM:SS'; the time input wants 'HH:MM'
+          start_time: entry?.start_time ? entry.start_time.slice(0, 5) : '',
+          stop_time: entry?.stop_time ? entry.stop_time.slice(0, 5) : '',
+          total_grading_qty:
+            entry?.total_grading_qty != null ? String(entry.total_grading_qty) : '',
+          note: entry?.note ?? '',
+        };
+      })
+    );
+  }, [gradingEntries]);
 
   // Pre-populate HL to VA rows from fetched data
   useEffect(() => {
@@ -633,6 +678,25 @@ export default function DailyEntryPage() {
             grader_name: r.grader_name,
           }));
         await saveHlVaEntries(selectedDate, validRows);
+      } else if (activeTab === 'grading') {
+        const unitKind = new Map(GRADING_UNITS.map((u) => [u.key, u.kind]));
+        const validRows = gradingRows
+          .map((r) => {
+            const isNote = unitKind.get(r.unit_key) === 'note';
+            const qty = parseFloat(r.total_grading_qty);
+            return {
+              unit_key: r.unit_key,
+              start_time: isNote || !r.start_time ? null : r.start_time,
+              stop_time: isNote || !r.stop_time ? null : r.stop_time,
+              total_grading_qty: isNote || !Number.isFinite(qty) ? null : Math.max(0, qty),
+              note: isNote ? r.note.trim() || null : null,
+            };
+          })
+          // An untouched unit shouldn't be stored as a row of blanks
+          .filter(
+            (r) => r.start_time || r.stop_time || r.total_grading_qty !== null || r.note
+          );
+        await saveGradingEntries(selectedDate, validRows);
       }
       showToast(
         `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} data saved successfully!`,
@@ -654,6 +718,7 @@ export default function DailyEntryPage() {
     { key: 'yield', label: 'HONS TO HL' },
     { key: 'non_local_ladies', label: 'NL Ladies' },
     { key: 'hl_va', label: 'HL to VA' },
+    { key: 'grading', label: 'Grading' },
   ];
 
   const isDataLoading =
@@ -662,7 +727,8 @@ export default function DailyEntryPage() {
     (activeTab === 'processing' && processingLoading) ||
     (activeTab === 'yield' && yieldLoading) ||
     (activeTab === 'non_local_ladies' && nllLoading) ||
-    (activeTab === 'hl_va' && hlVaLoading);
+    (activeTab === 'hl_va' && hlVaLoading) ||
+    (activeTab === 'grading' && gradingLoading);
 
   // Show loading spinner while locations are loading
   if (locationsLoading) {
@@ -1939,6 +2005,116 @@ export default function DailyEntryPage() {
                     </>
                   ) : (
                     'Save HL to VA Data'
+                  )}
+                </button>
+              </div>
+            )}
+
+            {activeTab === 'grading' && (
+              <div className="space-y-4">
+                <div className="bg-sky-50 rounded-2xl px-4 py-3 border border-sky-100">
+                  <p className="text-xs font-semibold text-sky-700">All PPC&apos;s Grading Data</p>
+                  <p className="text-[11px] text-sky-600 mt-0.5">
+                    Covers every PPC in one register, so the location selector above doesn&apos;t
+                    apply here. Running hours are worked out from the times you enter.
+                  </p>
+                </div>
+
+                {GRADING_UNITS.map((unit) => {
+                  const row = gradingRows.find((r) => r.unit_key === unit.key);
+                  if (!row) return null;
+
+                  const update = (field: keyof GradingFormRow, value: string) =>
+                    setGradingRows((prev) =>
+                      prev.map((r) => (r.unit_key === unit.key ? { ...r, [field]: value } : r))
+                    );
+
+                  const hours = runningHours(row.start_time, row.stop_time);
+
+                  return (
+                    <div
+                      key={unit.key}
+                      className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-semibold text-gray-700">{unit.label}</h3>
+                        {unit.kind === 'machine' && hours !== null && (
+                          <span className="px-2 py-0.5 bg-sky-100 text-sky-700 rounded-full text-[10px] font-bold whitespace-nowrap">
+                            {formatHours(hours)}
+                          </span>
+                        )}
+                      </div>
+
+                      {unit.kind === 'note' ? (
+                        <input
+                          type="text"
+                          value={row.note}
+                          onChange={(e) => update('note', e.target.value)}
+                          placeholder="e.g. 08 AM TO 8.05PM - 6 BOYS"
+                          className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-sky-400"
+                        />
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                                Start Time
+                              </label>
+                              <input
+                                type="time"
+                                value={row.start_time}
+                                onChange={(e) => update('start_time', e.target.value)}
+                                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-sky-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                                Stop Time
+                              </label>
+                              <input
+                                type="time"
+                                value={row.stop_time}
+                                onChange={(e) => update('stop_time', e.target.value)}
+                                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-sky-400"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                              Total Grading Qty (kg)
+                            </label>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              min="0"
+                              step="0.001"
+                              value={row.total_grading_qty}
+                              onChange={(e) => update('total_grading_qty', e.target.value)}
+                              placeholder="0.000"
+                              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-sky-400"
+                            />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="w-full py-3.5 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white font-semibold rounded-xl shadow-lg shadow-sky-600/25 transition-all disabled:opacity-50 min-h-[48px] flex items-center justify-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Grading Data'
                   )}
                 </button>
               </div>

@@ -13,6 +13,8 @@ import { calculateYield, lookupStandardYield, calculateYieldDifference } from '@
 import { formatVaQty, lookupHlVaStandardYield, lookupHlVaCountRange } from '@/lib/hlVa';
 import GradeVaReport from '@/components/reports/GradeVaReport';
 import LabourBreakdownReport from '@/components/reports/LabourBreakdownReport';
+import GradingDataReport from '@/components/reports/GradingDataReport';
+import { useGrading } from '@/hooks/useGrading';
 
 const SALARY_BASIC = 350;
 
@@ -167,6 +169,13 @@ export default function YieldReportPage() {
   useEffect(() => {
     if (selectedDate) fetchGradeVaEntries(selectedDate);
   }, [selectedDate, fetchGradeVaEntries]);
+
+  // ── Grading register data ──────────────────────────────────────────────────
+  const { entries: gradingEntries, fetchEntries: fetchGradingEntries } = useGrading();
+
+  useEffect(() => {
+    if (selectedDate) fetchGradingEntries(selectedDate);
+  }, [selectedDate, fetchGradingEntries]);
 
   useEffect(() => {
     if (hvFrom && hvTo && hvFrom <= hvTo) {
@@ -907,6 +916,11 @@ export default function YieldReportPage() {
             entries={gradeVaEntries}
             date={selectedDate}
           />
+        </div>
+
+        {/* ─── All PPC's Grading Data ─────────────────────────────────── */}
+        <div className="mb-8">
+          <GradingDataReport entries={gradingEntries} date={selectedDate} />
         </div>
 
         {/* ─── Labour Breakdown ───────────────────────────────────────── */}
