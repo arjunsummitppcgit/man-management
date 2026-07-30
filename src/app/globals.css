@@ -172,6 +172,36 @@ input:focus, select:focus, textarea:focus {
   background-color: #111827 !important;
 }
 
+/*
+ * Native date/time pickers. Without this the browser paints the calendar/clock
+ * indicator for a light page — a near-black glyph that vanishes against our dark
+ * surfaces — and opens a white picker panel over a dark page. Telling the browser
+ * these controls are dark makes it draw a light indicator and a dark panel, which
+ * is why this is scoped to the inputs rather than done with a filter on the icon.
+ */
+.dark input[type='date'],
+.dark input[type='time'],
+.dark input[type='month'],
+.dark input[type='datetime-local'] {
+  color-scheme: dark;
+}
+
+/* The indicator is the only click target for the picker, so keep it obvious */
+.dark input[type='date']::-webkit-calendar-picker-indicator,
+.dark input[type='time']::-webkit-calendar-picker-indicator,
+.dark input[type='month']::-webkit-calendar-picker-indicator,
+.dark input[type='datetime-local']::-webkit-calendar-picker-indicator {
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+.dark input[type='date']::-webkit-calendar-picker-indicator:hover,
+.dark input[type='time']::-webkit-calendar-picker-indicator:hover,
+.dark input[type='month']::-webkit-calendar-picker-indicator:hover,
+.dark input[type='datetime-local']::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 .dark .bg-gray-50 {
   background-color: #0b0f19 !important;
 }
