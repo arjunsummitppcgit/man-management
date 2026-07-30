@@ -12,7 +12,6 @@ import { useHlVa } from '@/hooks/useHlVa';
 import { calculateYield, lookupStandardYield, calculateYieldDifference } from '@/lib/yieldChart';
 import { formatVaQty, lookupHlVaStandardYield, lookupHlVaCountRange } from '@/lib/hlVa';
 import GradeVaReport from '@/components/reports/GradeVaReport';
-import HeadWasteReport from '@/components/reports/HeadWasteReport';
 import LabourBreakdownReport from '@/components/reports/LabourBreakdownReport';
 
 const SALARY_BASIC = 350;
@@ -906,15 +905,6 @@ export default function YieldReportPage() {
         <div className="mb-8">
           <GradeVaReport
             entries={gradeVaEntries}
-            date={selectedDate}
-          />
-        </div>
-
-        {/* ─── Head Waste Statement ───────────────────────────────────── */}
-        <div className="mb-8">
-          <HeadWasteReport
-            yieldEntries={entries}
-            hlVaEntries={gradeVaEntries}
             date={selectedDate}
           />
         </div>
