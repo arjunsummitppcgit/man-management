@@ -214,6 +214,13 @@ export default function DashboardPage() {
     );
   }
 
+  // Dates entered before the waste/PD split carry their checking figure in the
+  // total alone, so surface that leftover rather than under-reporting it.
+  const unsplitChecking = Math.max(
+    0,
+    (kpis?.checkingCount ?? 0) - (kpis?.checkingWaste ?? 0) - (kpis?.checkingPd ?? 0)
+  );
+
   return (
     <div className="animate-fade-in">
       <PageHeader title="Dashboard" subtitle={formattedDate} />
@@ -355,10 +362,15 @@ export default function DashboardPage() {
                 <p className="text-[10px] text-teal-500 font-medium uppercase tracking-wide">Boys</p>
                 <p className="text-xl font-bold text-teal-700 mt-0.5">{kpis?.boysCount ?? 0}</p>
               </div>
-              {/* Checking */}
+              {/* Waste Checking */}
               <div className="bg-teal-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center">
-                <p className="text-[10px] text-teal-500 font-medium uppercase tracking-wide">Checking</p>
-                <p className="text-xl font-bold text-teal-700 mt-0.5">{kpis?.checkingCount ?? 0}</p>
+                <p className="text-[10px] text-teal-500 font-medium uppercase tracking-wide text-center leading-tight">Waste Checking</p>
+                <p className="text-xl font-bold text-teal-700 mt-0.5">{kpis?.checkingWaste ?? 0}</p>
+              </div>
+              {/* PD Checking */}
+              <div className="bg-teal-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center">
+                <p className="text-[10px] text-teal-500 font-medium uppercase tracking-wide text-center leading-tight">PD Checking</p>
+                <p className="text-xl font-bold text-teal-700 mt-0.5">{kpis?.checkingPd ?? 0}</p>
               </div>
               {/* Cleaning */}
               <div className="bg-teal-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center">
@@ -371,10 +383,17 @@ export default function DashboardPage() {
                 <p className="text-xl font-bold text-teal-700 mt-0.5">{kpis?.qcCount ?? 0}</p>
               </div>
               {/* Security */}
-              <div className="bg-teal-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center col-span-2">
+              <div className="bg-teal-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center">
                 <p className="text-[10px] text-teal-500 font-medium uppercase tracking-wide">Security</p>
                 <p className="text-xl font-bold text-teal-700 mt-0.5">{kpis?.securityCount ?? 0}</p>
               </div>
+              {/* Checking recorded before the waste/PD split — only shows for older dates */}
+              {unsplitChecking > 0 && (
+                <div className="bg-teal-50 rounded-xl px-3 py-2.5 flex flex-col items-center justify-center col-span-3">
+                  <p className="text-[10px] text-teal-500 font-medium uppercase tracking-wide text-center leading-tight">Checking (unsplit)</p>
+                  <p className="text-xl font-bold text-teal-700 mt-0.5">{unsplitChecking}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -395,15 +414,20 @@ export default function DashboardPage() {
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {/* Cleaning Labour */}
+              {/* Outside Cleaning */}
               <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
-                <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Cleaning Labour</p>
-                <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationCleaningLabour ?? 0}</p>
+                <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Outside Cleaning</p>
+                <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationOutsideCleaning ?? 0}</p>
               </div>
-              {/* NMR Labour */}
+              {/* Local Crates Wash */}
               <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
-                <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">NMR Labour</p>
-                <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationNmrLabour ?? 0}</p>
+                <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Local Crates Wash</p>
+                <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationLocalCratesWash ?? 0}</p>
+              </div>
+              {/* Company Crates Wash */}
+              <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
+                <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Company Crates Wash</p>
+                <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationCompanyCratesWash ?? 0}</p>
               </div>
               {/* Washroom Cleaning */}
               <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
@@ -411,10 +435,17 @@ export default function DashboardPage() {
                 <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationWashroomCleaning ?? 0}</p>
               </div>
               {/* Grading Machine */}
-              <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center">
+              <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center col-span-2">
                 <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Grading M/C</p>
                 <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationGradingMachineCleaning ?? 0}</p>
               </div>
+              {/* Cleaning + NMR Labour, retired by migration 024 — only shows for older dates */}
+              {(kpis?.sanitizationRetiredLabour ?? 0) > 0 && (
+                <div className="bg-purple-50 rounded-xl px-2 py-2.5 flex flex-col items-center justify-center text-center col-span-2">
+                  <p className="text-[9px] text-purple-500 font-medium uppercase tracking-wide leading-tight">Cleaning + NMR Labour (retired)</p>
+                  <p className="text-lg font-bold text-purple-700 mt-0.5">{kpis?.sanitizationRetiredLabour ?? 0}</p>
+                </div>
+              )}
             </div>
           </div>
 

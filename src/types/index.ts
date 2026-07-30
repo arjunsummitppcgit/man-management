@@ -31,6 +31,10 @@ export interface DailyWorkforce {
   // Computed from sub-categories by DB trigger
   labour_count: number;
   boys_count: number;
+  // Checking sub-categories
+  checking_waste: number;
+  checking_pd: number;
+  /** Total checking. Sub-categories sum to this from migration 023 on; older rows hold an unsplit total. */
   checking_count: number;
   cleaning_count: number;
   qc_count: number;
@@ -56,10 +60,17 @@ export interface DailySanitization {
   id: string;
   work_date: string;
   location_id: string;
+  // Sanitization headcounts
+  outside_cleaning: number;
+  local_crates_wash: number;
+  company_crates_wash: number;
+  /** @deprecated Retired by migration 024 in favour of outside_cleaning. Historical dates only. */
   cleaning_labour: number;
+  /** @deprecated Retired by migration 024 in favour of the crates-wash split. Historical dates only. */
+  nmr_labour: number;
+  // Cleaned quantities
   crates_cleaning: number;
   nets_cleaning: number;
-  nmr_labour: number;
   washroom_cleaning: number;
   grading_machine_cleaning: number;
   chlorine_ppc: number;
@@ -114,7 +125,9 @@ export interface WorkforceFormData {
   labour_company: number;
   labour_non_locals: number;
   boys_count: number;
-  checking_count: number;
+  // Checking sub-categories (checking_count derived from these on save)
+  checking_waste: number;
+  checking_pd: number;
   cleaning_count: number;
   qc_count: number;
   security_count: number;
@@ -122,10 +135,11 @@ export interface WorkforceFormData {
 }
 
 export interface SanitizationFormData {
-  cleaning_labour: number;
+  outside_cleaning: number;
+  local_crates_wash: number;
+  company_crates_wash: number;
   crates_cleaning: number;
   nets_cleaning: number;
-  nmr_labour: number;
   washroom_cleaning: number;
   grading_machine_cleaning: number;
   chlorine_ppc: number;
@@ -178,15 +192,21 @@ export interface DashboardKPIs {
   labourTotal: number;
   // Remaining workforce headcount KPIs
   boysCount: number;
+  checkingWaste: number;
+  checkingPd: number;
+  /** Total checking, including any pre-split rows not covered by checkingWaste + checkingPd. */
   checkingCount: number;
   cleaningCount: number;
   qcCount: number;
   securityCount: number;
   // Sanitization headcount KPIs
-  sanitizationCleaningLabour: number;
+  sanitizationOutsideCleaning: number;
+  sanitizationLocalCratesWash: number;
+  sanitizationCompanyCratesWash: number;
+  /** Retired Cleaning Labour + NMR Labour, still counted for dates entered before migration 024. */
+  sanitizationRetiredLabour: number;
   sanitizationCratesCleaning: number;
   sanitizationNetsCleaning: number;
-  sanitizationNmrLabour: number;
   sanitizationWashroomCleaning: number;
   sanitizationGradingMachineCleaning: number;
   sanitizationTotal: number;

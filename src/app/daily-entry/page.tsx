@@ -268,7 +268,8 @@ export default function DailyEntryPage() {
     labour_company: 0,
     labour_non_locals: 0,
     boys_count: 0,
-    checking_count: 0,
+    checking_waste: 0,
+    checking_pd: 0,
     cleaning_count: 0,
     qc_count: 0,
     security_count: 0,
@@ -278,10 +279,11 @@ export default function DailyEntryPage() {
 
   // Sanitization form state
   const [sanitization, setSanitization] = useState({
-    cleaning_labour: 0,
+    outside_cleaning: 0,
+    local_crates_wash: 0,
+    company_crates_wash: 0,
     crates_cleaning: 0,
     nets_cleaning: 0,
-    nmr_labour: 0,
     washroom_cleaning: 0,
     grading_machine_cleaning: 0,
     chlorine_ppc: 0,
@@ -407,13 +409,21 @@ export default function DailyEntryPage() {
   // Pre-populate workforce form from fetched data
   useEffect(() => {
     if (workforceData) {
+      const checkingWaste = workforceData.checking_waste ?? 0;
+      const checkingPd = workforceData.checking_pd ?? 0;
+      // Dates entered before the waste/PD split hold their whole figure in
+      // checking_count. Fold that remainder into PD so reopening and saving an
+      // old date can't quietly wipe it — see migration 023.
+      const unsplit = Math.max(0, (workforceData.checking_count ?? 0) - checkingWaste - checkingPd);
+
       setWorkforce({
         labour_kg_basic: workforceData.labour_kg_basic ?? 0,
         labour_daily_wage: workforceData.labour_daily_wage ?? 0,
         labour_company: workforceData.labour_company ?? 0,
         labour_non_locals: workforceData.labour_non_locals ?? 0,
         boys_count: workforceData.boys_count ?? 0,
-        checking_count: workforceData.checking_count ?? 0,
+        checking_waste: checkingWaste,
+        checking_pd: checkingPd + unsplit,
         cleaning_count: workforceData.cleaning_count ?? 0,
         qc_count: workforceData.qc_count ?? 0,
         security_count: workforceData.security_count ?? 0,
@@ -425,7 +435,8 @@ export default function DailyEntryPage() {
         labour_company: 0,
         labour_non_locals: 0,
         boys_count: 0,
-        checking_count: 0,
+        checking_waste: 0,
+        checking_pd: 0,
         cleaning_count: 0,
         qc_count: 0,
         security_count: 0,
@@ -442,10 +453,11 @@ export default function DailyEntryPage() {
   useEffect(() => {
     if (sanitizationData) {
       setSanitization({
-        cleaning_labour: sanitizationData.cleaning_labour ?? 0,
+        outside_cleaning: sanitizationData.outside_cleaning ?? 0,
+        local_crates_wash: sanitizationData.local_crates_wash ?? 0,
+        company_crates_wash: sanitizationData.company_crates_wash ?? 0,
         crates_cleaning: sanitizationData.crates_cleaning ?? 0,
         nets_cleaning: sanitizationData.nets_cleaning ?? 0,
-        nmr_labour: sanitizationData.nmr_labour ?? 0,
         washroom_cleaning: sanitizationData.washroom_cleaning ?? 0,
         grading_machine_cleaning: sanitizationData.grading_machine_cleaning ?? 0,
         chlorine_ppc: sanitizationData.chlorine_ppc ?? 0,
@@ -463,10 +475,11 @@ export default function DailyEntryPage() {
       setSanitizationNotes(sanitizationData.notes ?? '');
     } else {
       setSanitization({
-        cleaning_labour: 0,
+        outside_cleaning: 0,
+        local_crates_wash: 0,
+        company_crates_wash: 0,
         crates_cleaning: 0,
         nets_cleaning: 0,
-        nmr_labour: 0,
         washroom_cleaning: 0,
         grading_machine_cleaning: 0,
         chlorine_ppc: 0,
@@ -530,7 +543,8 @@ export default function DailyEntryPage() {
   const workforceTotal =
     labourTotal +
     workforce.boys_count +
-    workforce.checking_count +
+    workforce.checking_waste +
+    workforce.checking_pd +
     workforce.cleaning_count +
     workforce.qc_count +
     workforce.security_count;
@@ -819,7 +833,8 @@ export default function DailyEntryPage() {
 
                   <div className="border-t border-gray-100 pt-2 space-y-3">
                     <NumberStepper label="Boys" value={workforce.boys_count} onChange={(v) => updateWorkforce('boys_count', v)} />
-                    <NumberStepper label="Checking" value={workforce.checking_count} onChange={(v) => updateWorkforce('checking_count', v)} />
+                    <NumberStepper label="Waste Checking" value={workforce.checking_waste} onChange={(v) => updateWorkforce('checking_waste', v)} />
+                    <NumberStepper label="PD Checking" value={workforce.checking_pd} onChange={(v) => updateWorkforce('checking_pd', v)} />
                     <NumberStepper label="Cleaning" value={workforce.cleaning_count} onChange={(v) => updateWorkforce('cleaning_count', v)} />
                     <NumberStepper label="QC" value={workforce.qc_count} onChange={(v) => updateWorkforce('qc_count', v)} />
                     <NumberStepper label="Security" value={workforce.security_count} onChange={(v) => updateWorkforce('security_count', v)} />
@@ -852,8 +867,9 @@ export default function DailyEntryPage() {
                 {/* Sanitization Labour (Headcount) */}
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
                   <h3 className="text-sm font-semibold text-gray-700 mb-2">Sanitization Labour (Headcount)</h3>
-                  <NumberStepper label="Cleaning Labour" value={sanitization.cleaning_labour} onChange={(v) => updateSanitization('cleaning_labour', v)} />
-                  <NumberStepper label="NMR Labour" value={sanitization.nmr_labour} onChange={(v) => updateSanitization('nmr_labour', v)} />
+                  <NumberStepper label="Outside Cleaning" value={sanitization.outside_cleaning} onChange={(v) => updateSanitization('outside_cleaning', v)} />
+                  <NumberStepper label="Local Crates Wash" value={sanitization.local_crates_wash} onChange={(v) => updateSanitization('local_crates_wash', v)} />
+                  <NumberStepper label="Company Crates Wash" value={sanitization.company_crates_wash} onChange={(v) => updateSanitization('company_crates_wash', v)} />
                   <NumberStepper label="Washroom Cleaning" value={sanitization.washroom_cleaning} onChange={(v) => updateSanitization('washroom_cleaning', v)} />
                   <NumberStepper label="Grading Machine" value={sanitization.grading_machine_cleaning} onChange={(v) => updateSanitization('grading_machine_cleaning', v)} />
                 </div>

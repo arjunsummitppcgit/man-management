@@ -40,10 +40,13 @@ export function useSanitization() {
           {
             work_date: date,
             location_id: locationId,
-            cleaning_labour: data.cleaning_labour,
+            outside_cleaning: data.outside_cleaning,
+            local_crates_wash: data.local_crates_wash,
+            company_crates_wash: data.company_crates_wash,
+            // cleaning_labour and nmr_labour are retired (migration 024) — left
+            // untouched so historical rows keep their figures.
             crates_cleaning: data.crates_cleaning,
             nets_cleaning: data.nets_cleaning,
-            nmr_labour: data.nmr_labour,
             washroom_cleaning: data.washroom_cleaning,
             grading_machine_cleaning: data.grading_machine_cleaning,
             chlorine_ppc: data.chlorine_ppc,

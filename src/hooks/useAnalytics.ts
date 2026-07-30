@@ -24,6 +24,9 @@ export interface WorkforceRow {
   labour_non_locals: number;
   labour_count: number;
   boys_count: number;
+  checking_waste: number;
+  checking_pd: number;
+  /** Total checking. Pre-migration-023 rows hold an unsplit figure here with both sub-columns at 0. */
   checking_count: number;
   cleaning_count: number;
   qc_count: number;
@@ -52,10 +55,16 @@ export interface NonLocalRow {
 export interface SanitizationRow {
   work_date: string;
   location_id: string;
+  // Sanitization headcounts
+  outside_cleaning: number;
+  local_crates_wash: number;
+  company_crates_wash: number;
+  /** @deprecated Retired by migration 024. Historical dates only. */
   cleaning_labour: number;
+  /** @deprecated Retired by migration 024. Historical dates only. */
+  nmr_labour: number;
   crates_cleaning: number;
   nets_cleaning: number;
-  nmr_labour: number;
   washroom_cleaning: number;
   grading_machine_cleaning: number;
   chlorine_ppc: number;
@@ -137,7 +146,7 @@ export function useAnalytics() {
         supabase
           .from('daily_workforce')
           .select(
-            'work_date, location_id, labour_kg_basic, labour_daily_wage, labour_company, labour_non_locals, labour_count, boys_count, checking_count, cleaning_count, qc_count, security_count, total_headcount'
+            'work_date, location_id, labour_kg_basic, labour_daily_wage, labour_company, labour_non_locals, labour_count, boys_count, checking_waste, checking_pd, checking_count, cleaning_count, qc_count, security_count, total_headcount'
           )
           .gte('work_date', fromDate)
           .lte('work_date', toDate)
@@ -157,7 +166,7 @@ export function useAnalytics() {
         supabase
           .from('daily_sanitization')
           .select(
-            'work_date, location_id, cleaning_labour, crates_cleaning, nets_cleaning, nmr_labour, washroom_cleaning, grading_machine_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, chlorine_grading_machine, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, soap_oil_grading_machine, gloves, head_cap, masks'
+            'work_date, location_id, outside_cleaning, local_crates_wash, company_crates_wash, cleaning_labour, nmr_labour, crates_cleaning, nets_cleaning, washroom_cleaning, grading_machine_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, chlorine_grading_machine, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, soap_oil_grading_machine, gloves, head_cap, masks'
           )
           .gte('work_date', fromDate)
           .lte('work_date', toDate)

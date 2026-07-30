@@ -54,13 +54,15 @@ export function useWorkforce() {
     data: WorkforceFormData
   ) => {
     try {
+      const checkingCount = data.checking_waste + data.checking_pd;
+
       const totalHeadcount =
         data.labour_kg_basic +
         data.labour_daily_wage +
         data.labour_company +
         data.labour_non_locals +
         data.boys_count +
-        data.checking_count +
+        checkingCount +
         data.cleaning_count +
         data.qc_count +
         data.security_count;
@@ -78,7 +80,11 @@ export function useWorkforce() {
             labour_non_locals: data.labour_non_locals,
             // labour_count is auto-computed by DB trigger
             boys_count: data.boys_count,
-            checking_count: data.checking_count,
+            checking_waste: data.checking_waste,
+            checking_pd: data.checking_pd,
+            // checking_count is kept in sync here rather than by a DB trigger, so
+            // pre-split rows can't be zeroed out — see migration 023.
+            checking_count: checkingCount,
             cleaning_count: data.cleaning_count,
             qc_count: data.qc_count,
             security_count: data.security_count,

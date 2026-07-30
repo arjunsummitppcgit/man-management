@@ -29,7 +29,7 @@ export function useDashboard() {
       // ──────────────────────────────────────────
       let workforceQuery = supabase
         .from('daily_workforce')
-        .select('total_headcount, labour_kg_basic, labour_daily_wage, labour_company, labour_non_locals, labour_count, boys_count, checking_count, cleaning_count, qc_count, security_count, location_id')
+        .select('total_headcount, labour_kg_basic, labour_daily_wage, labour_company, labour_non_locals, labour_count, boys_count, checking_waste, checking_pd, checking_count, cleaning_count, qc_count, security_count, location_id')
         .eq('work_date', date);
 
       if (locationFilter) {
@@ -50,6 +50,9 @@ export function useDashboard() {
       const labourNonLocals = (workforceData || []).reduce((sum, row) => sum + (row.labour_non_locals || 0), 0);
       const labourTotal = labourKgBasic + labourDailyWage + labourCompany + labourNonLocals;
       const boysCount = (workforceData || []).reduce((sum, row) => sum + (row.boys_count || 0), 0);
+      const checkingWaste = (workforceData || []).reduce((sum, row) => sum + (row.checking_waste || 0), 0);
+      const checkingPd = (workforceData || []).reduce((sum, row) => sum + (row.checking_pd || 0), 0);
+      // The stored total, which still covers pre-split rows where both sub-columns are 0.
       const checkingCount = (workforceData || []).reduce((sum, row) => sum + (row.checking_count || 0), 0);
       const cleaningCount = (workforceData || []).reduce((sum, row) => sum + (row.cleaning_count || 0), 0);
       const qcCount = (workforceData || []).reduce((sum, row) => sum + (row.qc_count || 0), 0);
@@ -120,7 +123,7 @@ export function useDashboard() {
       // ──────────────────────────────────────────
       let sanitizationQuery = supabase
         .from('daily_sanitization')
-        .select('cleaning_labour, crates_cleaning, nets_cleaning, nmr_labour, washroom_cleaning, grading_machine_cleaning')
+        .select('outside_cleaning, local_crates_wash, company_crates_wash, cleaning_labour, nmr_labour, crates_cleaning, nets_cleaning, washroom_cleaning, grading_machine_cleaning')
         .eq('work_date', date);
 
       if (locationFilter) {
@@ -130,15 +133,25 @@ export function useDashboard() {
       const { data: sanitizationData, error: sanitizationError } = await sanitizationQuery;
       if (sanitizationError) throw sanitizationError;
 
-      const sanitizationCleaningLabour = (sanitizationData || []).reduce((sum, row) => sum + (row.cleaning_labour || 0), 0);
+      const sanitizationOutsideCleaning = (sanitizationData || []).reduce((sum, row) => sum + (row.outside_cleaning || 0), 0);
+      const sanitizationLocalCratesWash = (sanitizationData || []).reduce((sum, row) => sum + (row.local_crates_wash || 0), 0);
+      const sanitizationCompanyCratesWash = (sanitizationData || []).reduce((sum, row) => sum + (row.company_crates_wash || 0), 0);
+      // Cleaning Labour + NMR Labour were retired by migration 024. Dates entered
+      // before then still hold figures there, so keep counting them or historical
+      // totals would silently shrink.
+      const sanitizationRetiredLabour = (sanitizationData || []).reduce(
+        (sum, row) => sum + (row.cleaning_labour || 0) + (row.nmr_labour || 0),
+        0
+      );
       const sanitizationCratesCleaning = (sanitizationData || []).reduce((sum, row) => sum + (row.crates_cleaning || 0), 0);
       const sanitizationNetsCleaning = (sanitizationData || []).reduce((sum, row) => sum + (row.nets_cleaning || 0), 0);
-      const sanitizationNmrLabour = (sanitizationData || []).reduce((sum, row) => sum + (row.nmr_labour || 0), 0);
       const sanitizationWashroomCleaning = (sanitizationData || []).reduce((sum, row) => sum + (row.washroom_cleaning || 0), 0);
       const sanitizationGradingMachineCleaning = (sanitizationData || []).reduce((sum, row) => sum + (row.grading_machine_cleaning || 0), 0);
       const sanitizationTotal =
-        sanitizationCleaningLabour +
-        sanitizationNmrLabour +
+        sanitizationOutsideCleaning +
+        sanitizationLocalCratesWash +
+        sanitizationCompanyCratesWash +
+        sanitizationRetiredLabour +
         sanitizationWashroomCleaning +
         sanitizationGradingMachineCleaning;
 
@@ -312,14 +325,18 @@ export function useDashboard() {
         labourNonLocals,
         labourTotal,
         boysCount,
+        checkingWaste,
+        checkingPd,
         checkingCount,
         cleaningCount,
         qcCount,
         securityCount,
-        sanitizationCleaningLabour,
+        sanitizationOutsideCleaning,
+        sanitizationLocalCratesWash,
+        sanitizationCompanyCratesWash,
+        sanitizationRetiredLabour,
         sanitizationCratesCleaning,
         sanitizationNetsCleaning,
-        sanitizationNmrLabour,
         sanitizationWashroomCleaning,
         sanitizationGradingMachineCleaning,
         sanitizationTotal,

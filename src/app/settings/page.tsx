@@ -128,14 +128,19 @@ export default function SettingsPage() {
         } else if (reportType === 'Workforce Report') {
           const { data } = await supabase
             .from('daily_workforce')
-            .select('work_date, labour_count, boys_count, checking_count, cleaning_count, qc_count, security_count, total_headcount')
+            .select('work_date, labour_count, boys_count, checking_waste, checking_pd, checking_count, cleaning_count, qc_count, security_count, total_headcount')
             .gte('work_date', dateFrom)
             .lte('work_date', dateTo)
             .order('work_date', { ascending: true });
 
-          headers = ['Date', 'Labour', 'Boys', 'Checking', 'Cleaning', 'QC', 'Security', 'Total'];
+          headers = [
+            'Date', 'Labour', 'Boys', 'Waste Checking', 'PD Checking', 'Checking Total',
+            'Cleaning', 'QC', 'Security', 'Total',
+          ];
           rows = (data || []).map((w) => [
-            w.work_date, w.labour_count, w.boys_count, w.checking_count,
+            w.work_date, w.labour_count, w.boys_count,
+            // Dates before migration 023 carry an unsplit figure in the total only.
+            w.checking_waste, w.checking_pd, w.checking_count,
             w.cleaning_count, w.qc_count, w.security_count, w.total_headcount,
           ]);
 
@@ -175,24 +180,29 @@ export default function SettingsPage() {
         } else if (reportType === 'Sanitization Report') {
           const { data } = await supabase
             .from('daily_sanitization')
-            .select('work_date, cleaning_labour, crates_cleaning, nets_cleaning, nmr_labour, washroom_cleaning, grading_machine_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, gloves, head_cap, masks, location:locations(name)')
+            .select('work_date, outside_cleaning, local_crates_wash, company_crates_wash, cleaning_labour, nmr_labour, crates_cleaning, nets_cleaning, washroom_cleaning, grading_machine_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, gloves, head_cap, masks, location:locations(name)')
             .gte('work_date', dateFrom)
             .lte('work_date', dateTo)
             .order('work_date', { ascending: true });
 
           headers = [
-            'Date', 'Location', 'Cleaning Labour', 'Crates Cleaned', 'Nets Cleaned', 'NMR Labour', 
-            'Washroom Cleaned', 'Grading Machine Cleaned', 'Chlorine PPC (L)', 'Chlorine Crates (L)', 
-            'Chlorine Washrooms (L)', 'Soap Oil PPC (L)', 'Soap Oil Crates (L)', 'Soap Oil Washrooms (L)', 
+            'Date', 'Location', 'Outside Cleaning', 'Local Crates Wash', 'Company Crates Wash',
+            'Cleaning Labour (retired)', 'NMR Labour (retired)', 'Crates Cleaned', 'Nets Cleaned',
+            'Washroom Cleaned', 'Grading Machine Cleaned', 'Chlorine PPC (L)', 'Chlorine Crates (L)',
+            'Chlorine Washrooms (L)', 'Soap Oil PPC (L)', 'Soap Oil Crates (L)', 'Soap Oil Washrooms (L)',
             'Gloves (pairs)', 'Head Cap (pcs)', 'Masks (pcs)'
           ];
           rows = (data || []).map((s: Record<string, unknown>) => [
             s.work_date as string,
             (s.location as { name: string } | null)?.name || '',
+            s.outside_cleaning as number,
+            s.local_crates_wash as number,
+            s.company_crates_wash as number,
+            // Retired by migration 024 — kept in the export so historical dates stay complete.
             s.cleaning_labour as number,
+            s.nmr_labour as number,
             s.crates_cleaning as number,
             s.nets_cleaning as number,
-            s.nmr_labour as number,
             s.washroom_cleaning as number,
             s.grading_machine_cleaning as number,
             s.chlorine_ppc as number,

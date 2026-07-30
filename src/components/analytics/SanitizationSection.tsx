@@ -25,16 +25,25 @@ import {
   fmtDay,
 } from './shared';
 
+type PersonColumn = { label: string; value: (r: SanitizationRow) => number };
+
+/** Cleaning Labour + NMR Labour, retired by migration 024 and only present on older dates. */
+const retiredLabour = (r: SanitizationRow) => (r.cleaning_labour || 0) + (r.nmr_labour || 0);
+
 // Persons involved in sanitization work per the daily entry form
-const PERSON_FIELDS: (keyof SanitizationRow)[] = [
-  'cleaning_labour',
-  'nmr_labour',
-  'washroom_cleaning',
-  'grading_machine_cleaning',
+const PERSON_COLUMNS: PersonColumn[] = [
+  { label: 'Outside Cleaning', value: (r) => r.outside_cleaning || 0 },
+  { label: 'Local Crates Wash', value: (r) => r.local_crates_wash || 0 },
+  { label: 'Company Crates Wash', value: (r) => r.company_crates_wash || 0 },
+  { label: 'Washroom', value: (r) => r.washroom_cleaning || 0 },
+  { label: 'Grading M/C', value: (r) => r.grading_machine_cleaning || 0 },
 ];
 
+const RETIRED_COLUMN: PersonColumn = { label: 'Cleaning + NMR (retired)', value: retiredLabour };
+
+// Retired fields stay in the headcount so historical person totals don't shrink.
 const personsOf = (r: SanitizationRow) =>
-  PERSON_FIELDS.reduce((s, f) => s + (Number(r[f]) || 0), 0);
+  PERSON_COLUMNS.reduce((s, c) => s + c.value(r), 0) + retiredLabour(r);
 
 export default function SanitizationSection({
   data,
@@ -84,7 +93,7 @@ export default function SanitizationSection({
     {
       label: 'Persons Deployed',
       value: fmtInt(totalPersons),
-      sub: activeDays > 0 ? `avg ${fmtAvg(avgPersons)} per active day` : 'cleaning, NMR, washroom, grading',
+      sub: activeDays > 0 ? `avg ${fmtAvg(avgPersons)} per active day` : 'cleaning, crates wash, washroom, grading',
       accent: 'from-amber-400 to-orange-500',
       icon: '🧑‍🔧',
     },
@@ -131,34 +140,37 @@ export default function SanitizationSection({
 
   const hasData = totalCrates > 0 || totalNets > 0 || totalPersons > 0;
 
-  const tableHeaders = ['Date', 'Crates', 'Nets', 'Cleaning Labour', 'NMR', 'Washroom', 'Grading M/C', 'Persons Total'];
-  const tableRows = useMemo(() => {
-    const map = new Map<string, number[]>();
-    for (const r of rows) {
-      const cur = map.get(r.work_date) || [0, 0, 0, 0, 0, 0, 0];
+  // The retired column only earns its place when the period contains pre-split
+  // dates; without it those rows wouldn't add up to their own Persons Total.
+  const personColumns = rows.some((r) => retiredLabour(r) > 0)
+    ? [...PERSON_COLUMNS, RETIRED_COLUMN]
+    : PERSON_COLUMNS;
+
+  const columnTotal = (c: PersonColumn) => rows.reduce((s, r) => s + c.value(r), 0);
+
+  const tableHeaders = ['Date', 'Crates', 'Nets', ...personColumns.map((c) => c.label), 'Persons Total'];
+  const tableRows = Array.from(
+    rows.reduce((map, r) => {
+      const cur = map.get(r.work_date) || new Array(personColumns.length + 3).fill(0);
       cur[0] += r.crates_cleaning || 0;
       cur[1] += r.nets_cleaning || 0;
-      cur[2] += r.cleaning_labour || 0;
-      cur[3] += r.nmr_labour || 0;
-      cur[4] += r.washroom_cleaning || 0;
-      cur[5] += r.grading_machine_cleaning || 0;
-      cur[6] += personsOf(r);
+      personColumns.forEach((c, i) => {
+        cur[i + 2] += c.value(r);
+      });
+      cur[personColumns.length + 2] += personsOf(r);
       map.set(r.work_date, cur);
-    }
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, vals]) => [fmtDay(date), ...vals.map((v) => (v > 0 ? fmtInt(v) : 0))])
-      .filter((row) => row.slice(1).some((v) => v !== 0));
-  }, [rows]);
+      return map;
+    }, new Map<string, number[]>())
+  )
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, vals]) => [fmtDay(date), ...vals.map((v) => (v > 0 ? fmtInt(v) : 0))])
+    .filter((row) => row.slice(1).some((v) => v !== 0));
 
   const footer = [
     'Total',
     fmtInt(totalCrates),
     fmtInt(totalNets),
-    fmtInt(rows.reduce((s, r) => s + (r.cleaning_labour || 0), 0)),
-    fmtInt(rows.reduce((s, r) => s + (r.nmr_labour || 0), 0)),
-    fmtInt(rows.reduce((s, r) => s + (r.washroom_cleaning || 0), 0)),
-    fmtInt(rows.reduce((s, r) => s + (r.grading_machine_cleaning || 0), 0)),
+    ...personColumns.map((c) => fmtInt(columnTotal(c))),
     fmtInt(totalPersons),
   ];
 
@@ -167,10 +179,7 @@ export default function SanitizationSection({
     `Average / active day (${activeDays} day${activeDays === 1 ? '' : 's'})`,
     perActiveDay(totalCrates),
     perActiveDay(totalNets),
-    perActiveDay(rows.reduce((s, r) => s + (r.cleaning_labour || 0), 0)),
-    perActiveDay(rows.reduce((s, r) => s + (r.nmr_labour || 0), 0)),
-    perActiveDay(rows.reduce((s, r) => s + (r.washroom_cleaning || 0), 0)),
-    perActiveDay(rows.reduce((s, r) => s + (r.grading_machine_cleaning || 0), 0)),
+    ...personColumns.map((c) => perActiveDay(columnTotal(c))),
     perActiveDay(totalPersons),
   ];
 

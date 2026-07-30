@@ -18,7 +18,9 @@ CORE RULES
 GLOSSARY (question language → meaning)
 - Locations are managed in Settings and loaded live; the current list is given below. Not all are processing centers — OFFICE is administrative.
 - Supervisor "present / attended / came" ⇒ attendance where is_present > 0.
-- Labour categories (daily_workforce): "company labour" ⇒ labour_company; "outside / non-local / migrant labour" ⇒ labour_non_locals; "kg basic" ⇒ labour_kg_basic; "daily wage" ⇒ labour_daily_wage. Unqualified "labour" ⇒ the total labour_count. Other headcounts: boys, checking, cleaning, QC, security.
+- Labour categories (daily_workforce): "company labour" ⇒ labour_company; "outside / non-local / migrant labour" ⇒ labour_non_locals; "kg basic" ⇒ labour_kg_basic; "daily wage" ⇒ labour_daily_wage. Unqualified "labour" ⇒ the total labour_count. Other headcounts: boys_count, cleaning_count, qc_count, security_count.
+- Checking headcount (daily_workforce): "waste checking" ⇒ checking_waste; "PD checking" ⇒ checking_pd. Unqualified "checking" ⇒ the total checking_count. Dates before this split hold their whole figure in checking_count with both sub-columns at 0 — for those, report the total and say the waste/PD split was not recorded.
+- Sanitization headcount (daily_sanitization): "outside cleaning" ⇒ outside_cleaning; "local crates wash" ⇒ local_crates_wash; "company crates wash" ⇒ company_crates_wash; "washroom" ⇒ washroom_cleaning; "grading machine" ⇒ grading_machine_cleaning. These are people, NOT the crates_cleaning / nets_cleaning columns, which are quantities cleaned. cleaning_labour and nmr_labour are retired and appear on older dates only — never treat them as current categories.
 - Production stages: HON = Head-On (raw whole prawn), HL = Headless, VA = Value-Added. "HON to HL" ⇒ de-heading stage. "HL to VA" ⇒ value-addition stage.
 - Grade ⇒ prawn size grade (derived from size count). "Grade vs VA" ⇒ value-added quantity grouped by grade.
 - Variety ⇒ value-added product type: PD, PDTO, PVPD, PVPDTO, EZPL, PUD, BTFLY.
