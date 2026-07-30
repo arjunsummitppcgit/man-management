@@ -16,6 +16,7 @@ import WorkforceSection from '@/components/analytics/WorkforceSection';
 import ChemicalsSection from '@/components/analytics/ChemicalsSection';
 import SanitizationSection from '@/components/analytics/SanitizationSection';
 import BatchPipeline from '@/components/reports/BatchPipeline';
+import HeadWasteSection from '@/components/analytics/HeadWasteSection';
 
 type SectionKey =
   | 'va-target'
@@ -26,7 +27,8 @@ type SectionKey =
   | 'workforce'
   | 'chemicals'
   | 'sanitization'
-  | 'batch-pipeline';
+  | 'batch-pipeline'
+  | 'head-waste';
 
 const SECTIONS: {
   key: SectionKey;
@@ -45,10 +47,15 @@ const SECTIONS: {
   { key: 'chemicals', label: 'Essentials & Chemicals', desc: 'usage by type & location', icon: '🧪', gradient: 'from-rose-500 to-pink-600', glow: 'rgba(244,63,94,0.45)' },
   { key: 'sanitization', label: 'Sanitization', desc: 'crates, nets & persons', icon: '🧼', gradient: 'from-cyan-500 to-sky-600', glow: 'rgba(6,182,212,0.45)' },
   { key: 'batch-pipeline', label: 'Batch Pipeline', desc: 'one batch across all dates', icon: '🔎', gradient: 'from-indigo-500 to-purple-600', glow: 'rgba(99,102,241,0.45)' },
+  { key: 'head-waste', label: 'Head Waste', desc: 'daily waste statement', icon: '🗑️', gradient: 'from-amber-500 to-yellow-600', glow: 'rgba(245,158,11,0.45)' },
 ];
 
-/** Batch Pipeline searches every date, so the shared date/location filters don't apply to it. */
-const IGNORES_FILTERS: SectionKey[] = ['batch-pipeline'];
+/**
+ * Batch Pipeline searches every date, and Head Waste is a single-day statement
+ * that carries its own date picker — the shared range/location filters don't
+ * apply to either.
+ */
+const IGNORES_FILTERS: SectionKey[] = ['batch-pipeline', 'head-waste'];
 
 function rangeForPreset(preset: PresetKey): { from: string; to: string } {
   const today = new Date();
@@ -237,6 +244,12 @@ export default function AnalyticsPage() {
             // Runs its own search and loading state — not tied to the analytics fetch
             <div className="ana-swap" key={active}>
               <BatchPipeline />
+            </div>
+          ) : active === 'head-waste' ? (
+            // Reads yield_entries / hl_va_entries for its own chosen date, so it
+            // isn't gated on the range-based analytics fetch either
+            <div className="ana-swap" key={active}>
+              <HeadWasteSection />
             </div>
           ) : loading ? (
             <div className="flex flex-col items-center justify-center py-24 gap-3">
