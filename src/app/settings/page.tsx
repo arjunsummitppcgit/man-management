@@ -49,6 +49,14 @@ export default function SettingsPage() {
   const [newSalaryBasic, setNewSalaryBasic] = useState('');
   const [savingBasic, setSavingBasic] = useState(false);
 
+  // Change Password
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
+
   // Report Preview state
   const [previewHeaders, setPreviewHeaders] = useState<string[]>([]);
   const [previewRows, setPreviewRows] = useState<(string | number)[][]>([]);
@@ -339,6 +347,60 @@ export default function SettingsPage() {
       showToast(`Failed to update Salary Basic: ${reason}`, 'error');
     } finally {
       setSavingBasic(false);
+    }
+  };
+
+  const closePasswordModal = () => {
+    setPasswordModalOpen(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowPasswords(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      showToast('Fill in all three fields', 'error');
+      return;
+    }
+    if (newPassword.length < 8) {
+      showToast('New password must be at least 8 characters', 'error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showToast('New passwords do not match', 'error');
+      return;
+    }
+    if (newPassword === currentPassword) {
+      showToast('New password must be different from the current one', 'error');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      // Supabase lets any live session set a new password, so verify the
+      // current one first — otherwise an unattended browser is enough to
+      // take over the account.
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: userEmail,
+        password: currentPassword,
+      });
+      if (signInError) {
+        showToast('Current password is incorrect', 'error');
+        return;
+      }
+
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw new Error(error.message);
+
+      showToast('Password updated — use it the next time you sign in', 'success');
+      closePasswordModal();
+    } catch (error) {
+      console.error('Error changing password:', error);
+      const reason = error instanceof Error ? error.message : String(error);
+      showToast(`Failed to change password: ${reason}`, 'error');
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -668,6 +730,34 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Change Password (admin-only — staff accounts are managed by the admin) */}
+        {!isSubUser && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center flex-shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4.5 h-4.5 text-rose-600">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-gray-700">Change Password</h3>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 truncate">
+                    For {userEmail || 'this account'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPasswordModalOpen(true)}
+                className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0"
+              >
+                Change
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* App Info */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 mb-3">
@@ -711,6 +801,101 @@ export default function SettingsPage() {
         {/* Bottom spacing */}
         <div className="h-4" />
       </div>
+
+      {/* Change Password Modal */}
+      {passwordModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={closePasswordModal}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" />
+          <div
+            className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-3xl p-6 border-t border-gray-200 dark:border-gray-800 shadow-2xl animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mb-5" />
+
+            <div className="mb-5">
+              <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">Change Password</h3>
+              <p className="text-xs text-gray-550 dark:text-gray-400 mt-1">
+                For {userEmail || 'this account'}. You stay signed in here — the new password
+                applies the next time you sign in.
+              </p>
+            </div>
+
+            <div className="space-y-3 mb-5">
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
+                  Current Password
+                </label>
+                <input
+                  type={showPasswords ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  autoFocus
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-800 dark:text-gray-200 focus:border-rose-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
+                  New Password
+                </label>
+                <input
+                  type={showPasswords ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 8 characters"
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-800 dark:text-gray-200 focus:border-rose-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
+                  Confirm New Password
+                </label>
+                <input
+                  type={showPasswords ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !changingPassword) handleChangePassword();
+                  }}
+                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-800 dark:text-gray-200 focus:border-rose-500 focus:outline-none"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 select-none cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showPasswords}
+                  onChange={(e) => setShowPasswords(e.target.checked)}
+                  className="w-4 h-4 accent-rose-600"
+                />
+                Show passwords
+              </label>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={closePasswordModal}
+                className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl transition-colors min-h-[48px]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={changingPassword}
+                onClick={handleChangePassword}
+                className="flex-1 py-3 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl shadow-lg shadow-rose-600/20 transition-all min-h-[48px] flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {changingPassword ? 'Updating...' : 'Update Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Salary Basic Modal */}
       {basicModalOpen && (
