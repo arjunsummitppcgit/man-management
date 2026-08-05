@@ -333,7 +333,10 @@ export default function SettingsPage() {
       setBasicModalOpen(false);
     } catch (error) {
       console.error('Error updating salary basic:', error);
-      showToast('Failed to update Salary Basic', 'error');
+      // Surface the Postgres/RLS reason — "relation does not exist" (migration
+      // not applied) and "row-level security" read very differently.
+      const reason = error instanceof Error ? error.message : String(error);
+      showToast(`Failed to update Salary Basic: ${reason}`, 'error');
     } finally {
       setSavingBasic(false);
     }

@@ -42,7 +42,12 @@ export function useAppSettings() {
       .from('app_settings')
       .upsert({ key, value, updated_by: user?.email ?? null }, { onConflict: 'key' });
 
-    if (error) throw error;
+    // PostgrestError is a plain object, not an Error — wrap it so callers can
+    // show the actual reason (missing table, RLS denial, …).
+    if (error) {
+      console.error('app_settings upsert failed:', error);
+      throw new Error([error.message, error.details, error.hint].filter(Boolean).join(' — '));
+    }
     setSettings((prev) => ({ ...prev, [key]: value }));
   }, []);
 
