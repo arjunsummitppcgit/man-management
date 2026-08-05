@@ -335,9 +335,9 @@ export default function DashboardPage() {
                 <p className="text-[10px] text-indigo-500 font-medium uppercase tracking-wide">Daily Wage</p>
                 <p className="text-xl font-bold text-indigo-700 mt-0.5">{kpis?.labourDailyWage ?? 0}</p>
               </div>
-              {/* Company Ladies */}
+              {/* Company Labour */}
               <div className="bg-indigo-50 rounded-xl px-3 py-2.5">
-                <p className="text-[10px] text-indigo-500 font-medium uppercase tracking-wide">Company Ladies</p>
+                <p className="text-[10px] text-indigo-500 font-medium uppercase tracking-wide">Company Labour</p>
                 <p className="text-xl font-bold text-indigo-700 mt-0.5">{kpis?.labourCompany ?? 0}</p>
               </div>
               {/* Non Locals */}

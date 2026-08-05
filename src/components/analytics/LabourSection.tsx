@@ -28,7 +28,7 @@ import {
 const LABOUR_TYPES: { key: keyof WorkforceRow; label: string; color: string }[] = [
   { key: 'labour_kg_basic', label: 'KG Basic', color: '#0d9488' },
   { key: 'labour_daily_wage', label: 'Daily Wage', color: '#f59e0b' },
-  { key: 'labour_company', label: 'Company', color: '#6366f1' },
+  { key: 'labour_company', label: 'Company Labour', color: '#6366f1' },
   { key: 'labour_non_locals', label: 'Non Locals', color: '#f43f5e' },
 ];
 
