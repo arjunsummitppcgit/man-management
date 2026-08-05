@@ -1156,6 +1156,19 @@ input:focus, select:focus, textarea:focus {
     display: none !important;
   }
 
+  /* …except filterable column headers, whose label lives inside the button.
+     Print the text only — the funnel icon and the active-filter count are
+     interactive affordances. */
+  button.column-filter-trigger {
+    display: inline !important;
+    color: inherit !important;
+  }
+
+  button.column-filter-trigger svg,
+  button.column-filter-trigger .column-filter-count {
+    display: none !important;
+  }
+
   /* The sidebar gutter and the phone-width column are dropped so the report
      uses the full sheet */
   .print-full-width {

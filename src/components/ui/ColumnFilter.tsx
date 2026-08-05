@@ -106,7 +106,9 @@ export default function ColumnFilter({
         ref={triggerRef}
         type="button"
         onClick={() => (open ? closeMenu() : openMenu())}
-        className={`inline-flex items-center gap-1 rounded-md transition-colors ${
+        // column-filter-trigger keeps the column label visible when printing —
+        // the print stylesheet hides <button> everywhere else.
+        className={`column-filter-trigger inline-flex items-center gap-1 rounded-md transition-colors ${
           active
             ? 'text-indigo-600'
             : 'text-gray-500 hover:text-gray-700'
@@ -128,7 +130,7 @@ export default function ColumnFilter({
           />
         </svg>
         {active && (
-          <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-indigo-600 text-white text-[9px] font-bold leading-none">
+          <span className="column-filter-count inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-indigo-600 text-white text-[9px] font-bold leading-none">
             {selected.length}
           </span>
         )}
