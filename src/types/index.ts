@@ -318,6 +318,8 @@ export interface NonLocalLadyEntry {
   hl_qty: number;
   pd_qty: number;
   per_head_amount: number;
+  /** Basic rate in force when this day was saved (migration 026). */
+  salary_basic: number;
   created_at: string;
   updated_at: string;
 }

@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase/client';
 import { exportToPDF, exportToExcel } from '@/lib/export';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
+import { useAppSettings, SETTING_NL_LADIES_SALARY_BASIC } from '@/hooks/useAppSettings';
 import { getTodayString } from '@/lib/utils';
 
 
@@ -41,6 +42,12 @@ export default function SettingsPage() {
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const [newLocationName, setNewLocationName] = useState('');
   const [addingLocation, setAddingLocation] = useState(false);
+
+  // Company Ladies salary basic (admin-only)
+  const { nlLadiesSalaryBasic, loading: settingsLoading, updateSetting } = useAppSettings();
+  const [basicModalOpen, setBasicModalOpen] = useState(false);
+  const [newSalaryBasic, setNewSalaryBasic] = useState('');
+  const [savingBasic, setSavingBasic] = useState(false);
 
   // Report Preview state
   const [previewHeaders, setPreviewHeaders] = useState<string[]>([]);
@@ -313,6 +320,25 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveSalaryBasic = async () => {
+    const value = parseFloat(newSalaryBasic);
+    if (!Number.isFinite(value) || value <= 0) {
+      showToast('Enter a valid amount', 'error');
+      return;
+    }
+    setSavingBasic(true);
+    try {
+      await updateSetting(SETTING_NL_LADIES_SALARY_BASIC, value.toFixed(2));
+      showToast(`Salary Basic updated to ₹${value.toFixed(2)}`, 'success');
+      setBasicModalOpen(false);
+    } catch (error) {
+      console.error('Error updating salary basic:', error);
+      showToast('Failed to update Salary Basic', 'error');
+    } finally {
+      setSavingBasic(false);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/login');
@@ -407,6 +433,40 @@ export default function SettingsPage() {
             </div>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
               For rare cases needing extra processing capacity — added locations appear immediately in every location dropdown.
+            </p>
+          </div>
+        )}
+
+        {/* Company Ladies Salary Basic (admin-only) */}
+        {!isSubUser && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+                  <span className="text-sm">👩</span>
+                </div>
+                <h3 className="text-sm font-semibold text-gray-700">Company Ladies Salary Basic</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setNewSalaryBasic(String(nlLadiesSalaryBasic));
+                  setBasicModalOpen(true);
+                }}
+                className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors"
+              >
+                Edit
+              </button>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-amber-700 dark:text-amber-400">
+                {settingsLoading ? '—' : `₹${nlLadiesSalaryBasic.toFixed(2)}`}
+              </span>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 uppercase tracking-wider">per head</span>
+            </div>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
+              Used on Daily Entry → NL Ladies to work out Difference and P&amp;L. Days already
+              entered keep the rate they were saved under — a change only applies going forward.
             </p>
           </div>
         )}
@@ -648,6 +708,62 @@ export default function SettingsPage() {
         {/* Bottom spacing */}
         <div className="h-4" />
       </div>
+
+      {/* Edit Salary Basic Modal */}
+      {basicModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setBasicModalOpen(false)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" />
+          <div
+            className="relative w-full max-w-lg bg-white dark:bg-gray-900 rounded-t-3xl p-6 border-t border-gray-200 dark:border-gray-800 shadow-2xl animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-1 bg-gray-300 dark:bg-gray-700 rounded-full mx-auto mb-5" />
+
+            <div className="mb-5">
+              <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">Company Ladies Salary Basic</h3>
+              <p className="text-xs text-gray-550 dark:text-gray-400 mt-1">
+                Currently ₹{nlLadiesSalaryBasic.toFixed(2)}. New entries use the new rate from the
+                moment you save — already-saved days keep their original rate.
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">
+                Salary Basic (₹ per head)
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="1"
+                autoFocus
+                value={newSalaryBasic}
+                onChange={(e) => setNewSalaryBasic(e.target.value)}
+                placeholder="e.g. 350"
+                className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-800 dark:text-gray-200 focus:border-amber-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setBasicModalOpen(false)}
+                className="flex-1 py-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl transition-colors min-h-[48px]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={savingBasic}
+                onClick={handleSaveSalaryBasic}
+                className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl shadow-lg shadow-amber-600/20 transition-all min-h-[48px] flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {savingBasic ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Location Modal */}
       {locationModalOpen && (
