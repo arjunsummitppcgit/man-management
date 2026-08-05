@@ -14,6 +14,7 @@ import { useSupervisors } from '@/hooks/useSupervisors';
 import { useAuth } from '@/hooks/useAuth';
 import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
+import { useAppSettings } from '@/hooks/useAppSettings';
 import { useHlVa } from '@/hooks/useHlVa';
 import { useGrading } from '@/hooks/useGrading';
 import { GRADING_UNITS, runningHours, formatHours } from '@/lib/grading';
@@ -268,7 +269,12 @@ export default function DailyEntryPage() {
     saveEntries: saveGradingEntries,
   } = useGrading();
 
-  const SALARY_BASIC = 350;
+  // Basic rate: admin-set in Reports & Settings, but a day that already has
+  // entries keeps the rate it was saved under (migration 026).
+  const { nlLadiesSalaryBasic } = useAppSettings();
+  const SALARY_BASIC = nllEntries.length > 0
+    ? (Number(nllEntries[0].salary_basic) || nlLadiesSalaryBasic)
+    : nlLadiesSalaryBasic;
 
   // Workforce form state
   const [workforce, setWorkforce] = useState({
@@ -664,7 +670,7 @@ export default function DailyEntryPage() {
             pd_qty: Math.max(0, parseFloat(r.pd_qty) || 0),
             per_head_amount: Math.max(0, parseFloat(r.per_head_amount) || 0),
           }));
-        await saveNllEntries(selectedDate, validRows);
+        await saveNllEntries(selectedDate, validRows, nlLadiesSalaryBasic);
       } else if (activeTab === 'hl_va') {
         const validRows = hlVaRows
           .filter((r) => r.batch_id.trim() !== '')
@@ -716,7 +722,7 @@ export default function DailyEntryPage() {
     { key: 'sanitization', label: 'Sanitization' },
     { key: 'processing', label: 'Processing' },
     { key: 'yield', label: 'HONS TO HL' },
-    { key: 'non_local_ladies', label: 'NL Ladies' },
+    { key: 'non_local_ladies', label: 'Company Ladies' },
     { key: 'hl_va', label: 'HL to VA' },
     { key: 'grading', label: 'Grading' },
   ];
@@ -879,7 +885,7 @@ export default function DailyEntryPage() {
                           onChange={(v) => updateWorkforce('labour_daily_wage', v)}
                         />
                         <NumberStepper
-                          label="Company Ladies"
+                          label="Company Labour"
                           value={workforce.labour_company}
                           onChange={(v) => updateWorkforce('labour_company', v)}
                         />
@@ -1573,9 +1579,9 @@ export default function DailyEntryPage() {
                 <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 rounded-2xl p-4 border border-amber-200">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-lg">👩</span>
-                    <h3 className="text-sm font-semibold text-amber-800">Non Local Ladies</h3>
+                    <h3 className="text-sm font-semibold text-amber-800">Company Ladies</h3>
                   </div>
-                  <p className="text-xs text-amber-700">Salary Basic is fixed at <strong>₹{SALARY_BASIC}.00</strong>. Difference and Profit &amp; Loss are auto-calculated.</p>
+                  <p className="text-xs text-amber-700">Salary Basic is <strong>₹{SALARY_BASIC.toFixed(2)}</strong> (admin sets it in Reports &amp; Settings). Difference and Profit &amp; Loss are auto-calculated.</p>
                 </div>
 
                 {/* NL Ladies Grid */}
@@ -1751,7 +1757,7 @@ export default function DailyEntryPage() {
                       Saving...
                     </>
                   ) : (
-                    'Save Non Local Ladies Data'
+                    'Save Company Ladies Data'
                   )}
                 </button>
               </div>

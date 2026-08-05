@@ -15,8 +15,11 @@ import GradeVaReport from '@/components/reports/GradeVaReport';
 import LabourBreakdownReport from '@/components/reports/LabourBreakdownReport';
 import GradingDataReport from '@/components/reports/GradingDataReport';
 import { useGrading } from '@/hooks/useGrading';
+import { DEFAULT_NL_LADIES_SALARY_BASIC } from '@/hooks/useAppSettings';
 
-const SALARY_BASIC = 350;
+/** Each row carries the basic rate its day was saved under (migration 026). */
+const rowSalaryBasic = (entry: { salary_basic?: number | string | null }) =>
+  Number(entry.salary_basic) || DEFAULT_NL_LADIES_SALARY_BASIC;
 
 export default function YieldReportPage() {
   const { isSubUser } = useAuth();
@@ -114,7 +117,7 @@ export default function YieldReportPage() {
         const pdQty = Number(entry.pd_qty) || 0;
         const perHead = Number(entry.per_head_amount) || 0;
         const totalQty = hlQty + pdQty;
-        const diff = perHead - SALARY_BASIC;
+        const diff = perHead - rowSalaryBasic(entry);
         const pnl = diff * noLadies;
 
         acc.totalLadies += noLadies;
@@ -622,7 +625,7 @@ export default function YieldReportPage() {
         ═══════════════════════════════════════════════════════════════════ */}
         <div className="space-y-4">
           <div className="pt-2 pb-1">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Non Local Ladies</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Company Ladies</h2>
           </div>
 
           {/* Non Local Ladies Table */}
@@ -635,7 +638,7 @@ export default function YieldReportPage() {
               <div className="p-8 text-center">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 mb-3 text-amber-600 text-xl">👩</div>
                 <p className="text-sm font-semibold text-gray-900">No Data Available</p>
-                <p className="text-sm text-gray-500 mt-1">There are no non-local ladies entries for {selectedDate}.</p>
+                <p className="text-sm text-gray-500 mt-1">There are no Company Ladies entries for {selectedDate}.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -660,7 +663,8 @@ export default function YieldReportPage() {
                       const pdQty = Number(entry.pd_qty) || 0;
                       const perHead = Number(entry.per_head_amount) || 0;
                       const totalQty = hlQty + pdQty;
-                      const diff = perHead - SALARY_BASIC;
+                      const salaryBasic = rowSalaryBasic(entry);
+                      const diff = perHead - salaryBasic;
                       const pnl = diff * noLadies;
                       return (
                         <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group">
@@ -670,7 +674,7 @@ export default function YieldReportPage() {
                           <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{pdQty.toFixed(0)}</td>
                           <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-bold">{totalQty.toFixed(0)}</td>
                           <td className={`px-4 py-3 text-sm whitespace-nowrap text-right font-bold ${perHead >= 300 ? 'text-emerald-600 bg-emerald-50/40 dark:bg-emerald-900/10' : 'text-rose-600 bg-rose-50/40 dark:bg-rose-900/10'}`}>{perHead.toFixed(2)}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap text-right">{SALARY_BASIC.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap text-right">{salaryBasic.toFixed(2)}</td>
                           <td className="px-4 py-3 text-sm whitespace-nowrap text-right">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${diff >= 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
                               {diff >= 0 ? '+' : ''}{diff.toFixed(2)}

@@ -32,6 +32,11 @@ export function useNonLocalLadies() {
 
   /**
    * Save (delete + re-insert) all entries for a given date.
+   *
+   * `salaryBasic` is the rate currently set in Reports & Settings. It is only
+   * applied to a date that has no rows yet — re-saving an existing day keeps
+   * the rate that day was originally entered under, so a later rate change
+   * never rewrites past Difference / P&L figures.
    */
   const saveEntries = useCallback(async (
     date: string,
@@ -41,9 +46,22 @@ export function useNonLocalLadies() {
       hl_qty: number;
       pd_qty: number;
       per_head_amount: number;
-    }[]
+    }[],
+    salaryBasic: number
   ) => {
     try {
+      const { data: existing, error: existingError } = await supabase
+        .from('non_local_ladies')
+        .select('salary_basic')
+        .eq('work_date', date)
+        .limit(1);
+
+      if (existingError) throw existingError;
+
+      const effectiveBasic = existing && existing.length > 0
+        ? Number(existing[0].salary_basic)
+        : salaryBasic;
+
       const { error: deleteError } = await supabase
         .from('non_local_ladies')
         .delete()
@@ -59,6 +77,7 @@ export function useNonLocalLadies() {
           hl_qty: row.hl_qty,
           pd_qty: row.pd_qty,
           per_head_amount: row.per_head_amount,
+          salary_basic: effectiveBasic,
         }));
 
         const { error: insertError } = await supabase

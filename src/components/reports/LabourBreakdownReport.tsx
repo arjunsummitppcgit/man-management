@@ -141,7 +141,7 @@ export default function LabourBreakdownReport({ date }: LabourBreakdownReportPro
                     Daily Wage
                   </th>
                   <th className="px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">
-                    Company Ladies
+                    Company Labour
                   </th>
                   <th className="px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">
                     Non Locals

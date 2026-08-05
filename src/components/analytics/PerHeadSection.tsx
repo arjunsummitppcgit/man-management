@@ -120,7 +120,7 @@ export default function PerHeadSection({
     {
       label: 'Avg Per Head Amount',
       value: avgPerHead > 0 ? `₹${fmt(Number(avgPerHead.toFixed(2)))}` : '—',
-      sub: `non-local ladies · ${rangeLabel}`,
+      sub: `company ladies · ${rangeLabel}`,
       accent: 'from-emerald-500 to-teal-600',
       icon: '💰',
     },
@@ -163,7 +163,7 @@ export default function PerHeadSection({
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 lg:gap-5">
         <ChartCard
           title="Per Head Amount Trend"
-          subtitle="average ₹ per head per day (non-local ladies)"
+          subtitle="average ₹ per head per day (company ladies)"
           className="xl:col-span-6"
         >
           {perHeadByDate.length > 0 ? (
