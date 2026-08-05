@@ -852,7 +852,6 @@ export default function YieldReportPage() {
                           onChange={setHvGradeFilter}
                         />
                       </th>
-                      <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Grader Name</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-teal-500 uppercase tracking-wider whitespace-nowrap text-right">Yield</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-purple-500 uppercase tracking-wider whitespace-nowrap text-right">Std %</th>
                       <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">Difference</th>
@@ -878,7 +877,6 @@ export default function YieldReportPage() {
                           <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{vaNum.toFixed(3)}</td>
                           <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{entry.location?.name || 'Unknown'}</td>
                           <td className="px-4 py-3 text-sm font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap">{grade}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{entry.grader_name}</td>
                           <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-bold">{yieldPct !== null ? `${yieldPct.toFixed(2)}%` : '-'}</td>
                           <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-bold">{stdYield !== null ? `${stdYield.toFixed(2)}%` : '-'}</td>
                           <td className="px-4 py-3 text-sm whitespace-nowrap text-right">
@@ -900,7 +898,6 @@ export default function YieldReportPage() {
                       <td className="px-4 py-3"></td>
                       <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap text-right">{hvTotals.totalHl.toFixed(3)}</td>
                       <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap text-right">{hvTotals.totalVa.toFixed(3)}</td>
-                      <td className="px-4 py-3"></td>
                       <td className="px-4 py-3"></td>
                       <td className="px-4 py-3"></td>
                       <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap text-right">{hvTotalYieldPct !== null ? `${hvTotalYieldPct.toFixed(2)}%` : '-'}</td>
