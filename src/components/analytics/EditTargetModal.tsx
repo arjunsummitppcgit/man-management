@@ -257,7 +257,9 @@ export default function EditTargetModal({
             Leave blank to keep a location measured against the combined target. Clearing a saved value removes it.
           </p>
 
-          <div className="space-y-2.5 max-h-[46vh] overflow-y-auto pr-0.5">
+          {/* No nested scroller — the modal body is the only scroll area, so the
+              list can't trap the gesture and hide the actions below it. */}
+          <div className="space-y-2.5">
             {locations.map((loc) => (
               <div key={loc.id} className="flex items-center gap-3">
                 <span className="w-24 flex-shrink-0 text-sm font-semibold text-gray-700 truncate" title={loc.name}>
@@ -293,7 +295,9 @@ export default function EditTargetModal({
           )}
         </div>
 
-        <div className="flex items-center gap-2.5 pt-1">
+        {/* Pinned to the bottom of the scrolling body so Save stays reachable
+            however many locations the list runs to. */}
+        <div className="sticky bottom-0 -mx-5 -mb-4 px-5 pt-3 pb-4 bg-white border-t border-gray-100 flex items-center gap-2.5">
           <Button variant="secondary" fullWidth onClick={onClose} disabled={saving}>
             Cancel
           </Button>
