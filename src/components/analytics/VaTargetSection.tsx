@@ -273,7 +273,7 @@ export default function VaTargetSection({
               d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"
             />
           </svg>
-          Edit
+          {targetKg > 0 ? 'Edit' : 'Set'}
         </button>
       ),
     },
@@ -355,7 +355,7 @@ export default function VaTargetSection({
               </div>
             </div>
           ) : (
-            <EmptyChart message={`No target set for ${data.monthLabel} — use Edit on the Target card to set one`} />
+            <EmptyChart message={`No target set for ${data.monthLabel} — use Set on the Target card to add one`} />
           )}
         </ChartCard>
 
@@ -434,10 +434,16 @@ export default function VaTargetSection({
             )}
           </div>
         ) : (
-          <div className="flex items-center justify-center py-8 bg-gray-50 rounded-xl">
+          <div className="flex flex-col items-center justify-center gap-2.5 py-8 bg-gray-50 rounded-xl">
             <p className="text-xs text-gray-400 font-medium">
               Set a target for {data.monthLabel || 'this month'} to see the daily pace needed
             </p>
+            <button
+              onClick={() => setEditOpen(true)}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-teal-50 text-teal-700 hover:opacity-80 active:scale-95 transition-all"
+            >
+              🎯 Set Monthly Target
+            </button>
           </div>
         )}
       </ChartCard>
@@ -445,6 +451,7 @@ export default function VaTargetSection({
       <EditTargetModal
         isOpen={editOpen}
         onClose={() => setEditOpen(false)}
+        locations={locations}
         defaultYear={data.monthYear}
         defaultMonth={data.monthNumber}
         onSaved={onRefresh}
