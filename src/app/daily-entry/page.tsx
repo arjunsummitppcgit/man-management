@@ -17,6 +17,7 @@ import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { useHlVa } from '@/hooks/useHlVa';
 import { useGrading } from '@/hooks/useGrading';
+import { supabase } from '@/lib/supabase/client';
 import { GRADING_UNITS, runningHours, formatHours } from '@/lib/grading';
 import { lookupStandardYield, lookupCountRange, calculateYield, calculateYieldDifference, YIELD_CHART } from '@/lib/yieldChart';
 import { VA_VARIETIES, lookupHlVaStandardYield, lookupHlVaCountRange } from '@/lib/hlVa';
@@ -194,7 +195,7 @@ function SupervisorDropdown({ supervisors, selected, onToggle }: SupervisorDropd
 
 export default function DailyEntryPage() {
   const { showToast } = useToast();
-  const { isSubUser } = useAuth();
+  const { isAdmin, checkEditDate, user } = useAuth();
   const TODAY = new Date().toISOString().split('T')[0];
   const YESTERDAY = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(TODAY);
@@ -203,14 +204,10 @@ export default function DailyEntryPage() {
   const [saving, setSaving] = useState(false);
   const [isConfirmSaveModalOpen, setIsConfirmSaveModalOpen] = useState(false);
 
-  // Sub-users: restrict date to today or yesterday only.
-  // If the current selection is outside that window, snap it back to today.
-  useEffect(() => {
-    if (isSubUser && selectedDate !== TODAY && selectedDate !== YESTERDAY) {
-      setSelectedDate(TODAY);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSubUser, selectedDate]);
+  // Any date may be OPENED (that is a read); whether it can be SAVED depends on
+  // the user's edit window. Mirrors can_edit_on() in migration 027 — RLS rejects
+  // the write anyway, this just says so before the round-trip.
+  const editCheck = checkEditDate('daily-entry', selectedDate);
 
 
   // Hooks
@@ -625,6 +622,10 @@ export default function DailyEntryPage() {
 
   const handleSave = () => {
     if (!selectedLocation) return;
+    if (!editCheck.allowed) {
+      showToast(editCheck.reason || 'You cannot edit this date', 'error');
+      return;
+    }
     setIsConfirmSaveModalOpen(true);
   };
 
@@ -704,6 +705,20 @@ export default function DailyEntryPage() {
           );
         await saveGradingEntries(selectedDate, validRows);
       }
+      // Audit trail: a non-admin reaching back past yesterday is doing so under
+      // an admin-granted window — record it. Never let logging fail the save.
+      if (!isAdmin && user && selectedDate < YESTERDAY) {
+        const { error: logError } = await supabase.from('data_edit_log').insert({
+          user_id: user.id,
+          user_email: user.email,
+          page_key: 'daily-entry',
+          work_date: selectedDate,
+          table_name: activeTab,
+          action: 'save',
+        });
+        if (logError) console.error('Could not write data_edit_log:', logError);
+      }
+
       showToast(
         `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} data saved successfully!`,
         'success'
@@ -765,27 +780,12 @@ export default function DailyEntryPage() {
       {/* Date & Location Selectors - Sticky */}
       <div className="sticky top-0 z-10 bg-gray-50 px-4 pb-3 space-y-2">
         <div className="grid grid-cols-2 gap-2">
-          {isSubUser ? (
-            // Sub-user: date picker limited to yesterday–today
-            <input
-              type="date"
-              value={selectedDate}
-              min={YESTERDAY}
-              max={TODAY}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === TODAY || val === YESTERDAY) setSelectedDate(val);
-              }}
-              className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500"
-            />
-          ) : (
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500"
-            />
-          )}
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500"
+          />
           <select
             value={selectedLocation}
             onChange={(e) => setSelectedLocation(e.target.value)}
@@ -815,6 +815,18 @@ export default function DailyEntryPage() {
             </button>
           ))}
         </div>
+
+        {/* Why this day can be read but not written */}
+        {!editCheck.allowed && (
+          <div className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5">
+            <span className="text-sm leading-5 flex-shrink-0" aria-hidden>
+              🔒
+            </span>
+            <p className="text-[11px] font-bold text-amber-700 leading-4">
+              Read-only for this date. {editCheck.reason}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Tab Content */}

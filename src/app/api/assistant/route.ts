@@ -8,7 +8,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
-import { isSubUserEmail } from '@/lib/auth/subUsers';
 import { STATIC_SYSTEM_PROMPT, buildRuntimePrompt } from '@/lib/assistant/prompt';
 import { buildAssistantTools, type ToolContext } from '@/lib/assistant/tools';
 import type { AssistantApiRequest, AssistantApiResponse, ToolResult } from '@/lib/assistant/types';
@@ -33,7 +32,14 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
   }
-  const isAdmin = !isSubUserEmail(user.email);
+  // Role comes from the database, not an email list — same source the RLS
+  // policies use, so the assistant can never be more permissive than the tables.
+  const { data: profile } = await supabase
+    .from('app_users')
+    .select('role, is_active')
+    .eq('id', user.id)
+    .maybeSingle();
+  const isAdmin = profile?.role === 'admin' && profile.is_active === true;
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json(

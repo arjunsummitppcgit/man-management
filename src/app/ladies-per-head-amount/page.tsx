@@ -143,7 +143,8 @@ interface AmountRecord {
 export default function LadiesPerHeadAmountPage() {
   const now = new Date();
   const router = useRouter();
-  const { isSubUser, loading: authLoading } = useAuth();
+  const { canView, loading: authLoading } = useAuth();
+  const canSeePage = canView('ladies-per-head-amount');
   const { showToast } = useToast();
   const [month, setMonth] = useState(now.getMonth() + 1); // 1-indexed
   const [year, setYear] = useState(now.getFullYear());
@@ -159,12 +160,12 @@ export default function LadiesPerHeadAmountPage() {
   const [batchName, setBatchName] = useState('');
   const [batchSaving, setBatchSaving] = useState(false);
 
-  // Admin-only — send sub-users back to the dashboard
+  // Needs View on this page — everyone else goes back to the dashboard
   useEffect(() => {
-    if (!authLoading && isSubUser) {
+    if (!authLoading && !canSeePage) {
       router.replace('/');
     }
-  }, [authLoading, isSubUser, router]);
+  }, [authLoading, canSeePage, router]);
 
   // Load locations once
   useEffect(() => {
@@ -371,7 +372,7 @@ export default function LadiesPerHeadAmountPage() {
 
   const locationName = locations.find((l) => l.id === locationId)?.name ?? '';
 
-  if (authLoading || isSubUser) {
+  if (authLoading || !canSeePage) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <LoadingSpinner />

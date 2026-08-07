@@ -207,7 +207,7 @@ export default function AssistantPage() {
         subtitle="Ask about attendance, labour, production, grades & targets"
         rightAction={
           <span className="px-3 py-1.5 bg-teal-50 text-teal-700 rounded-full text-[11px] font-bold">
-            {isSubUser ? 'Staff · today only' : 'AI powered'}
+            {isSubUser ? 'Staff · recent days' : 'AI powered'}
           </span>
         }
       />
@@ -227,7 +227,7 @@ export default function AssistantPage() {
                 </p>
                 <p className="text-xs text-gray-600 leading-relaxed">
                   Ask me about supervisor attendance, labour, ladies, production (HON→HL, HL→VA),
-                  grades or targets{isSubUser ? ' — for today' : ' — any date'}.
+                  grades or targets{isSubUser ? ' — for recent days' : ' — any date'}.
                 </p>
                 {isSubUser && (
                   <p className="text-[10px] font-semibold text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5 mt-2">

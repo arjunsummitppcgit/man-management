@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/layout/Sidebar';
 import BottomNav from '@/components/layout/BottomNav';
 import ScrollToTop from '@/components/layout/ScrollToTop';
+import PageGuard from '@/components/layout/PageGuard';
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -24,7 +25,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           print-full-width releases both constraints when printing (see globals.css). */}
       <div className="lg:pl-[268px] print-full-width">
         <div className="max-w-lg mx-auto min-h-screen bg-gray-50 relative lg:max-w-[1560px] lg:mx-auto lg:px-6 xl:px-10 print-full-width">
-          <main className="pb-20 lg:pb-14">{children}</main>
+          <main className="pb-20 lg:pb-14">
+            <PageGuard>{children}</PageGuard>
+          </main>
           <BottomNav />
         </div>
       </div>

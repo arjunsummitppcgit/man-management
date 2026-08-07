@@ -74,7 +74,10 @@ function rangeForPreset(preset: PresetKey): { from: string; to: string } {
 }
 
 export default function AnalyticsPage() {
-  const { isAdmin, loading: authLoading } = useAuth();
+  // Analytics is a grantable page now, not admin-hardcoded — a staff account
+  // with View on it sees the reports.
+  const { canView, loading: authLoading } = useAuth();
+  const canSeeAnalytics = canView('analytics');
   const { locations } = useLocations();
   const { data, loading, fetchAnalytics } = useAnalytics();
   const isDark = useIsDark();
@@ -96,8 +99,8 @@ export default function AnalyticsPage() {
   };
 
   useEffect(() => {
-    if (isAdmin) fetchAnalytics(fromDate, toDate);
-  }, [isAdmin, fromDate, toDate, fetchAnalytics]);
+    if (canSeeAnalytics) fetchAnalytics(fromDate, toDate);
+  }, [canSeeAnalytics, fromDate, toDate, fetchAnalytics]);
 
   const rangeLabel = useMemo(() => {
     if (fromDate === toDate) return format(parseISO(toDate), 'd MMM yyyy');
@@ -114,13 +117,13 @@ export default function AnalyticsPage() {
     );
   }
 
-  if (!isAdmin) {
+  if (!canSeeAnalytics) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 px-6 text-center">
         <span className="text-5xl">🔒</span>
-        <h2 className="text-lg font-bold text-gray-900">Admins only</h2>
+        <h2 className="text-lg font-bold text-gray-900">No access to Analytics</h2>
         <p className="text-sm text-gray-500 max-w-xs">
-          The Analytics page is restricted to admin accounts. Please sign in as an admin to view reports.
+          Ask an admin to grant you View on Analytics under Reports &amp; Settings → Users &amp; Permissions.
         </p>
       </div>
     );

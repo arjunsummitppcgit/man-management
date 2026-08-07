@@ -2,7 +2,10 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export async function middleware(request: NextRequest) {
+// Next 16 renamed the middleware convention to proxy; behaviour is unchanged.
+// This handles authentication only — page-level permissions are checked by
+// PageGuard, and enforced for real by RLS (migration 027).
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Create a response that we can modify (to set refreshed cookies)

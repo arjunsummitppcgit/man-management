@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { pageForPath } from '@/lib/auth/pages';
 
 interface TabItem {
   label: string;
@@ -88,15 +89,16 @@ const tabs: TabItem[] = [
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const { isSubUser } = useAuth();
+  const { canView } = useAuth();
 
   // Don't show nav on login page
   if (pathname === '/login') return null;
 
-  // Sub-users cannot access Attendance sheets or Analytics — admin only
-  const visibleTabs = isSubUser
-    ? tabs.filter((tab) => tab.path !== '/local-ladies-attendance' && tab.path !== '/analytics')
-    : tabs;
+  // Show only the pages this user has View access to (admins pass everything)
+  const visibleTabs = tabs.filter((tab) => {
+    const page = pageForPath(tab.path);
+    return !page || canView(page.key);
+  });
 
   return (
     <nav className="lg:hidden print:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">

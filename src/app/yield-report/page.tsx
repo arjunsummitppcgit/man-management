@@ -22,8 +22,6 @@ const rowSalaryBasic = (entry: { salary_basic?: number | string | null }) =>
   Number(entry.salary_basic) || DEFAULT_NL_LADIES_SALARY_BASIC;
 
 export default function YieldReportPage() {
-  const { isSubUser } = useAuth();
-  
   const TODAY = new Date().toISOString().split('T')[0];
   const YESTERDAY = new Date(Date.now() - 86400000).toISOString().split('T')[0];
   
@@ -35,14 +33,6 @@ export default function YieldReportPage() {
   const [locationFilter, setLocationFilter] = useState('All');
   const [graderFilter, setGraderFilter] = useState('All');
 
-
-  // For sub-users, restrict the date selector to today or yesterday
-  useEffect(() => {
-    if (isSubUser && selectedDate !== TODAY && selectedDate !== YESTERDAY) {
-      setSelectedDate(TODAY);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSubUser, selectedDate]);
 
   // ── HON to HL Yields data ─────────────────────────────────────────────────
   const { entries, loading, fetchYieldEntries } = useYield();
@@ -154,15 +144,6 @@ export default function YieldReportPage() {
     setHvFrom(selectedDate);
     setHvTo(selectedDate);
   }, [selectedDate]);
-
-  // Sub-users: clamp range to yesterday–today
-  useEffect(() => {
-    if (isSubUser) {
-      if (hvFrom < YESTERDAY) setHvFrom(YESTERDAY);
-      if (hvTo > TODAY) setHvTo(TODAY);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSubUser, hvFrom, hvTo]);
 
   const { rangeEntries: hvEntries, rangeLoading: hvLoading, fetchRange: fetchHvRange } = useHlVa();
 
@@ -314,14 +295,10 @@ export default function YieldReportPage() {
     return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
   };
   const handlePrevDate = () => {
-    const prev = shiftDate(selectedDate, -1);
-    if (isSubUser && prev !== TODAY && prev !== YESTERDAY) return;
-    setSelectedDate(prev);
+    setSelectedDate(shiftDate(selectedDate, -1));
   };
   const handleNextDate = () => {
-    const next = shiftDate(selectedDate, 1);
-    if (isSubUser && next !== TODAY && next !== YESTERDAY) return;
-    setSelectedDate(next);
+    setSelectedDate(shiftDate(selectedDate, 1));
   };
 
   // Human-readable label for the current HL to VA date range.
@@ -368,7 +345,6 @@ export default function YieldReportPage() {
             <button
               type="button"
               onClick={handlePrevDate}
-              disabled={isSubUser && selectedDate === YESTERDAY}
               aria-label="Previous day"
               className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200"
             >
@@ -381,7 +357,6 @@ export default function YieldReportPage() {
             <button
               type="button"
               onClick={handleNextDate}
-              disabled={isSubUser && selectedDate === TODAY}
               aria-label="Next day"
               className="w-9 h-9 flex items-center justify-center rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:border-teal-500 hover:text-teal-650 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200"
             >
@@ -474,26 +449,12 @@ export default function YieldReportPage() {
           {/* Date Selector — a screen control, the printed masthead carries the date */}
           <div className="print:hidden bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
             <label className="text-sm font-semibold text-gray-700">Report Date</label>
-            {isSubUser ? (
-              <input
-                type="date"
-                value={selectedDate}
-                min={YESTERDAY}
-                max={TODAY}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === TODAY || val === YESTERDAY) setSelectedDate(val);
-                }}
-                className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500"
-              />
-            ) : (
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500"
-              />
-            )}
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500"
+            />
           </div>
 
           {/* HON to HL Filters — screen only; the print run shows what they narrowed to */}
@@ -741,8 +702,7 @@ export default function YieldReportPage() {
                 <input
                   type="date"
                   value={hvFrom}
-                  min={isSubUser ? YESTERDAY : undefined}
-                  max={isSubUser ? TODAY : hvTo}
+                  max={hvTo}
                   onChange={(e) => setHvFrom(e.target.value)}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-indigo-500"
                 />
@@ -752,8 +712,7 @@ export default function YieldReportPage() {
                 <input
                   type="date"
                   value={hvTo}
-                  min={isSubUser ? YESTERDAY : hvFrom}
-                  max={isSubUser ? TODAY : undefined}
+                  min={hvFrom}
                   onChange={(e) => setHvTo(e.target.value)}
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-indigo-500"
                 />

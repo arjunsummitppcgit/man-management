@@ -3,13 +3,13 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
+import { pageForPath } from '@/lib/auth/pages';
 import { supabase } from '@/lib/supabase/client';
 
 interface NavItem {
   label: string;
   path: string;
   paths: string[]; // SVG path data
-  adminOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -45,7 +45,6 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: 'Ladies Attendance',
     path: '/local-ladies-attendance',
-    adminOnly: true,
     paths: [
       'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z',
     ],
@@ -60,7 +59,6 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: 'Analytics',
     path: '/analytics',
-    adminOnly: true,
     paths: [
       'M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0l-5.94-2.281m5.94 2.28l-2.28 5.941',
     ],
@@ -78,9 +76,13 @@ const NAV_ITEMS: NavItem[] = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isSubUser } = useAuth();
+  const { user, isSubUser, canView } = useAuth();
 
-  const visibleItems = NAV_ITEMS.filter((item) => !(item.adminOnly && isSubUser));
+  // Driven by the user's actual page rights now, not a static adminOnly flag
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    const page = pageForPath(item.path);
+    return !page || canView(page.key);
+  });
   const email = user?.email ?? '';
   const displayName = email ? email.split('@')[0] : 'User';
 

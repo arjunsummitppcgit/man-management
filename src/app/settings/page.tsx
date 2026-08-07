@@ -11,6 +11,7 @@ import { exportToPDF, exportToExcel } from '@/lib/export';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppSettings, SETTING_NL_LADIES_SALARY_BASIC } from '@/hooks/useAppSettings';
+import UserManagementSection from '@/components/settings/UserManagementSection';
 import { getTodayString } from '@/lib/utils';
 
 
@@ -26,11 +27,11 @@ export default function SettingsPage() {
   const { showToast } = useToast();
   const router = useRouter();
   const { locations, addLocation } = useLocations();
-  const { isSubUser } = useAuth();
-  // Sub-users cannot access attendance reports — admin only
-  const reportTypes = isSubUser
-    ? REPORT_TYPES.filter((type) => type !== 'Supervisor Attendance')
-    : REPORT_TYPES;
+  const { isAdmin } = useAuth();
+  // Supervisor Attendance is an admin report
+  const reportTypes = isAdmin
+    ? REPORT_TYPES
+    : REPORT_TYPES.filter((type) => type !== 'Supervisor Attendance');
   const [reportType, setReportType] = useState(REPORT_TYPES[0]);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -431,7 +432,7 @@ export default function SettingsPage() {
         </div>
 
         {/* My Tasks — maintenance issues & follow-ups (admin-only) */}
-        {!isSubUser && (
+        {isAdmin && (
           <Link
             href="/maintenance-tasks"
             className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100 transition-transform active:scale-[0.99]"
@@ -462,8 +463,11 @@ export default function SettingsPage() {
           </Link>
         )}
 
+        {/* Master control: logins, page rights and old-date windows (admin-only) */}
+        {isAdmin && <UserManagementSection actorEmail={userEmail} />}
+
         {/* Manage Locations (admin-only) */}
-        {!isSubUser && (
+        {isAdmin && (
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -503,7 +507,7 @@ export default function SettingsPage() {
         )}
 
         {/* Company Ladies Salary Basic (admin-only) */}
-        {!isSubUser && (
+        {isAdmin && (
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -731,7 +735,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Change Password (admin-only — staff accounts are managed by the admin) */}
-        {!isSubUser && (
+        {isAdmin && (
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 min-w-0">

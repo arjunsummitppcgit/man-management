@@ -42,7 +42,8 @@ interface AssignmentRecord {
 export default function MonthlyAttendanceView() {
   const now = new Date();
   const router = useRouter();
-  const { isSubUser, loading: authLoading } = useAuth();
+  const { canView, loading: authLoading } = useAuth();
+  const canSeeSupervisors = canView('supervisors');
   const { showToast } = useToast();
   const [month, setMonth] = useState(now.getMonth() + 1); // 1-indexed
   const [year, setYear] = useState(now.getFullYear());
@@ -63,12 +64,12 @@ export default function MonthlyAttendanceView() {
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Attendance is admin-only — send sub-users back to the dashboard
+  // Needs View on Supervisors — anyone without it goes back to the dashboard
   useEffect(() => {
-    if (!authLoading && isSubUser) {
+    if (!authLoading && !canSeeSupervisors) {
       router.replace('/');
     }
-  }, [authLoading, isSubUser, router]);
+  }, [authLoading, canSeeSupervisors, router]);
 
   // Fetch data when month or year changes
   useEffect(() => {
@@ -277,8 +278,8 @@ export default function MonthlyAttendanceView() {
     });
   }, [supervisors, daysInMonth, assignmentLookup]);
 
-  // Block rendering for sub-users while the redirect kicks in
-  if (authLoading || isSubUser) {
+  // Hold the render while the redirect for users without access kicks in
+  if (authLoading || !canSeeSupervisors) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <LoadingSpinner />

@@ -149,7 +149,9 @@ interface AttendanceByDateRecord {
 
 export default function SupervisorsPage() {
   const { showToast } = useToast();
-  const { isSubUser } = useAuth();
+  const { canModify } = useAuth();
+  // Marking attendance is a write; view-only users still see the roster.
+  const canMarkAttendance = canModify('supervisors');
   const { supervisors, loading, fetchSupervisors, addSupervisor, updateSupervisor, deactivateSupervisor } = useSupervisors();
   const [mainView, setMainView] = useState<'list' | 'attendance' | 'monthly'>('list');
   const [searchQuery, setSearchQuery] = useState('');
@@ -276,8 +278,8 @@ export default function SupervisorsPage() {
         }
       />
 
-      {/* Segmented Control — Attendance view is admin-only */}
-      {!isSubUser && (
+      {/* Segmented Control — attendance needs Modify on this page */}
+      {canMarkAttendance && (
         <div className="px-4 mb-4">
           <div className="flex bg-gray-100 rounded-xl p-1">
             <button
@@ -315,7 +317,7 @@ export default function SupervisorsPage() {
       )}
 
       {/* List View */}
-      {(mainView === 'list' || isSubUser) && (
+      {(mainView === 'list' || !canMarkAttendance) && (
         <div className="px-4 space-y-3 animate-fade-in">
           {/* Search */}
           <div className="relative">
@@ -405,8 +407,8 @@ export default function SupervisorsPage() {
         </div>
       )}
 
-      {/* Attendance View — admin only */}
-      {mainView === 'attendance' && !isSubUser && (
+      {/* Attendance View — needs Modify */}
+      {mainView === 'attendance' && canMarkAttendance && (
         <div className="px-4 space-y-3 animate-fade-in">
           <select
             value={selectedSupervisorId}
@@ -459,8 +461,8 @@ export default function SupervisorsPage() {
         </div>
       )}
 
-      {/* Monthly Attendance View — admin only */}
-      {mainView === 'monthly' && !isSubUser && (
+      {/* Monthly Attendance View — needs Modify */}
+      {mainView === 'monthly' && canMarkAttendance && (
         <MonthlyAttendanceView />
       )}
 
