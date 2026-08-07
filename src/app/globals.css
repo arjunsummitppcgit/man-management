@@ -420,6 +420,16 @@ input:focus, select:focus, textarea:focus {
   border-color: rgba(99, 102, 241, 0.35) !important;
 }
 
+/* Divider above the live column totals in the Daily Entry grids — the light
+   -100 borders vanish against the dark table background. */
+.dark .border-teal-100 {
+  border-color: rgba(20, 184, 166, 0.35) !important;
+}
+
+.dark .border-amber-100 {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
 
 /* Ensure teal and other colored text has high visibility in dark mode */
 .dark .text-teal-700 {

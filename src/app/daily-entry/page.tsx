@@ -1520,6 +1520,33 @@ export default function DailyEntryPage() {
                         );
                       })}
                     </div>
+
+                    {/* Running totals — sits under the last row so the sums are
+                        visible while another batch is being added. */}
+                    {(() => {
+                      const totalHon = yieldRows.reduce((s, r) => s + (parseFloat(r.hon_kgs) || 0), 0);
+                      const totalHl = yieldRows.reduce((s, r) => s + (parseFloat(r.hl_kgs) || 0), 0);
+                      const overall = calculateYield(totalHon, totalHl);
+                      const filled = yieldRows.filter((r) => parseFloat(r.hon_kgs) > 0 || parseFloat(r.hl_kgs) > 0).length;
+                      return (
+                        <div className="grid grid-cols-[120px_100px_90px_90px_120px_120px_60px_60px_70px_32px] gap-1.5 items-center mt-2 pt-2 border-t-2 border-teal-100">
+                          <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider">
+                            Total · {filled} batch{filled === 1 ? '' : 'es'}
+                          </span>
+                          <span />
+                          <span className="text-xs font-extrabold text-right px-1 text-teal-800">{totalHon.toFixed(3)}</span>
+                          <span className="text-xs font-extrabold text-right px-1 text-teal-800">{totalHl.toFixed(3)}</span>
+                          <span />
+                          <span />
+                          <span className="text-[11px] font-extrabold text-right px-1 text-teal-700">
+                            {overall !== null ? `${overall.toFixed(2)}%` : '-'}
+                          </span>
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -1739,6 +1766,39 @@ export default function DailyEntryPage() {
                         );
                       })}
                     </div>
+
+                    {/* Running totals. Only the additive columns are summed —
+                        ₹/Head, Basic and Diff are per-head rates, so a sum of
+                        them would be a meaningless number. */}
+                    {(() => {
+                      const totalLadies = nllRows.reduce((s, r) => s + (parseInt(r.no_of_ladies) || 0), 0);
+                      const totalHl = nllRows.reduce((s, r) => s + (parseFloat(r.hl_qty) || 0), 0);
+                      const totalPd = nllRows.reduce((s, r) => s + (parseFloat(r.pd_qty) || 0), 0);
+                      const totalPnl = nllRows.reduce((s, r) => {
+                        const perHead = parseFloat(r.per_head_amount) || 0;
+                        const ladies = parseInt(r.no_of_ladies) || 0;
+                        return perHead > 0 ? s + (perHead - SALARY_BASIC) * ladies : s;
+                      }, 0);
+                      const filled = nllRows.filter((r) => (parseInt(r.no_of_ladies) || 0) > 0).length;
+                      return (
+                        <div className="grid grid-cols-[140px_80px_80px_80px_80px_100px_80px_80px_80px_32px] gap-1.5 items-center mt-2 pt-2 border-t-2 border-amber-100">
+                          <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">
+                            Total · {filled} contractor{filled === 1 ? '' : 's'}
+                          </span>
+                          <span className="text-xs font-extrabold text-right px-1 text-amber-800">{totalLadies}</span>
+                          <span className="text-xs font-extrabold text-right px-1 text-amber-800">{totalHl.toFixed(3)}</span>
+                          <span className="text-xs font-extrabold text-right px-1 text-amber-800">{totalPd.toFixed(3)}</span>
+                          <span className="text-xs font-extrabold text-right px-1 text-amber-800">{(totalHl + totalPd).toFixed(3)}</span>
+                          <span />
+                          <span />
+                          <span />
+                          <span className={`text-xs font-extrabold text-right px-1 ${totalPnl >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            {totalPnl >= 0 ? '+' : ''}{totalPnl.toFixed(0)}
+                          </span>
+                          <span />
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -1955,6 +2015,35 @@ export default function DailyEntryPage() {
                         );
                       })}
                     </div>
+
+                    {/* Running totals — kept in the grid so each sum sits under
+                        the column it belongs to as more batches are added. */}
+                    {(() => {
+                      const totalHl = hlVaRows.reduce((s, r) => s + (parseFloat(r.hl_kgs) || 0), 0);
+                      const totalVa = hlVaRows.reduce((s, r) => s + (parseFloat(r.va_kgs) || 0), 0);
+                      const overall = calculateYield(totalHl, totalVa);
+                      const filled = hlVaRows.filter((r) => parseFloat(r.hl_kgs) > 0 || parseFloat(r.va_kgs) > 0).length;
+                      return (
+                        <div className="grid grid-cols-[110px_90px_95px_85px_85px_110px_80px_100px_60px_60px_70px_32px] gap-1.5 items-center mt-2 pt-2 border-t-2 border-indigo-100">
+                          <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
+                            Total · {filled} batch{filled === 1 ? '' : 'es'}
+                          </span>
+                          <span />
+                          <span />
+                          <span className="text-xs font-extrabold text-right px-1 text-indigo-800">{totalHl.toFixed(3)}</span>
+                          <span className="text-xs font-extrabold text-right px-1 text-indigo-800">{totalVa.toFixed(3)}</span>
+                          <span />
+                          <span />
+                          <span />
+                          <span className="text-[11px] font-extrabold text-right px-1 text-teal-700">
+                            {overall !== null ? `${overall.toFixed(2)}%` : '-'}
+                          </span>
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
