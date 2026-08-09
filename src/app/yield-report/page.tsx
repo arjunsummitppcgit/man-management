@@ -5,7 +5,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import ColumnFilter from '@/components/ui/ColumnFilter';
 import PrintButton from '@/components/ui/PrintButton';
-import { useAuth } from '@/hooks/useAuth';
+import { todayIST, yesterdayIST } from '@/lib/auth/permissions';
 import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useHlVa } from '@/hooks/useHlVa';
@@ -22,11 +22,10 @@ const rowSalaryBasic = (entry: { salary_basic?: number | string | null }) =>
   Number(entry.salary_basic) || DEFAULT_NL_LADIES_SALARY_BASIC;
 
 export default function YieldReportPage() {
-  const TODAY = new Date().toISOString().split('T')[0];
-  const YESTERDAY = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-  
-  // Default to today — header date and all report sections show the same date
-  const [selectedDate, setSelectedDate] = useState(TODAY);
+  // Default to today — header date and all report sections show the same date.
+  // IST, not UTC — see the note in daily-entry. Read once on mount via the lazy
+  // state initialiser, never during a render.
+  const [selectedDate, setSelectedDate] = useState(todayIST);
 
   // ── HON to HL Yields filters ───────────────────────────────────────────────
   const [diffFilter, setDiffFilter] = useState('All');
@@ -128,8 +127,8 @@ export default function YieldReportPage() {
     : null;
 
   // ── HL to VA data ──────────────────────────────────────────────────────────
-  const [hvFrom, setHvFrom] = useState(YESTERDAY);
-  const [hvTo, setHvTo] = useState(YESTERDAY);
+  const [hvFrom, setHvFrom] = useState(yesterdayIST);
+  const [hvTo, setHvTo] = useState(yesterdayIST);
 
   // Column-header filters for the HL to VA table (multi-select per column)
   const [hvBatchFilter, setHvBatchFilter] = useState<string[]>([]);

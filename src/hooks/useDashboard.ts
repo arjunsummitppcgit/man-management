@@ -6,6 +6,21 @@ import type { DashboardKPIs, LocationBreakdown } from '@/types';
 import { format, parseISO, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { getDaysRemainingInMonth, calculateDailyAverage } from '@/lib/utils';
 
+/** Row shape of the supervisor-assignment select, including its embedded relations. */
+interface AssignmentRow {
+  id: string;
+  location_id: string;
+  is_present: number | boolean;
+  location: { name: string } | null;
+  supervisor: { name: string } | null;
+}
+
+/** Only the fields the day-notes list reads off yesterday's sanitization rows. */
+interface SanitizationNoteRow {
+  notes: string | null;
+  location: { name: string } | null;
+}
+
 export function useDashboard() {
   const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
   const [locationBreakdowns, setLocationBreakdowns] = useState<LocationBreakdown[]>([]);
@@ -74,19 +89,23 @@ export function useDashboard() {
       const { data: assignmentData, error: assignmentError } = await assignmentQuery;
       if (assignmentError) throw assignmentError;
 
-      const supervisorsPresent = (assignmentData || []).reduce(
-        (sum, row) => sum + (Number((row as any).is_present) || 0),
+      // Supabase types embedded relations loosely, so the row shape is named
+      // once here rather than cast at each use.
+      const assignments = (assignmentData ?? []) as unknown as AssignmentRow[];
+
+      const supervisorsPresent = assignments.reduce(
+        (sum, row) => sum + (Number(row.is_present) || 0),
         0
       );
 
       // Extract names of present supervisors
-      const supervisorNames = ((assignmentData as any) || [])
-        .map((a: any) => a.supervisor?.name)
-        .filter((name: any): name is string => typeof name === 'string');
+      const supervisorNames = assignments
+        .map((a) => a.supervisor?.name)
+        .filter((name): name is string => typeof name === 'string');
 
       // Construct breakdown string (e.g., "2 PPC 1, 1 PPC 2")
       const counts: Record<string, number> = {};
-      for (const item of (assignmentData as any) || []) {
+      for (const item of assignments) {
         const locName = item.location?.name || 'Unknown';
         counts[locName] = (counts[locName] || 0) + 1;
       }
@@ -206,7 +225,7 @@ export function useDashboard() {
       const yesterdayMasks = (yesterdaySanitizationData || []).reduce((sum, row) => sum + (row.masks || 0), 0);
 
       // Collect any non-empty day notes from yesterday's sanitization rows
-      const yesterdayNotes = ((yesterdaySanitizationData as any[]) || [])
+      const yesterdayNotes = ((yesterdaySanitizationData ?? []) as unknown as SanitizationNoteRow[])
         .filter((row) => row.notes && String(row.notes).trim())
         .map((row) => ({
           location: row.location?.name || 'Unknown',

@@ -12,6 +12,7 @@ import { useSanitization } from '@/hooks/useSanitization';
 import { useProcessing } from '@/hooks/useProcessing';
 import { useSupervisors } from '@/hooks/useSupervisors';
 import { useAuth } from '@/hooks/useAuth';
+import { todayIST, yesterdayIST } from '@/lib/auth/permissions';
 import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useAppSettings } from '@/hooks/useAppSettings';
@@ -196,9 +197,12 @@ function SupervisorDropdown({ supervisors, selected, onToggle }: SupervisorDropd
 export default function DailyEntryPage() {
   const { showToast } = useToast();
   const { isAdmin, checkEditDate, user } = useAuth();
-  const TODAY = new Date().toISOString().split('T')[0];
-  const YESTERDAY = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-  const [selectedDate, setSelectedDate] = useState(TODAY);
+  // IST, not UTC. toISOString() is UTC, which is still on the previous day until
+  // 5:30 AM IST — a night-shift entry would have defaulted to yesterday. The
+  // permission rules (can_edit_on, migration 027) have always used IST, so this
+  // keeps the pre-filled date and the rule that validates it on the same day.
+  // Lazy initialiser: the clock is read once on mount, never during a render.
+  const [selectedDate, setSelectedDate] = useState(todayIST);
   const [selectedLocation, setSelectedLocation] = useState('');
   const [activeTab, setActiveTab] = useState<TabType>('workforce');
   const [saving, setSaving] = useState(false);
@@ -707,7 +711,7 @@ export default function DailyEntryPage() {
       }
       // Audit trail: a non-admin reaching back past yesterday is doing so under
       // an admin-granted window — record it. Never let logging fail the save.
-      if (!isAdmin && user && selectedDate < YESTERDAY) {
+      if (!isAdmin && user && selectedDate < yesterdayIST()) {
         const { error: logError } = await supabase.from('data_edit_log').insert({
           user_id: user.id,
           user_email: user.email,

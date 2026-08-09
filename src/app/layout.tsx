@@ -3,6 +3,7 @@ import { Inter, Sora } from 'next/font/google';
 import './globals.css';
 import AppShell from '@/components/layout/AppShell';
 import { ToastProvider } from '@/components/ui/Toast';
+import { AuthProvider } from '@/hooks/useAuth';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -40,7 +41,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${sora.variable} h-full`}>
+    // The theme script below sets the `dark` class before React hydrates, so the
+    // server's className never matches — that difference is intended, not a bug.
+    <html lang="en" className={`${inter.variable} ${sora.variable} h-full`} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -58,7 +61,12 @@ export default function RootLayout({
       </head>
       <body className="min-h-full font-sans antialiased bg-gray-50 text-gray-900">
         <ToastProvider>
-          <AppShell>{children}</AppShell>
+          {/* One session + rights fetch for the whole app. Previously every
+              useAuth() call site kept its own copy, so a single page mounted
+              four independent listeners and four copies of the same queries. */}
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+          </AuthProvider>
         </ToastProvider>
       </body>
     </html>

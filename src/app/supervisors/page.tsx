@@ -140,13 +140,6 @@ interface AttendanceBySupervisorRecord {
   is_present: number | boolean;
 }
 
-interface AttendanceByDateRecord {
-  supervisor_id: string;
-  supervisor: { name: string } | null;
-  location: { name: string } | null;
-  is_present: number | boolean;
-}
-
 export default function SupervisorsPage() {
   const { showToast } = useToast();
   const { canModify } = useAuth();

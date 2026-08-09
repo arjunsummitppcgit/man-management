@@ -1,6 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { supabase } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 import {
@@ -36,7 +45,23 @@ interface AuthState {
   refresh: () => void;
 }
 
-export function useAuth(): AuthState {
+const AuthContext = createContext<AuthState | null>(null);
+
+/**
+ * Holds the session and rights ONCE for the whole app.
+ *
+ * Two rules in here exist to stop the page reloading itself under the user's
+ * hands, and both matter — see the notes at each site:
+ *   1. an auth event that does not change WHO is signed in must not produce new
+ *      state, and
+ *   2. `loading` never goes back to true once a user has been resolved.
+ */
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const value = useAuthState();
+  return createElement(AuthContext.Provider, { value }, children);
+}
+
+function useAuthState(): AuthState {
   const [user, setUser] = useState<User | null>(null);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [permissions, setPermissions] = useState<Record<string, PermissionFlags>>({});
@@ -48,35 +73,52 @@ export function useAuth(): AuthState {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ?? null);
+      setUser((prev) => (prev?.id === data.user?.id ? prev : data.user ?? null));
       if (!data.user) setLoading(false);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const next = session?.user ?? null;
+      // supabase-js re-emits SIGNED_IN every time the tab regains visibility
+      // (GoTrueClient#_recoverAndRefresh, wired to visibilitychange) and again
+      // over its BroadcastChannel when another tab moves. The session is
+      // re-read from localStorage, so `next` is a fresh object with identical
+      // contents. Storing it would change the identity of `user`, re-run the
+      // rights effect below, and blank the page mid-typing. Only a genuine
+      // change of account is worth new state.
+      setUser((prev) => (prev?.id === next?.id ? prev : next));
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   // Profile + rights. RLS lets a user read their own rows and nothing else.
+  // Keyed on the id, not the object, for the reason above.
+  const userId = user?.id ?? null;
+  // Which user we already hold rights for — lets a re-check run in the
+  // background instead of throwing the app back to a spinner.
+  const loadedFor = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
+      loadedFor.current = null;
       setAppUser(null);
       setPermissions({});
       setWindows([]);
+      setLoading(false);
       return;
     }
 
     let cancelled = false;
-    setLoading(true);
+    if (loadedFor.current !== userId) setLoading(true);
+
     void (async () => {
       const [profileRes, permsRes, windowsRes] = await Promise.all([
-        supabase.from('app_users').select('*').eq('id', user.id).maybeSingle(),
-        supabase.from('user_page_permissions').select('*').eq('user_id', user.id),
-        supabase.from('user_edit_windows').select('*').eq('user_id', user.id).is('revoked_at', null),
+        supabase.from('app_users').select('*').eq('id', userId).maybeSingle(),
+        supabase.from('user_page_permissions').select('*').eq('user_id', userId),
+        supabase.from('user_edit_windows').select('*').eq('user_id', userId).is('revoked_at', null),
       ]);
       if (cancelled) return;
 
@@ -96,21 +138,22 @@ export function useAuth(): AuthState {
         )
       );
       setWindows(((windowsRes.data as EditWindow[] | null) || []).filter((w) => isWindowOpen(w)));
+      loadedFor.current = userId;
       setLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [user, reloadKey]);
+  }, [userId, reloadKey]);
 
   // Login history — fire and forget, never blocks the session
   useEffect(() => {
-    if (!user) return;
+    if (!userId) return;
     void supabase.rpc('touch_last_login').then(({ error }) => {
       if (error) console.error('Could not record last login:', error);
     });
-  }, [user]);
+  }, [userId]);
 
   const isAdmin = !loading && !!user && appUser?.role === 'admin' && appUser.is_active;
   const isActive = !!appUser?.is_active;
@@ -148,4 +191,10 @@ export function useAuth(): AuthState {
     }),
     [user, appUser, isAdmin, permissions, windows, canView, canModify, checkEditDate, loading, refresh]
   );
+}
+
+export function useAuth(): AuthState {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
+  return ctx;
 }

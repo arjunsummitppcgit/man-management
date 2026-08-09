@@ -7,14 +7,13 @@ import EmptyState from '@/components/ui/EmptyState';
 import ProcessingCharts from '@/components/dashboard/ProcessingCharts';
 import { useDashboard } from '@/hooks/useDashboard';
 import { useLocations } from '@/hooks/useLocations';
-import { useAuth } from '@/hooks/useAuth';
-
-
-
-const TODAY = new Date().toISOString().split('T')[0];
+import { todayIST } from '@/lib/auth/permissions';
 
 export default function DashboardPage() {
-  const [selectedDate, setSelectedDate] = useState(TODAY);
+  // IST, not UTC — see the note in daily-entry. As a lazy initialiser this is
+  // also read per mount rather than once at module load, so a tab left open
+  // overnight picks up the new day on its next visit instead of staying stale.
+  const [selectedDate, setSelectedDate] = useState(todayIST);
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [isDark, setIsDark] = useState(false);
   const [showLiveAnalytics, setShowLiveAnalytics] = useState(true);
@@ -61,7 +60,7 @@ export default function DashboardPage() {
         month: 'long',
         year: 'numeric',
       });
-    } catch (e) {
+    } catch {
       return selectedDate;
     }
   }, [selectedDate]);
@@ -130,7 +129,7 @@ export default function DashboardPage() {
         month: 'short',
         year: 'numeric',
       });
-    } catch (e) {
+    } catch {
       return kpis.yesterdayDate;
     }
   }, [kpis?.yesterdayDate]);
