@@ -333,37 +333,37 @@ export default function MonthlyAttendanceView() {
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-md overflow-hidden">
-            {/* Scrollable Wrapper */}
-            <div className="overflow-x-auto">
+            {/* Scrollable Wrapper — capped height so the header can pin to its top */}
+            <div className="overflow-auto max-h-[70vh]">
               <table className="w-full border-collapse text-left text-xs">
                 <thead>
-                  <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
+                  <tr className="reg-head bg-gray-50 dark:bg-gray-800/50">
                     {/* Sticky S NO Column */}
-                    <th className="px-3 py-3 font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky left-0 z-20 bg-gray-50 dark:bg-gray-800 min-w-[48px] text-center border-r border-gray-100 dark:border-gray-800">
+                    <th className="px-3 py-3 font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 left-0 z-30 bg-gray-50 dark:bg-gray-800 min-w-[48px] text-center border-r border-gray-100 dark:border-gray-800">
                       S.No
                     </th>
                     {/* Sticky Name Column */}
-                    <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky left-[48px] z-20 bg-gray-50 dark:bg-gray-800 min-w-[160px] border-r border-gray-200 dark:border-gray-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+                    <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 left-[48px] z-30 bg-gray-50 dark:bg-gray-800 min-w-[160px] border-r border-gray-200 dark:border-gray-800">
                       Name
                     </th>
                     {/* Day Columns */}
                     {daysInMonth.map((day) => (
                       <th
                         key={day.dayNum}
-                        className={`py-3 px-1 text-center font-bold min-w-[36px] border-r border-gray-100 dark:border-gray-800/30 ${
+                        className={`py-3 px-1 text-center font-bold min-w-[36px] border-r border-gray-100 dark:border-gray-800/30 sticky top-0 z-20 ${
                           day.isSunday
                             ? 'bg-emerald-600 dark:bg-emerald-800 text-white font-black'
-                            : 'text-gray-500 dark:text-gray-400'
+                            : 'text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800'
                         }`}
                       >
                         {day.dayNum}
                       </th>
                     ))}
                     {/* Summary Columns */}
-                    <th className="px-3 py-3 font-bold text-emerald-600 dark:text-emerald-400 text-center uppercase tracking-wider min-w-[65px] bg-emerald-50/50 dark:bg-emerald-950/20 border-r border-gray-100 dark:border-gray-800">
+                    <th className="px-3 py-3 font-bold text-emerald-600 dark:text-emerald-400 text-center uppercase tracking-wider min-w-[65px] bg-emerald-50 dark:bg-emerald-950 border-r border-gray-100 dark:border-gray-800 sticky top-0 z-20">
                       Pres
                     </th>
-                    <th className="px-3 py-3 font-bold text-rose-600 dark:text-rose-400 text-center uppercase tracking-wider min-w-[65px] bg-rose-50/50 dark:bg-rose-950/20">
+                    <th className="px-3 py-3 font-bold text-rose-600 dark:text-rose-400 text-center uppercase tracking-wider min-w-[65px] bg-rose-50 dark:bg-rose-950 sticky top-0 z-20">
                       Abs
                     </th>
                   </tr>

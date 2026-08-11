@@ -474,29 +474,29 @@ export default function LadiesPerHeadAmountPage() {
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-md overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="overflow-auto max-h-[70vh]">
               <table className="w-full border-collapse text-left text-xs">
                 <thead>
-                  <tr className="bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-800">
-                    <th className="px-3 py-3 font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky left-0 z-20 bg-gray-50 dark:bg-gray-800 min-w-[48px] text-center border-r border-gray-100 dark:border-gray-800">
+                  <tr className="reg-head bg-gray-50 dark:bg-gray-800/50">
+                    <th className="px-3 py-3 font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 left-0 z-30 bg-gray-50 dark:bg-gray-800 min-w-[48px] text-center border-r border-gray-100 dark:border-gray-800">
                       S.No
                     </th>
-                    <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky left-[48px] z-20 bg-gray-50 dark:bg-gray-800 min-w-[160px] border-r border-gray-200 dark:border-gray-800 shadow-[2px_0_5px_rgba(0,0,0,0.02)]">
+                    <th className="px-4 py-3 font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 left-[48px] z-30 bg-gray-50 dark:bg-gray-800 min-w-[160px] border-r border-gray-200 dark:border-gray-800">
                       Batch Name
                     </th>
                     {daysInMonth.map((day) => (
                       <th
                         key={day.dayNum}
-                        className={`py-3 px-1 text-center font-bold min-w-[48px] border-r border-gray-100 dark:border-gray-800/30 ${
+                        className={`py-3 px-1 text-center font-bold min-w-[48px] border-r border-gray-100 dark:border-gray-800/30 sticky top-0 z-20 ${
                           day.isSunday
                             ? 'bg-emerald-600 dark:bg-emerald-800 text-white font-black'
-                            : 'text-gray-500 dark:text-gray-400'
+                            : 'text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800'
                         }`}
                       >
                         {day.dayNum}
                       </th>
                     ))}
-                    <th className="px-3 py-3 font-bold text-teal-600 dark:text-teal-400 text-center uppercase tracking-wider min-w-[80px] bg-teal-50/50 dark:bg-teal-950/20">
+                    <th className="px-3 py-3 font-bold text-teal-600 dark:text-teal-400 text-center uppercase tracking-wider min-w-[80px] bg-teal-50 dark:bg-teal-950 sticky top-0 z-20">
                       Total
                     </th>
                   </tr>
