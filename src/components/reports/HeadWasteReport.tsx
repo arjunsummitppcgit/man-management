@@ -209,7 +209,7 @@ export default function HeadWasteReport({ yieldEntries, hlVaEntries, date }: Hea
               . Its VA output still counts in the VA column.
             </p>
             <p className="text-[11px] text-gray-500">
-              Only <span className="font-semibold">PPC 1, PPC 2 and Plant</span> are counted — hired
+              Only <span className="font-semibold">PPC 1, PPC 2 and SME</span> are counted — hired
               outside locations are excluded, so these totals will not match the register.
             </p>
             <p className="text-[11px] text-gray-500">

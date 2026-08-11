@@ -28,11 +28,17 @@ export const WASTE_MULTIPLIER_KEY = 'headWasteMultiplier';
 /** Varieties that generate no meaningful waste at the HL → VA stage. */
 export const NO_WASTE_VARIETIES = ['EZPL'];
 
-/** The plant's own locations, in report order. Everything else is hired outside capacity. */
-export const IN_HOUSE_LOCATIONS: { key: string; label: string }[] = [
+/**
+ * Our own locations, in report order. Everything else is hired outside capacity.
+ *
+ * `aliases` carries former names of the same place. Matching is by name rather
+ * than id, so without them a rename would silently drop the location out of the
+ * in-house totals — and the report would look plausible while being wrong.
+ */
+export const IN_HOUSE_LOCATIONS: { key: string; label: string; aliases?: string[] }[] = [
   { key: 'ppc1', label: 'PPC 1' },
   { key: 'ppc2', label: 'PPC 2' },
-  { key: 'plant', label: 'Plant' },
+  { key: 'sme', label: 'SME', aliases: ['plant'] },
 ];
 
 /**
@@ -43,9 +49,17 @@ export function locationKey(name: string | null | undefined): string {
   return (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+/** Every accepted spelling → the in-house row it belongs to. */
+const IN_HOUSE_BY_KEY = new Map<string, string>(
+  IN_HOUSE_LOCATIONS.flatMap((l) => [l.key, ...(l.aliases || [])].map((k) => [k, l.key] as const))
+);
+
+export function inHouseKey(name: string | null | undefined): string | undefined {
+  return IN_HOUSE_BY_KEY.get(locationKey(name));
+}
+
 export function isInHouseLocation(name: string | null | undefined): boolean {
-  const key = locationKey(name);
-  return IN_HOUSE_LOCATIONS.some((l) => l.key === key);
+  return inHouseKey(name) !== undefined;
 }
 
 function isNoWasteVariety(variety: string | null | undefined): boolean {
@@ -107,8 +121,10 @@ export function buildHeadWasteStatement(
   );
 
   // Hired outside capacity isn't our waste to account for — those entries are skipped
-  const bucket = (name: string | null | undefined): HeadWasteRow | undefined =>
-    inHouse.get(locationKey(name));
+  const bucket = (name: string | null | undefined): HeadWasteRow | undefined => {
+    const key = inHouseKey(name);
+    return key ? inHouse.get(key) : undefined;
+  };
 
   yieldEntries.forEach((e) => {
     const row = bucket(e.location?.name);

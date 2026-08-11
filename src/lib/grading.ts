@@ -19,10 +19,10 @@ export interface GradingUnit {
 /** Add a unit here to add a row; existing rows key off `key`, so don't rename those. */
 export const GRADING_UNITS: GradingUnit[] = [
   { key: 'ppc1', label: 'PPC 1', kind: 'machine' },
-  { key: 'plant_scanner', label: 'Plant PPC Scanner Machine', kind: 'machine' },
-  { key: 'plant_roller', label: 'Plant PPC Roller Machine', kind: 'machine' },
-  { key: 'raju_boys_out', label: 'Raju Boys Out Time Plant', kind: 'note' },
-  { key: 'basanth_boys_in', label: 'Basanth Boys Inn Time Plant', kind: 'note' },
+  { key: 'plant_scanner', label: 'SME PPC Scanner Machine', kind: 'machine' },
+  { key: 'plant_roller', label: 'SME PPC Roller Machine', kind: 'machine' },
+  { key: 'raju_boys_out', label: 'Raju Boys Out Time SME', kind: 'note' },
+  { key: 'basanth_boys_in', label: 'Basanth Boys Inn Time SME', kind: 'note' },
 ];
 
 export const MACHINE_UNITS = GRADING_UNITS.filter((u) => u.kind === 'machine');
