@@ -31,20 +31,6 @@ export const fmtDay = (date: string) => {
   }
 };
 
-// ─── Which locations belong in a production table ───────────────────────────
-
-/**
- * Locations where nothing is processed. They exist so headcount and
- * sanitization can be booked against them, but they never carry HON, HL or VA,
- * so a production table gets a column of dashes and nothing else from them.
- * Matched on the normalised name, the way the rest of the app does it.
- */
-const NON_PRODUCTION_LOCATION_KEYS = new Set(['office']);
-
-export function isProductionLocation(name: string | null | undefined): boolean {
-  return !NON_PRODUCTION_LOCATION_KEYS.has((name || '').toLowerCase().replace(/[^a-z0-9]/g, ''));
-}
-
 // ─── Batch ownership ─────────────────────────────────────────────────────────
 
 export const RZ = 'RZ Exports';

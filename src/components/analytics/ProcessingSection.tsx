@@ -27,7 +27,6 @@ import {
   fmtDay,
   yieldPct,
   batchCompany,
-  isProductionLocation,
   RZ,
   SUMMIT,
   SERIES_COLORS,
@@ -120,15 +119,10 @@ export default function ProcessingSection({
   // graders' batch registers instead. The two can differ — the card says so.
   const [company, setCompany] = useState<'all' | BatchCompany>('all');
 
-  // Nothing is processed at the office, so it would only ever contribute a
-  // column of dashes to a production table.
-  const visibleLocs = useMemo(
-    () =>
-      (locationFilter ? locations.filter((l) => l.id === locationFilter) : locations).filter((l) =>
-        isProductionLocation(l.name)
-      ),
-    [locations, locationFilter]
-  );
+  const locationName = useMemo(() => {
+    const byId = new Map(locations.map((l) => [l.id, l.name]));
+    return (id: string | null) => (id && byId.get(id)) || '';
+  }, [locations]);
 
   /** Input → output for this stage: HON→HL, or HL→VA. */
   const inLabel = isHonHl ? 'HON' : 'HL';
@@ -162,29 +156,31 @@ export default function ProcessingSection({
       'Date',
       'Batch ID',
       'Company',
-      ...visibleLocs.map((l) => l.name),
+      'Location',
       `${inLabel} (Kgs)`,
       `${outLabel} (Kgs)`,
       'Yield %',
     ],
-    [visibleLocs, inLabel, outLabel]
+    [inLabel, outLabel]
   );
 
   const tableRows = useMemo(() => {
     const groups = new Map<
       string,
-      { date: string; batchId: string; byLoc: Map<string, number>; inKg: number; outKg: number }
+      { date: string; batchId: string; locs: Set<string>; inKg: number; outKg: number }
     >();
     for (const r of batchRows) {
       const key = `${r.work_date}|${r.batch_id}`;
       let g = groups.get(key);
       if (!g) {
-        g = { date: r.work_date, batchId: r.batch_id, byLoc: new Map(), inKg: 0, outKg: 0 };
+        g = { date: r.work_date, batchId: r.batch_id, locs: new Set(), inKg: 0, outKg: 0 };
         groups.set(key, g);
       }
-      // HL→VA entries may carry no location; they still count toward the batch
-      // total, they just have no column of their own to land in.
-      if (r.location_id) g.byLoc.set(r.location_id, (g.byLoc.get(r.location_id) || 0) + r.inKg);
+      // A yield batch is unique per date, so this is one location. HL→VA splits
+      // a batch across counts and varieties, which can in principle span two —
+      // and may carry none at all, hence the fallback.
+      const name = locationName(r.location_id);
+      if (name) g.locs.add(name);
       g.inKg += r.inKg;
       g.outKg += r.outKg;
     }
@@ -195,25 +191,18 @@ export default function ProcessingSection({
         fmtDay(g.date),
         g.batchId,
         batchCompany(g.batchId),
-        ...visibleLocs.map((l) => {
-          const v = g.byLoc.get(l.id) || 0;
-          return v > 0 ? fmt(v) : 0;
-        }),
+        Array.from(g.locs).sort().join(', ') || '—',
         fmt(g.inKg),
         fmt(g.outKg),
         yieldPct(g.inKg, g.outKg),
       ]);
-  }, [batchRows, visibleLocs]);
+  }, [batchRows, locationName]);
 
   const footer = useMemo(() => {
-    const totals = visibleLocs.map((l) => {
-      const t = batchRows.filter((r) => r.location_id === l.id).reduce((s, r) => s + r.inKg, 0);
-      return t > 0 ? fmt(t) : '—';
-    });
     const grandIn = batchRows.reduce((s, r) => s + r.inKg, 0);
     const grandOut = batchRows.reduce((s, r) => s + r.outKg, 0);
-    return ['Total', '', '', ...totals, fmt(grandIn), fmt(grandOut), yieldPct(grandIn, grandOut)];
-  }, [batchRows, visibleLocs]);
+    return ['Total', '', '', '', fmt(grandIn), fmt(grandOut), yieldPct(grandIn, grandOut)];
+  }, [batchRows]);
 
   const slug = isHonHl ? 'hon-to-hl' : 'hl-to-va';
 
