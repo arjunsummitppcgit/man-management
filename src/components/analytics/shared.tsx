@@ -15,6 +15,14 @@ export const fmtInt = (v: number) => v.toLocaleString('en-IN', { maximumFraction
 /** Per-day averages read better with one decimal — "85.6/day" isn't an exact count. */
 export const fmtAvg = (v: number) => v.toLocaleString('en-IN', { maximumFractionDigits: 1 });
 
+/**
+ * Output as a percentage of input — the recovery for a processing stage. Shown
+ * as a dash rather than 0% when there's no input, since "no batch" and "a batch
+ * that yielded nothing" are different things.
+ */
+export const yieldPct = (inKg: number, outKg: number) =>
+  inKg > 0 ? `${((outKg / inKg) * 100).toFixed(1)}%` : '—';
+
 export const fmtDay = (date: string) => {
   try {
     return format(parseISO(date), 'd MMM');
@@ -22,6 +30,20 @@ export const fmtDay = (date: string) => {
     return date;
   }
 };
+
+// ─── Which locations belong in a production table ───────────────────────────
+
+/**
+ * Locations where nothing is processed. They exist so headcount and
+ * sanitization can be booked against them, but they never carry HON, HL or VA,
+ * so a production table gets a column of dashes and nothing else from them.
+ * Matched on the normalised name, the way the rest of the app does it.
+ */
+const NON_PRODUCTION_LOCATION_KEYS = new Set(['office']);
+
+export function isProductionLocation(name: string | null | undefined): boolean {
+  return !NON_PRODUCTION_LOCATION_KEYS.has((name || '').toLowerCase().replace(/[^a-z0-9]/g, ''));
+}
 
 // ─── Batch ownership ─────────────────────────────────────────────────────────
 

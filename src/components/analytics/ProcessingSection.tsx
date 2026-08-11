@@ -25,7 +25,9 @@ import {
   chartTheme,
   fmt,
   fmtDay,
+  yieldPct,
   batchCompany,
+  isProductionLocation,
   RZ,
   SUMMIT,
   SERIES_COLORS,
@@ -118,10 +120,19 @@ export default function ProcessingSection({
   // graders' batch registers instead. The two can differ — the card says so.
   const [company, setCompany] = useState<'all' | BatchCompany>('all');
 
+  // Nothing is processed at the office, so it would only ever contribute a
+  // column of dashes to a production table.
   const visibleLocs = useMemo(
-    () => (locationFilter ? locations.filter((l) => l.id === locationFilter) : locations),
+    () =>
+      (locationFilter ? locations.filter((l) => l.id === locationFilter) : locations).filter((l) =>
+        isProductionLocation(l.name)
+      ),
     [locations, locationFilter]
   );
+
+  /** Input → output for this stage: HON→HL, or HL→VA. */
+  const inLabel = isHonHl ? 'HON' : 'HL';
+  const outLabel = isHonHl ? 'HL' : 'VA';
 
   const batchRows = useMemo(() => {
     const src = isHonHl
@@ -129,13 +140,15 @@ export default function ProcessingSection({
           work_date: r.work_date,
           location_id: r.location_id as string | null,
           batch_id: r.batch_id,
-          kg: r.hon_kgs || 0,
+          inKg: r.hon_kgs || 0,
+          outKg: r.hl_kgs || 0,
         }))
       : data.hlVa.map((r) => ({
           work_date: r.work_date,
           location_id: r.location_id,
           batch_id: r.batch_id,
-          kg: r.hl_kgs || 0,
+          inKg: r.hl_kgs || 0,
+          outKg: r.va_kgs || 0,
         }));
     return src.filter(
       (r) =>
@@ -145,29 +158,38 @@ export default function ProcessingSection({
   }, [data.yieldBatches, data.hlVa, isHonHl, locationFilter, company]);
 
   const tableHeaders = useMemo(
-    () => ['Date', 'Batch ID', 'Company', ...visibleLocs.map((l) => l.name), 'Total'],
-    [visibleLocs]
+    () => [
+      'Date',
+      'Batch ID',
+      'Company',
+      ...visibleLocs.map((l) => l.name),
+      `${inLabel} (Kgs)`,
+      `${outLabel} (Kgs)`,
+      'Yield %',
+    ],
+    [visibleLocs, inLabel, outLabel]
   );
 
   const tableRows = useMemo(() => {
     const groups = new Map<
       string,
-      { date: string; batchId: string; byLoc: Map<string, number>; total: number }
+      { date: string; batchId: string; byLoc: Map<string, number>; inKg: number; outKg: number }
     >();
     for (const r of batchRows) {
       const key = `${r.work_date}|${r.batch_id}`;
       let g = groups.get(key);
       if (!g) {
-        g = { date: r.work_date, batchId: r.batch_id, byLoc: new Map(), total: 0 };
+        g = { date: r.work_date, batchId: r.batch_id, byLoc: new Map(), inKg: 0, outKg: 0 };
         groups.set(key, g);
       }
       // HL→VA entries may carry no location; they still count toward the batch
       // total, they just have no column of their own to land in.
-      if (r.location_id) g.byLoc.set(r.location_id, (g.byLoc.get(r.location_id) || 0) + r.kg);
-      g.total += r.kg;
+      if (r.location_id) g.byLoc.set(r.location_id, (g.byLoc.get(r.location_id) || 0) + r.inKg);
+      g.inKg += r.inKg;
+      g.outKg += r.outKg;
     }
     return Array.from(groups.values())
-      .filter((g) => g.total > 0)
+      .filter((g) => g.inKg > 0 || g.outKg > 0)
       .sort((a, b) => a.date.localeCompare(b.date) || a.batchId.localeCompare(b.batchId))
       .map((g) => [
         fmtDay(g.date),
@@ -177,17 +199,20 @@ export default function ProcessingSection({
           const v = g.byLoc.get(l.id) || 0;
           return v > 0 ? fmt(v) : 0;
         }),
-        fmt(g.total),
+        fmt(g.inKg),
+        fmt(g.outKg),
+        yieldPct(g.inKg, g.outKg),
       ]);
   }, [batchRows, visibleLocs]);
 
   const footer = useMemo(() => {
     const totals = visibleLocs.map((l) => {
-      const t = batchRows.filter((r) => r.location_id === l.id).reduce((s, r) => s + r.kg, 0);
+      const t = batchRows.filter((r) => r.location_id === l.id).reduce((s, r) => s + r.inKg, 0);
       return t > 0 ? fmt(t) : '—';
     });
-    const grand = batchRows.reduce((s, r) => s + r.kg, 0);
-    return ['Total', '', '', ...totals, fmt(grand)];
+    const grandIn = batchRows.reduce((s, r) => s + r.inKg, 0);
+    const grandOut = batchRows.reduce((s, r) => s + r.outKg, 0);
+    return ['Total', '', '', ...totals, fmt(grandIn), fmt(grandOut), yieldPct(grandIn, grandOut)];
   }, [batchRows, visibleLocs]);
 
   const slug = isHonHl ? 'hon-to-hl' : 'hl-to-va';
