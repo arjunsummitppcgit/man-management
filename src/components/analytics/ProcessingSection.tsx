@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -25,8 +25,12 @@ import {
   chartTheme,
   fmt,
   fmtDay,
+  batchCompany,
+  RZ,
+  SUMMIT,
   SERIES_COLORS,
 } from './shared';
+import type { BatchCompany } from './shared';
 
 export default function ProcessingSection({
   mode,
@@ -108,40 +112,83 @@ export default function ProcessingSection({
   const chartData = byDate.map((d) => ({ date: fmtDay(d.date), kg: Number(d.value.toFixed(3)) }));
   const hasData = total > 0;
 
-  // Pivot table: date rows × location columns
-  const tableHeaders = useMemo(() => {
-    const locCols = locationFilter
-      ? locations.filter((l) => l.id === locationFilter).map((l) => l.name)
-      : locations.map((l) => l.name);
-    return ['Date', ...locCols, 'Total'];
-  }, [locations, locationFilter]);
+  // ─── Detail table: one row per date + batch, broken out by location ────────
+  // The daily_processing figures driving the chips and charts above are keyed
+  // in as a daily total and hold no batch id, so the detail table reads the
+  // graders' batch registers instead. The two can differ — the card says so.
+  const [company, setCompany] = useState<'all' | BatchCompany>('all');
+
+  const visibleLocs = useMemo(
+    () => (locationFilter ? locations.filter((l) => l.id === locationFilter) : locations),
+    [locations, locationFilter]
+  );
+
+  const batchRows = useMemo(() => {
+    const src = isHonHl
+      ? data.yieldBatches.map((r) => ({
+          work_date: r.work_date,
+          location_id: r.location_id as string | null,
+          batch_id: r.batch_id,
+          kg: r.hon_kgs || 0,
+        }))
+      : data.hlVa.map((r) => ({
+          work_date: r.work_date,
+          location_id: r.location_id,
+          batch_id: r.batch_id,
+          kg: r.hl_kgs || 0,
+        }));
+    return src.filter(
+      (r) =>
+        (!locationFilter || r.location_id === locationFilter) &&
+        (company === 'all' || batchCompany(r.batch_id) === company)
+    );
+  }, [data.yieldBatches, data.hlVa, isHonHl, locationFilter, company]);
+
+  const tableHeaders = useMemo(
+    () => ['Date', 'Batch ID', 'Company', ...visibleLocs.map((l) => l.name), 'Total'],
+    [visibleLocs]
+  );
 
   const tableRows = useMemo(() => {
-    const visibleLocs = locationFilter ? locations.filter((l) => l.id === locationFilter) : locations;
-    const byDateLoc = new Map<string, Map<string, number>>();
-    for (const r of rows) {
-      if (!byDateLoc.has(r.work_date)) byDateLoc.set(r.work_date, new Map());
-      const m = byDateLoc.get(r.work_date)!;
-      m.set(r.location_id, (m.get(r.location_id) || 0) + (pick(r) || 0));
+    const groups = new Map<
+      string,
+      { date: string; batchId: string; byLoc: Map<string, number>; total: number }
+    >();
+    for (const r of batchRows) {
+      const key = `${r.work_date}|${r.batch_id}`;
+      let g = groups.get(key);
+      if (!g) {
+        g = { date: r.work_date, batchId: r.batch_id, byLoc: new Map(), total: 0 };
+        groups.set(key, g);
+      }
+      // HL→VA entries may carry no location; they still count toward the batch
+      // total, they just have no column of their own to land in.
+      if (r.location_id) g.byLoc.set(r.location_id, (g.byLoc.get(r.location_id) || 0) + r.kg);
+      g.total += r.kg;
     }
-    return Array.from(byDateLoc.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, locMap]) => {
-        const vals = visibleLocs.map((l) => locMap.get(l.id) || 0);
-        const rowTotal = vals.reduce((s, v) => s + v, 0);
-        return [fmtDay(date), ...vals.map((v) => (v > 0 ? fmt(v) : 0)), fmt(rowTotal)];
-      })
-      .filter((row) => row[row.length - 1] !== '0');
-  }, [rows, locations, locationFilter, pick]);
+    return Array.from(groups.values())
+      .filter((g) => g.total > 0)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.batchId.localeCompare(b.batchId))
+      .map((g) => [
+        fmtDay(g.date),
+        g.batchId,
+        batchCompany(g.batchId),
+        ...visibleLocs.map((l) => {
+          const v = g.byLoc.get(l.id) || 0;
+          return v > 0 ? fmt(v) : 0;
+        }),
+        fmt(g.total),
+      ]);
+  }, [batchRows, visibleLocs]);
 
   const footer = useMemo(() => {
-    const visibleLocs = locationFilter ? locations.filter((l) => l.id === locationFilter) : locations;
     const totals = visibleLocs.map((l) => {
-      const t = rows.filter((r) => r.location_id === l.id).reduce((s, r) => s + (pick(r) || 0), 0);
+      const t = batchRows.filter((r) => r.location_id === l.id).reduce((s, r) => s + r.kg, 0);
       return t > 0 ? fmt(t) : '—';
     });
-    return ['Total', ...totals, fmt(total)];
-  }, [rows, locations, locationFilter, total, pick]);
+    const grand = batchRows.reduce((s, r) => s + r.kg, 0);
+    return ['Total', '', '', ...totals, fmt(grand)];
+  }, [batchRows, visibleLocs]);
 
   const slug = isHonHl ? 'hon-to-hl' : 'hl-to-va';
 
@@ -203,10 +250,23 @@ export default function ProcessingSection({
         </ChartCard>
       </div>
 
-      <ChartCard title={`${title} Detail`} subtitle="daily kg by location">
-        <div className="flex justify-end mb-3">
+      <ChartCard title={`${title} Detail`} subtitle="batch-wise kg by location · from the grader batch register">
+        <div className="flex flex-wrap items-center justify-end gap-2 mb-3">
+          <label htmlFor={`company-${mode}`} className="text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mr-auto">
+            Company
+          </label>
+          <select
+            id={`company-${mode}`}
+            value={company}
+            onChange={(e) => setCompany(e.target.value as 'all' | BatchCompany)}
+            className="px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-200"
+          >
+            <option value="all">All companies</option>
+            <option value={RZ}>{RZ}</option>
+            <option value={SUMMIT}>{SUMMIT}</option>
+          </select>
           <ExportButtons
-            title={`${title} Report — ${rangeLabel}`}
+            title={`${title} Report — ${rangeLabel}${company === 'all' ? '' : ` — ${company}`}`}
             headers={tableHeaders}
             rows={[...tableRows, footer]}
             filename={`${slug}-report`}

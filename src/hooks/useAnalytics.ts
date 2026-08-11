@@ -37,10 +37,25 @@ export interface WorkforceRow {
 export interface HlVaRow {
   work_date: string;
   location_id: string | null;
+  batch_id: string;
   variety: string;
   grade: string;
   hl_kgs: number;
   va_kgs: number;
+}
+
+/**
+ * Batch-level HON→HL rows straight from the graders' yield register. The
+ * daily_processing figures above are a manually keyed daily total and carry no
+ * batch id, so anything that needs to break production down by batch — and
+ * therefore by owning company — has to come from here instead.
+ */
+export interface YieldBatchRow {
+  work_date: string;
+  location_id: string;
+  batch_id: string;
+  hon_kgs: number;
+  hl_kgs: number;
 }
 
 export interface NonLocalRow {
@@ -82,6 +97,7 @@ export interface SanitizationRow {
 
 export interface AnalyticsData {
   processing: ProcessingRow[];
+  yieldBatches: YieldBatchRow[];
   workforce: WorkforceRow[];
   hlVa: HlVaRow[];
   nonLocal: NonLocalRow[];
@@ -97,6 +113,7 @@ export interface AnalyticsData {
 
 const EMPTY: AnalyticsData = {
   processing: [],
+  yieldBatches: [],
   workforce: [],
   hlVa: [],
   nonLocal: [],
@@ -129,6 +146,7 @@ export function useAnalytics() {
 
       const [
         processingRes,
+        yieldBatchesRes,
         workforceRes,
         hlVaRes,
         nonLocalRes,
@@ -144,6 +162,12 @@ export function useAnalytics() {
           .lte('work_date', toDate)
           .order('work_date', { ascending: true }),
         supabase
+          .from('yield_entries')
+          .select('work_date, location_id, batch_id, hon_kgs, hl_kgs')
+          .gte('work_date', fromDate)
+          .lte('work_date', toDate)
+          .order('work_date', { ascending: true }),
+        supabase
           .from('daily_workforce')
           .select(
             'work_date, location_id, labour_kg_basic, labour_daily_wage, labour_company, labour_non_locals, labour_count, boys_count, checking_waste, checking_pd, checking_count, cleaning_count, qc_count, security_count, total_headcount'
@@ -153,7 +177,7 @@ export function useAnalytics() {
           .order('work_date', { ascending: true }),
         supabase
           .from('hl_va_entries')
-          .select('work_date, location_id, variety, grade, hl_kgs, va_kgs')
+          .select('work_date, location_id, batch_id, variety, grade, hl_kgs, va_kgs')
           .gte('work_date', fromDate)
           .lte('work_date', toDate)
           .order('work_date', { ascending: true }),
@@ -186,13 +210,14 @@ export function useAnalytics() {
           .not('location_id', 'is', null),
         supabase
           .from('hl_va_entries')
-          .select('work_date, location_id, variety, grade, hl_kgs, va_kgs')
+          .select('work_date, location_id, batch_id, variety, grade, hl_kgs, va_kgs')
           .gte('work_date', monthStart)
           .lte('work_date', monthEnd),
       ]);
 
       const firstError =
         processingRes.error ||
+        yieldBatchesRes.error ||
         workforceRes.error ||
         hlVaRes.error ||
         nonLocalRes.error ||
@@ -204,6 +229,7 @@ export function useAnalytics() {
 
       setData({
         processing: processingRes.data || [],
+        yieldBatches: yieldBatchesRes.data || [],
         workforce: workforceRes.data || [],
         hlVa: hlVaRes.data || [],
         nonLocal: nonLocalRes.data || [],

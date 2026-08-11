@@ -23,6 +23,22 @@ export const fmtDay = (date: string) => {
   }
 };
 
+// ─── Batch ownership ─────────────────────────────────────────────────────────
+
+export const RZ = 'RZ Exports';
+export const SUMMIT = 'Summit';
+export type BatchCompany = typeof RZ | typeof SUMMIT;
+
+/**
+ * Which company a batch belongs to, read off the batch id: anything whose id
+ * starts with an R (either case) is RZ Exports material, everything else is
+ * ours. Leading spaces are ignored so a stray typo in the register still lands
+ * on the right side.
+ */
+export function batchCompany(batchId: string): BatchCompany {
+  return batchId.trim().charAt(0).toLowerCase() === 'r' ? RZ : SUMMIT;
+}
+
 // ─── Dark mode detection (class-based, kept in sync with the .dark toggle) ──
 
 function subscribeToThemeClass(callback: () => void) {
