@@ -6,6 +6,7 @@ import { useToast } from '@/components/ui/Toast';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useSupervisors } from '@/hooks/useSupervisors';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissionAlert } from '@/components/ui/PermissionAlert';
 import { supabase } from '@/lib/supabase/client';
 import type { Supervisor } from '@/types';
 import MonthlyAttendanceView from '@/components/supervisors/MonthlyAttendanceView';
@@ -143,6 +144,7 @@ interface AttendanceBySupervisorRecord {
 export default function SupervisorsPage() {
   const { showToast } = useToast();
   const { canModify } = useAuth();
+  const { requireModify, reportError } = usePermissionAlert();
   // Marking attendance is a write; view-only users still see the roster.
   const canMarkAttendance = canModify('supervisors');
   const { supervisors, loading, fetchSupervisors, addSupervisor, updateSupervisor, deactivateSupervisor } = useSupervisors();
@@ -227,6 +229,8 @@ export default function SupervisorsPage() {
     joiningDate: string | null,
     salary: number | null
   ) => {
+    // The roster is undated, so Modify on this page is the whole rule.
+    if (!requireModify('supervisors')) return;
     try {
       if (editingSupervisor) {
         await updateSupervisor(editingSupervisor.id, { name, phone, joining_date: joiningDate, salary });
@@ -235,18 +239,21 @@ export default function SupervisorsPage() {
         await addSupervisor(name, phone, joiningDate, salary);
         showToast('Supervisor added successfully', 'success');
       }
-    } catch {
-      showToast('Failed to save supervisor', 'error');
+    } catch (error) {
+      console.error('Error saving supervisor:', error);
+      if (!reportError(error)) showToast('Failed to save supervisor', 'error');
     }
     setEditingSupervisor(null);
   };
 
   const handleDeleteSupervisor = async (id: string) => {
+    if (!requireModify('supervisors')) return;
     try {
       await deactivateSupervisor(id);
       showToast('Supervisor deleted successfully', 'success');
-    } catch {
-      showToast('Failed to delete supervisor', 'error');
+    } catch (error) {
+      console.error('Error deleting supervisor:', error);
+      if (!reportError(error)) showToast('Failed to delete supervisor', 'error');
     }
   };
 
@@ -261,6 +268,9 @@ export default function SupervisorsPage() {
         rightAction={
           <button
             onClick={() => {
+              // Nothing in this form is readable-only, so refuse at the door
+              // rather than after a supervisor has been typed in.
+              if (!requireModify('supervisors')) return;
               setEditingSupervisor(null);
               setModalOpen(true);
             }}
@@ -333,6 +343,7 @@ export default function SupervisorsPage() {
             <button
               key={supervisor.id}
               onClick={() => {
+                if (!requireModify('supervisors')) return;
                 setEditingSupervisor(supervisor);
                 setModalOpen(true);
               }}

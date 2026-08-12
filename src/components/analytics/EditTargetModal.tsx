@@ -7,6 +7,7 @@ import type { Location } from '@/types';
 import Modal from '@/components/ui/Modal';
 import Button from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
+import { usePermissionAlert } from '@/components/ui/PermissionAlert';
 import { fmt } from './shared';
 
 /** `input[type=month]` needs a valid yyyy-MM — analytics data may not have loaded yet. */
@@ -52,6 +53,7 @@ export default function EditTargetModal({
   onSaved: () => void;
 }) {
   const { showToast } = useToast();
+  const { requireModify, reportError } = usePermissionAlert();
 
   const [month, setMonth] = useState(() => monthKey(defaultYear, defaultMonth));
   const [targetKg, setTargetKg] = useState('');
@@ -120,6 +122,8 @@ export default function EditTargetModal({
     combinedValue != null && combinedValue > 0 && locationTotal > 0 ? locationTotal - combinedValue : 0;
 
   const handleSave = async () => {
+    // Targets are undated rows; Modify on Analytics is the whole rule.
+    if (!requireModify('analytics')) return;
     const [year, monthNo] = month.split('-').map(Number);
     if (!year || !monthNo) {
       showToast('Pick a valid month', 'error');
@@ -192,10 +196,12 @@ export default function EditTargetModal({
       onClose();
     } catch (error) {
       console.error('Error saving monthly targets:', error);
-      showToast(
-        error instanceof Error && error.message ? `Could not save: ${error.message}` : 'Could not save the targets',
-        'error'
-      );
+      if (!reportError(error)) {
+        showToast(
+          error instanceof Error && error.message ? `Could not save: ${error.message}` : 'Could not save the targets',
+          'error'
+        );
+      }
     } finally {
       setSaving(false);
     }

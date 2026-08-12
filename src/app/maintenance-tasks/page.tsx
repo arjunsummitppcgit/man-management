@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import PageHeader from '@/components/layout/PageHeader';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
+import { usePermissionAlert } from '@/components/ui/PermissionAlert';
 import { useLocations } from '@/hooks/useLocations';
 import { useMaintenanceTasks, isFollowupDue, daysOpen } from '@/hooks/useMaintenanceTasks';
 import { formatDate, getTodayString } from '@/lib/utils';
@@ -76,6 +77,7 @@ const labelClass =
 
 export default function MaintenanceTasksPage() {
   const { showToast } = useToast();
+  const { requireModify, reportError } = usePermissionAlert();
   const { locations } = useLocations();
   const {
     tasks, loading, fetchTasks, addTask, resolveTask, reopenTask, deleteTask, addFollowup,
@@ -122,7 +124,9 @@ export default function MaintenanceTasksPage() {
     );
   }, [tasks, filter]);
 
+  // Tasks are undated, so Modify on this page is the whole rule.
   const handleCreate = async () => {
+    if (!requireModify('maintenance-tasks')) return;
     if (!form.title.trim()) {
       showToast('Enter a task name', 'error');
       return;
@@ -133,8 +137,9 @@ export default function MaintenanceTasksPage() {
       showToast('Task created', 'success');
       setForm(EMPTY_FORM);
       setCreateOpen(false);
-    } catch {
-      showToast('Failed to create task', 'error');
+    } catch (error) {
+      console.error('Error creating task:', error);
+      if (!reportError(error)) showToast('Failed to create task', 'error');
     } finally {
       setSaving(false);
     }
@@ -142,6 +147,7 @@ export default function MaintenanceTasksPage() {
 
   const handleAddFollowup = async () => {
     if (!selected) return;
+    if (!requireModify('maintenance-tasks')) return;
     if (!followupNote.trim()) {
       showToast('Enter a follow-up note', 'error');
       return;
@@ -158,8 +164,9 @@ export default function MaintenanceTasksPage() {
       setFollowupNote('');
       setFollowupOn('');
       setNextFollowupOn('');
-    } catch {
-      showToast('Failed to add follow-up', 'error');
+    } catch (error) {
+      console.error('Error adding follow-up:', error);
+      if (!reportError(error)) showToast('Failed to add follow-up', 'error');
     } finally {
       setSavingFollowup(false);
     }
@@ -167,33 +174,39 @@ export default function MaintenanceTasksPage() {
 
   const handleResolve = async () => {
     if (!selected) return;
+    if (!requireModify('maintenance-tasks')) return;
     try {
       await resolveTask(selected.id, getTodayString());
       showToast('Task marked resolved', 'success');
-    } catch {
-      showToast('Failed to update task', 'error');
+    } catch (error) {
+      console.error('Error resolving task:', error);
+      if (!reportError(error)) showToast('Failed to update task', 'error');
     }
   };
 
   const handleReopen = async () => {
     if (!selected) return;
+    if (!requireModify('maintenance-tasks')) return;
     try {
       await reopenTask(selected.id);
       showToast('Task reopened', 'success');
-    } catch {
-      showToast('Failed to update task', 'error');
+    } catch (error) {
+      console.error('Error reopening task:', error);
+      if (!reportError(error)) showToast('Failed to update task', 'error');
     }
   };
 
   const handleDelete = async () => {
     if (!selected) return;
+    if (!requireModify('maintenance-tasks')) return;
     if (!window.confirm(`Delete "${selected.title}" and all its follow-up notes?`)) return;
     try {
       await deleteTask(selected.id);
       showToast('Task deleted', 'success');
       setSelectedId(null);
-    } catch {
-      showToast('Failed to delete task', 'error');
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      if (!reportError(error)) showToast('Failed to delete task', 'error');
     }
   };
 
@@ -205,7 +218,11 @@ export default function MaintenanceTasksPage() {
         rightAction={
           <button
             type="button"
-            onClick={() => setCreateOpen(true)}
+            onClick={() => {
+              // Refuse at the door rather than after the whole task is typed.
+              if (!requireModify('maintenance-tasks')) return;
+              setCreateOpen(true);
+            }}
             className="flex items-center gap-1.5 px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl shadow-lg shadow-teal-600/20 transition-colors active:scale-95 min-h-[40px]"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">

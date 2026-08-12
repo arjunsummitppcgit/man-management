@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import PageHeader from '@/components/layout/PageHeader';
 import { useToast } from '@/components/ui/Toast';
+import { usePermissionAlert } from '@/components/ui/PermissionAlert';
 import NumberStepper from '@/components/ui/NumberStepper';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
@@ -197,6 +198,7 @@ function SupervisorDropdown({ supervisors, selected, onToggle }: SupervisorDropd
 export default function DailyEntryPage() {
   const { showToast } = useToast();
   const { isAdmin, checkEditDate, user } = useAuth();
+  const { requireEditDate, reportError } = usePermissionAlert();
   // IST, not UTC. toISOString() is UTC, which is still on the previous day until
   // 5:30 AM IST — a night-shift entry would have defaulted to yesterday. The
   // permission rules (can_edit_on, migration 027) have always used IST, so this
@@ -626,10 +628,9 @@ export default function DailyEntryPage() {
 
   const handleSave = () => {
     if (!selectedLocation) return;
-    if (!editCheck.allowed) {
-      showToast(editCheck.reason || 'You cannot edit this date', 'error');
-      return;
-    }
+    // A popup, not a toast: someone who cannot save has to be stopped and told
+    // why, not shown a message that fades while they keep entering the day.
+    if (!requireEditDate('daily-entry', selectedDate)) return;
     setIsConfirmSaveModalOpen(true);
   };
 
@@ -728,8 +729,11 @@ export default function DailyEntryPage() {
         'success'
       );
       setIsConfirmSaveModalOpen(false);
-    } catch {
-      showToast('Failed to save. Please try again.', 'error');
+    } catch (error) {
+      // If the database was the one that refused, name the reason instead of
+      // sending the user round the same loop again.
+      console.error('Error saving daily entry:', error);
+      if (!reportError(error)) showToast('Failed to save. Please try again.', 'error');
     } finally {
       setSaving(false);
     }

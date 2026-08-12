@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import PageHeader from '@/components/layout/PageHeader';
 import { useToast } from '@/components/ui/Toast';
+import { usePermissionAlert } from '@/components/ui/PermissionAlert';
 import { useLocations } from '@/hooks/useLocations';
 import { supabase } from '@/lib/supabase/client';
 import { exportToPDF, exportToExcel } from '@/lib/export';
@@ -25,6 +26,7 @@ const REPORT_TYPES = [
 
 export default function SettingsPage() {
   const { showToast } = useToast();
+  const { requireAdmin, reportError } = usePermissionAlert();
   const router = useRouter();
   const { locations, addLocation } = useLocations();
   const { isAdmin } = useAuth();
@@ -309,7 +311,11 @@ export default function SettingsPage() {
 
 
 
+  // Locations and app settings are admin-only (migration 027). The controls are
+  // already hidden from staff; these checks catch a stale session whose role
+  // changed while the page was open.
   const handleAddLocation = async () => {
+    if (!requireAdmin('Locations')) return;
     const trimmed = newLocationName.trim();
     if (!trimmed) {
       showToast('Enter a location name', 'error');
@@ -323,13 +329,14 @@ export default function SettingsPage() {
       setLocationModalOpen(false);
     } catch (error) {
       console.error('Error adding location:', error);
-      showToast('Failed to add location', 'error');
+      if (!reportError(error)) showToast('Failed to add location', 'error');
     } finally {
       setAddingLocation(false);
     }
   };
 
   const handleSaveSalaryBasic = async () => {
+    if (!requireAdmin('Salary Basic')) return;
     const value = parseFloat(newSalaryBasic);
     if (!Number.isFinite(value) || value <= 0) {
       showToast('Enter a valid amount', 'error');
@@ -342,10 +349,12 @@ export default function SettingsPage() {
       setBasicModalOpen(false);
     } catch (error) {
       console.error('Error updating salary basic:', error);
-      // Surface the Postgres/RLS reason — "relation does not exist" (migration
-      // not applied) and "row-level security" read very differently.
-      const reason = error instanceof Error ? error.message : String(error);
-      showToast(`Failed to update Salary Basic: ${reason}`, 'error');
+      if (!reportError(error)) {
+        // Surface the Postgres reason — "relation does not exist" (migration not
+        // applied) and a plain network failure read very differently.
+        const reason = error instanceof Error ? error.message : String(error);
+        showToast(`Failed to update Salary Basic: ${reason}`, 'error');
+      }
     } finally {
       setSavingBasic(false);
     }

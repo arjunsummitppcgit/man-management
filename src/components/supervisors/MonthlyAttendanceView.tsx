@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
+import { usePermissionAlert } from '@/components/ui/PermissionAlert';
 import { useAuth } from '@/hooks/useAuth';
 import { getDaysInMonth } from 'date-fns';
 
@@ -45,6 +46,7 @@ export default function MonthlyAttendanceView() {
   const { canView, loading: authLoading } = useAuth();
   const canSeeSupervisors = canView('supervisors');
   const { showToast } = useToast();
+  const { requireEditDate, reportError } = usePermissionAlert();
   const [month, setMonth] = useState(now.getMonth() + 1); // 1-indexed
   const [year, setYear] = useState(now.getFullYear());
   const [supervisors, setSupervisors] = useState<SupervisorRecord[]>([]);
@@ -186,6 +188,10 @@ export default function MonthlyAttendanceView() {
 
   // Handle opening edit modal
   const handleEditCell = (supervisorId: string, supervisorName: string, dateStr: string, dayNum: number) => {
+    // An assignment row is unlocked by Modify on EITHER page (see
+    // can_edit_assignment_on in migration 027). The register already shows the
+    // value, so a day that cannot be written has nothing to open.
+    if (!requireEditDate(['supervisors', 'daily-entry'], dateStr)) return;
     const assignment = assignmentLookup.get(`${supervisorId}_${dateStr}`);
     const currentValue = assignment ? assignment.isPresent : 0;
     const locationId = assignment?.locationId || (locations[0]?.id || '');
@@ -202,6 +208,7 @@ export default function MonthlyAttendanceView() {
   // Handle saving attendance changes
   const handleSaveAttendance = async (val: number, selectedLocId: string) => {
     if (!editingCell) return;
+    if (!requireEditDate(['supervisors', 'daily-entry'], editingCell.dateStr)) return;
     setSubmitting(true);
     try {
       if (val === 0) {
@@ -215,11 +222,13 @@ export default function MonthlyAttendanceView() {
         if (error) throw error;
       } else {
         // To avoid conflicts, delete first then insert
-        await supabase
+        const { error: clearError } = await supabase
           .from('daily_supervisor_assignments')
           .delete()
           .eq('work_date', editingCell.dateStr)
           .eq('supervisor_id', editingCell.supervisorId);
+
+        if (clearError) throw clearError;
 
         const { error: insertError } = await supabase
           .from('daily_supervisor_assignments')
@@ -238,7 +247,7 @@ export default function MonthlyAttendanceView() {
       setEditingCell(null);
     } catch (error) {
       console.error('Error saving attendance:', error);
-      showToast('Failed to save attendance', 'error');
+      if (!reportError(error)) showToast('Failed to save attendance', 'error');
     } finally {
       setSubmitting(false);
     }

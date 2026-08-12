@@ -7,6 +7,7 @@ import PageHeader from '@/components/layout/PageHeader';
 import { supabase } from '@/lib/supabase/client';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
+import { usePermissionAlert } from '@/components/ui/PermissionAlert';
 import { useAuth } from '@/hooks/useAuth';
 import { getDaysInMonth } from 'date-fns';
 
@@ -40,7 +41,8 @@ const InlineInput = ({
   gridPrefix,
 }: {
   initialValue: number;
-  onSave: (val: number) => void;
+  /** Resolves false when the save was refused — the cell then goes back to the stored figure. */
+  onSave: (val: number) => Promise<boolean>;
   id: string;
   rowIndex: number;
   colIndex: number;
@@ -54,11 +56,17 @@ const InlineInput = ({
     setVal(initialValue === 0 ? '' : String(initialValue));
   }, [initialValue]);
 
-  const handleBlur = () => {
+  const handleBlur = async () => {
     const numVal = parseFloat(val);
     const finalVal = isNaN(numVal) || numVal < 0 ? 0 : numVal;
     if (finalVal !== initialValue) {
-      onSave(finalVal);
+      // A refused save must not leave the typed figure sitting in the cell
+      // looking stored — that is what made a lost entry so hard to notice.
+      const saved = await onSave(finalVal);
+      if (!saved) {
+        setVal(initialValue === 0 ? '' : String(initialValue));
+        return;
+      }
     }
     setVal(finalVal === 0 ? '' : String(finalVal));
   };
@@ -143,9 +151,11 @@ interface AmountRecord {
 export default function LadiesPerHeadAmountPage() {
   const now = new Date();
   const router = useRouter();
-  const { canView, loading: authLoading } = useAuth();
+  const { canView, canModify, loading: authLoading } = useAuth();
   const canSeePage = canView('ladies-per-head-amount');
   const { showToast } = useToast();
+  const { requireEditDate, requireAdmin, reportError } = usePermissionAlert();
+  const amountReadOnly = !canModify('ladies-per-head-amount');
   const [month, setMonth] = useState(now.getMonth() + 1); // 1-indexed
   const [year, setYear] = useState(now.getFullYear());
   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
@@ -244,22 +254,22 @@ export default function LadiesPerHeadAmountPage() {
     return lookup;
   }, [amounts]);
 
-  const saveAmountCell = async (batchId: string, dateStr: string, val: number) => {
+  // Asks permission BEFORE writing, and reports the outcome so a refused cell
+  // can be rolled back. RLS lets a blocked DELETE match zero rows without
+  // raising anything, so a save that never happened used to leave the typed
+  // figure on screen and be discovered only the next morning.
+  const saveAmountCell = async (batchId: string, dateStr: string, val: number): Promise<boolean> => {
+    if (!requireEditDate('ladies-per-head-amount', dateStr)) return false;
     try {
-      if (val <= 0) {
-        await supabase
-          .from('local_ladies_per_head_amount')
-          .delete()
-          .eq('work_date', dateStr)
-          .eq('batch_id', batchId);
-      } else {
-        await supabase
-          .from('local_ladies_per_head_amount')
-          .delete()
-          .eq('work_date', dateStr)
-          .eq('batch_id', batchId);
+      const { error: deleteError } = await supabase
+        .from('local_ladies_per_head_amount')
+        .delete()
+        .eq('work_date', dateStr)
+        .eq('batch_id', batchId);
+      if (deleteError) throw deleteError;
 
-        await supabase
+      if (val > 0) {
+        const { error: insertError } = await supabase
           .from('local_ladies_per_head_amount')
           .insert({
             work_date: dateStr,
@@ -267,8 +277,9 @@ export default function LadiesPerHeadAmountPage() {
             location_id: locationId,
             per_head_amount: val,
           });
+        if (insertError) throw insertError;
       }
-      
+
       setAmounts(prev => {
         const filtered = prev.filter(a => !(a.batch_id === batchId && a.work_date === dateStr));
         if (val > 0) {
@@ -276,18 +287,24 @@ export default function LadiesPerHeadAmountPage() {
         }
         return filtered;
       });
+      return true;
     } catch (error) {
       console.error('Error saving amount:', error);
-      showToast('Failed to save amount', 'error');
+      if (!reportError(error)) showToast('Failed to save amount', 'error');
+      return false;
     }
   };
 
   // ── Batch add / rename / remove (shared roster with attendance) ────────────
+  // Reference data: admins only (migration 027). Say so when the form is opened
+  // rather than after a name has been typed.
   const openAddBatch = () => {
+    if (!requireAdmin('The batch list')) return;
     setBatchName('');
     setBatchModal({ mode: 'add' });
   };
   const openEditBatch = (batch: BatchRecord) => {
+    if (!requireAdmin('The batch list')) return;
     setBatchName(batch.name);
     setBatchModal({ mode: 'edit', batch });
   };
@@ -320,7 +337,7 @@ export default function LadiesPerHeadAmountPage() {
       setRefreshTrigger((prev) => prev + 1);
     } catch (error) {
       console.error('Error saving batch:', error);
-      showToast('Failed to save batch', 'error');
+      if (!reportError(error)) showToast('Failed to save batch', 'error');
     } finally {
       setBatchSaving(false);
     }
@@ -340,7 +357,7 @@ export default function LadiesPerHeadAmountPage() {
       setRefreshTrigger((prev) => prev + 1);
     } catch (error) {
       console.error('Error removing batch:', error);
-      showToast('Failed to remove batch', 'error');
+      if (!reportError(error)) showToast('Failed to remove batch', 'error');
     } finally {
       setBatchSaving(false);
     }
@@ -444,6 +461,21 @@ export default function LadiesPerHeadAmountPage() {
           </select>
         </div>
       </div>
+
+      {/* Warn before anything is typed; the popup on save is the backstop. */}
+      {amountReadOnly && (
+        <div className="px-4 mb-4">
+          <div className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5">
+            <span className="text-sm leading-5 flex-shrink-0" aria-hidden>
+              🔒
+            </span>
+            <p className="text-[11px] font-bold text-amber-700 leading-4">
+              View-only: you don&apos;t have Modify rights for Per Head Amount. Ask your admin before
+              entering data — anything typed here will not be saved.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Sheet title + Add Batch */}
       <div className="px-4 mb-3 flex items-center justify-between gap-3">

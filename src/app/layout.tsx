@@ -3,6 +3,7 @@ import { Inter, Sora } from 'next/font/google';
 import './globals.css';
 import AppShell from '@/components/layout/AppShell';
 import { ToastProvider } from '@/components/ui/Toast';
+import { PermissionAlertProvider } from '@/components/ui/PermissionAlert';
 import { AuthProvider } from '@/hooks/useAuth';
 
 const inter = Inter({
@@ -65,7 +66,11 @@ export default function RootLayout({
               useAuth() call site kept its own copy, so a single page mounted
               four independent listeners and four copies of the same queries. */}
           <AuthProvider>
-            <AppShell>{children}</AppShell>
+            {/* Sits inside AuthProvider: the popup explains a refused save using
+                the same rights the rest of the app reads. */}
+            <PermissionAlertProvider>
+              <AppShell>{children}</AppShell>
+            </PermissionAlertProvider>
           </AuthProvider>
         </ToastProvider>
       </body>
