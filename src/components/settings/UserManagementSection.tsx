@@ -111,7 +111,7 @@ function ResetPasswordModal({
  */
 export default function UserManagementSection({ actorEmail }: { actorEmail: string }) {
   const { showToast } = useToast();
-  const { users, permissions, windows, audit, loading, error, fetchAll, savePermissions, addWindow, revokeWindow } =
+  const { users, permissions, windows, audit, loading, error, fetchAll, savePermissions, addWindow, revokeWindows } =
     useUserAdmin(true);
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -128,12 +128,17 @@ export default function UserManagementSection({ actorEmail }: { actorEmail: stri
     return counts;
   }, [permissions]);
 
+  // One grant covering several pages is several rows but one window to the
+  // admin, so count the distinct grants — matching what the modal lists.
   const openWindowCounts = useMemo(() => {
-    const counts = new Map<string, number>();
+    const seen = new Map<string, Set<string>>();
     for (const w of windows) {
-      if (isWindowOpen(w)) counts.set(w.user_id, (counts.get(w.user_id) || 0) + 1);
+      if (!isWindowOpen(w)) continue;
+      const grants = seen.get(w.user_id) ?? new Set<string>();
+      grants.add(`${w.from_date}|${w.to_date}|${w.active_until}|${w.reason ?? ''}`);
+      seen.set(w.user_id, grants);
     }
-    return counts;
+    return new Map([...seen].map(([userId, grants]) => [userId, grants.size]));
   }, [windows]);
 
   const patchUser = async (user: AppUser, body: Record<string, unknown>, successMessage: string) => {
@@ -330,7 +335,7 @@ export default function UserManagementSection({ actorEmail }: { actorEmail: stri
         actorEmail={actorEmail}
         onSavePermissions={savePermissions}
         onAddWindow={addWindow}
-        onRevokeWindow={revokeWindow}
+        onRevokeWindows={revokeWindows}
       />
 
       <ResetPasswordModal user={resetFor} onClose={() => setResetFor(null)} onDone={fetchAll} />
@@ -341,7 +346,10 @@ export default function UserManagementSection({ actorEmail }: { actorEmail: stri
             <p className="text-xs text-gray-400 font-medium py-6 text-center">Nothing recorded yet.</p>
           ) : (
             audit.map((entry) => {
-              const pages = (entry.detail?.view as string[] | undefined)?.map(pageLabel).join(', ');
+              // permissions.update records `view`; window grants/revokes record `pages`
+              const pageKeys =
+                (entry.detail?.view as string[] | undefined) ?? (entry.detail?.pages as string[] | undefined);
+              const pages = pageKeys?.map(pageLabel).join(', ');
               return (
                 <div key={entry.id} className="rounded-xl bg-gray-50 px-3 py-2.5">
                   <p className="text-xs font-bold text-gray-700">

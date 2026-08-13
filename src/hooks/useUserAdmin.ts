@@ -98,14 +98,21 @@ export function useUserAdmin(enabled: boolean) {
     [fetchAll, users]
   );
 
+  /**
+   * One grant, one row per page. The table is keyed per page, so covering three
+   * pages with the same dates means three rows — which keeps the RLS helpers in
+   * migration 027 untouched. They are written together and the modal groups them
+   * back into a single entry by their shared dates.
+   */
   const addWindow = useCallback(
     async (
-      row: { user_id: string; page_key: string; from_date: string; to_date: string; active_until: string; reason: string | null },
+      row: { user_id: string; page_keys: string[]; from_date: string; to_date: string; active_until: string; reason: string | null },
       actorEmail: string
     ) => {
+      const { page_keys, ...shared } = row;
       const { error: insertError } = await supabase
         .from('user_edit_windows')
-        .insert({ ...row, created_by: actorEmail });
+        .insert(page_keys.map((page_key) => ({ ...shared, page_key, created_by: actorEmail })));
       if (insertError) throw new Error(insertError.message);
 
       await supabase.from('permission_audit_log').insert({
@@ -113,7 +120,7 @@ export function useUserAdmin(enabled: boolean) {
         action: 'window.grant',
         target_user_id: row.user_id,
         target_email: users.find((u) => u.id === row.user_id)?.email ?? null,
-        detail: { ...row },
+        detail: { ...shared, pages: page_keys },
       });
 
       await fetchAll();
@@ -121,21 +128,25 @@ export function useUserAdmin(enabled: boolean) {
     [fetchAll, users]
   );
 
-  const revokeWindow = useCallback(
-    async (windowId: string, actorEmail: string) => {
-      const target = windows.find((w) => w.id === windowId);
+  /** Closes a whole grant at once — the ids of every page it covered. */
+  const revokeWindows = useCallback(
+    async (windowIds: string[], actorEmail: string) => {
+      const targets = windows.filter((w) => windowIds.includes(w.id));
       const { error: updateError } = await supabase
         .from('user_edit_windows')
         .update({ revoked_at: new Date().toISOString(), revoked_by: actorEmail })
-        .eq('id', windowId);
+        .in('id', windowIds);
       if (updateError) throw new Error(updateError.message);
 
+      const first = targets[0];
       await supabase.from('permission_audit_log').insert({
         actor_email: actorEmail,
         action: 'window.revoke',
-        target_user_id: target?.user_id ?? null,
-        target_email: users.find((u) => u.id === target?.user_id)?.email ?? null,
-        detail: target ? { page_key: target.page_key, from: target.from_date, to: target.to_date } : null,
+        target_user_id: first?.user_id ?? null,
+        target_email: users.find((u) => u.id === first?.user_id)?.email ?? null,
+        detail: first
+          ? { pages: targets.map((t) => t.page_key), from: first.from_date, to: first.to_date }
+          : null,
       });
 
       await fetchAll();
@@ -143,5 +154,5 @@ export function useUserAdmin(enabled: boolean) {
     [fetchAll, windows, users]
   );
 
-  return { users, permissions, windows, audit, loading, error, fetchAll, savePermissions, addWindow, revokeWindow };
+  return { users, permissions, windows, audit, loading, error, fetchAll, savePermissions, addWindow, revokeWindows };
 }
