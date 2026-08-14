@@ -1155,7 +1155,9 @@ input:focus, select:focus, textarea:focus {
    That helper strips the `dark` class off <html> first, so light-mode colours
    already apply here and these rules only have to deal with layout: drop the
    app chrome, unclip the scrollers, and tighten the dense number tables so a
-   wide one still fits A4. */
+   wide one still fits A4. It also hides whatever the report chooser
+   (components/reports/PrintReportsModal.tsx) left unticked — see
+   .print-exclude at the foot of this block. */
 @media print {
   @page {
     size: A4;
@@ -1256,8 +1258,17 @@ input:focus, select:focus, textarea:focus {
     padding: 4px 6px !important;
   }
 
-  /* Start a fresh sheet where a section asks for one */
+  /* Start a fresh sheet where a section asks for one. Both properties: the
+     legacy one is still what some print engines act on. */
   .print-page-break {
     break-before: page;
+    page-break-before: always;
+  }
+
+  /* Reports the print chooser left unticked. printPage() puts this class on
+     for the run only and takes it straight back off, so the screen is never
+     left in a half-hidden state. */
+  .print-exclude {
+    display: none !important;
   }
 }

@@ -14,6 +14,7 @@ import { formatVaQty, lookupHlVaStandardYield, lookupHlVaCountRange } from '@/li
 import GradeVaReport from '@/components/reports/GradeVaReport';
 import LabourBreakdownReport from '@/components/reports/LabourBreakdownReport';
 import GradingDataReport from '@/components/reports/GradingDataReport';
+import PrintReportsModal, { PrintSection } from '@/components/reports/PrintReportsModal';
 import { useGrading } from '@/hooks/useGrading';
 import { DEFAULT_NL_LADIES_SALARY_BASIC } from '@/hooks/useAppSettings';
 
@@ -26,6 +27,9 @@ export default function YieldReportPage() {
   // IST, not UTC — see the note in daily-entry. Read once on mount via the lazy
   // state initialiser, never during a render.
   const [selectedDate, setSelectedDate] = useState(todayIST);
+
+  // Print chooser — mounted only while open so it re-reads the saved selection
+  const [printOpen, setPrintOpen] = useState(false);
 
   // ── HON to HL Yields filters ───────────────────────────────────────────────
   const [diffFilter, setDiffFilter] = useState('All');
@@ -382,15 +386,15 @@ export default function YieldReportPage() {
           </div>
         </div>
 
-        {/* Print the whole report — offered again at the foot of the page */}
+        {/* Pick which reports go on paper — offered again at the foot of the page */}
         <div className="flex justify-end print:hidden">
-          <PrintButton label="Print full report / Save as PDF" />
+          <PrintButton label="Print / Save as PDF" onClick={() => setPrintOpen(true)} />
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
             LOCATION-WISE SUMMARY: HON→HL & HL→VA (selected date)
         ═══════════════════════════════════════════════════════════════════ */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <PrintSection id="location-summary" className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-4 pt-4 pb-3 flex items-center gap-2">
             <span className="text-lg">📍</span>
             <h3 className="text-sm font-bold text-gray-900 dark:text-white">Location-wise Summary (HON→HL &amp; HL→VA)</h3>
@@ -430,12 +434,12 @@ export default function YieldReportPage() {
               </table>
             </div>
           )}
-        </div>
+        </PrintSection>
 
         {/* ═══════════════════════════════════════════════════════════════════
             SECTION 1: HON TO HL YIELDS
         ═══════════════════════════════════════════════════════════════════ */}
-        <div className="space-y-4">
+        <PrintSection id="hon-hl" className="space-y-4">
           <div className="pt-2 pb-1">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">HON to HL yields</h2>
             {printFilterLabel && (
@@ -578,12 +582,12 @@ export default function YieldReportPage() {
               </div>
             )}
           </div>
-        </div>
+        </PrintSection>
 
         {/* ═══════════════════════════════════════════════════════════════════
             SECTION 2: NON LOCAL LADIES
         ═══════════════════════════════════════════════════════════════════ */}
-        <div className="space-y-4">
+        <PrintSection id="company-ladies" className="space-y-4">
           <div className="pt-2 pb-1">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Company Ladies</h2>
           </div>
@@ -682,12 +686,12 @@ export default function YieldReportPage() {
               </div>
             )}
           </div>
-        </div>
+        </PrintSection>
 
         {/* ═══════════════════════════════════════════════════════════════════
             SECTION 3: HL TO VA
         ═══════════════════════════════════════════════════════════════════ */}
-        <div className="space-y-4">
+        <PrintSection id="hl-va" className="space-y-4">
           <div className="pt-2 pb-1 flex items-center gap-2.5 flex-wrap">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">HL to VA</h2>
             <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">{hvMeta.label}</span>
@@ -867,29 +871,29 @@ export default function YieldReportPage() {
               </div>
             )}
           </div>
-        </div>
+        </PrintSection>
 
         {/* ─── Grade Vs VA Report ─────────────────────────────────────── */}
-        <div className="mb-8">
+        <PrintSection id="grade-va" className="mb-8">
           <GradeVaReport
             entries={gradeVaEntries}
             date={selectedDate}
           />
-        </div>
+        </PrintSection>
 
         {/* ─── All PPC's Grading Data ─────────────────────────────────── */}
-        <div className="mb-8">
+        <PrintSection id="grading-data" className="mb-8">
           <GradingDataReport entries={gradingEntries} date={selectedDate} />
-        </div>
+        </PrintSection>
 
         {/* ─── Labour Breakdown ───────────────────────────────────────── */}
-        <div className="mb-8">
+        <PrintSection id="labour" className="mb-8">
           <LabourBreakdownReport date={selectedDate} />
-        </div>
+        </PrintSection>
 
         {/* Same action as the top of the page, for whoever has scrolled this far */}
         <div className="flex justify-end pb-4 print:hidden">
-          <PrintButton label="Print full report / Save as PDF" />
+          <PrintButton label="Print / Save as PDF" onClick={() => setPrintOpen(true)} />
         </div>
 
         {/* Paper-only footer */}
@@ -898,6 +902,10 @@ export default function YieldReportPage() {
         </div>
 
       </div>
+
+      {printOpen && (
+        <PrintReportsModal dateLabel={printDateLabel} onClose={() => setPrintOpen(false)} />
+      )}
     </div>
   );
 }
