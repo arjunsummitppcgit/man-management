@@ -97,26 +97,35 @@ export interface Chip {
 
 export function ChipRow({ chips }: { chips: Chip[] }) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 stagger">
+    // Four across only from 2xl. Between lg and xl the content column is barely
+    // 630px wide once both sidebars are out, which left each chip too narrow to
+    // show a full kg figure — two across reads better there than four clipped.
+    <div className="grid grid-cols-2 2xl:grid-cols-4 gap-3 lg:gap-4 stagger">
       {chips.map((chip) => (
         <div
           key={chip.label}
-          className="ana-chip relative overflow-hidden bg-white rounded-2xl p-4 shadow-sm border border-gray-100"
+          className="ana-chip relative overflow-hidden bg-white rounded-2xl p-3.5 lg:p-4 shadow-sm border border-gray-100"
         >
           <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${chip.accent}`} />
-          <div className="flex items-start justify-between">
-            <div className="min-w-0">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">{chip.label}</p>
-              <p className="text-xl lg:text-2xl font-bold text-gray-900 mt-1.5 font-display tracking-tight truncate">
-                {chip.value}
-              </p>
-              <p className="text-[11px] text-gray-400 mt-1 font-medium truncate">{chip.sub}</p>
-            </div>
-            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-              <span className="text-xl" aria-hidden>{chip.icon}</span>
+          {/* The label shares the top line with the icon; the figure below gets
+              the full card width. Four kg-sized numbers across a laptop screen
+              don't fit beside an icon column, and used to be cut off. */}
+          <div className="flex items-start justify-between gap-2">
+            {/* Wraps rather than truncates — a chip narrow enough to cut
+                "Target · August 2026" short is better off with two lines. */}
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-tight">{chip.label}</p>
+            <div className="flex flex-col items-end gap-1.5 flex-shrink-0 -mt-0.5">
+              <span className="text-lg lg:text-xl leading-none" aria-hidden>{chip.icon}</span>
               {chip.action}
             </div>
           </div>
+          {/* ana-chip-value scales with the viewport (globals.css) so the whole
+              figure stays on screen; it wraps rather than truncates if it still
+              can't fit. */}
+          <p className="ana-chip-value font-bold text-gray-900 mt-1.5 font-display tracking-tight leading-tight tabular-nums break-words">
+            {chip.value}
+          </p>
+          <p className="text-[11px] text-gray-400 mt-1 font-medium leading-tight">{chip.sub}</p>
         </div>
       ))}
     </div>

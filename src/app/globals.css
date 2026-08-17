@@ -1023,6 +1023,16 @@ input:focus, select:focus, textarea:focus {
   transition: transform 0.35s var(--ease-mac), box-shadow 0.35s var(--ease-mac);
 }
 
+/* The headline figure on a stat chip. Four chips share the row from `lg` up, so
+   a full kg figure ("5,00,000.000 kg") has roughly a quarter of the content
+   width to live in — a fixed 24px would run past the card on a laptop and get
+   clipped. Scaling with the viewport keeps the whole number readable from a
+   phone to a wide monitor; the ceiling is the old text-2xl, so nothing shrank
+   on the large screens this was designed against. */
+.ana-chip-value {
+  font-size: clamp(1rem, 1.25vw, 1.5rem);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ana-nav-item,
   .ana-swap {
