@@ -53,7 +53,7 @@ export default function HeadWasteSection() {
   return (
     <div className="space-y-4 lg:space-y-5">
       {/* Stands in for the shared filter bar, which this section doesn't use */}
-      <div className="ana-filterbar bg-white rounded-2xl p-3 lg:p-3.5 shadow-sm border border-gray-100 flex flex-wrap items-center gap-2.5">
+      <div className="ana-filterbar no-print bg-white rounded-2xl p-3 lg:p-3.5 shadow-sm border border-gray-100 flex flex-wrap items-center gap-2.5">
         <label
           htmlFor="head-waste-from"
           className="text-[11px] font-bold text-gray-500 uppercase tracking-wider"

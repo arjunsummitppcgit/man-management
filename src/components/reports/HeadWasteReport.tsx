@@ -9,6 +9,8 @@ import {
   WASTE_MULTIPLIER_KEY,
   type HeadWasteRow,
 } from '@/lib/headWaste';
+import { ExportButtons } from '@/components/analytics/shared';
+import PrintButton from '@/components/ui/PrintButton';
 import type { YieldEntry, HlVaEntry } from '@/types';
 
 interface HeadWasteReportProps {
@@ -25,6 +27,22 @@ const fmt = (value: number): string =>
     : '-';
 
 const pct = (rate: number) => `${(rate * 100).toFixed(0)}%`;
+
+/** One statement row as a flat line for the PDF / Excel exports. */
+const exportRow = (row: HeadWasteRow): string[] => [
+  row.label,
+  fmt(row.hon),
+  fmt(row.hl),
+  fmt(row.headWaste),
+  fmt(row.headWasteX),
+  fmt(row.hlUsed),
+  fmt(row.hlEzpl),
+  fmt(row.va),
+  fmt(row.vaWaste),
+  fmt(row.vaWasteX),
+  fmt(row.totalWaste),
+  fmt(row.totalWasteX),
+];
 
 export default function HeadWasteReport({
   yieldEntries,
@@ -87,6 +105,36 @@ export default function HeadWasteReport({
 
   const isRange = fromDate !== toDate;
 
+  // ── PDF / Excel ──────────────────────────────────────────────────────────
+  // One flat table — the grouped header on screen can't survive a spreadsheet,
+  // so each column carries its stage in the label instead. Values are the same
+  // formatted strings the table shows, so the file and the page always agree.
+  const exportHeaders = useMemo(
+    () => [
+      'Location',
+      'HON',
+      'HL',
+      `Head Waste ${pct(HEAD_WASTE_RATE)}`,
+      `Head Waste × ${multiplier}`,
+      'HL Used',
+      'HL EZPL (excluded)',
+      'VA',
+      `VA Waste ${pct(VA_WASTE_RATE)}`,
+      `VA Waste × ${multiplier}`,
+      'Total Waste',
+      `Total Waste × ${multiplier}`,
+    ],
+    [multiplier]
+  );
+
+  const exportRows = useMemo(
+    () => (hasAnyData ? [...inHouseRows.map(exportRow), exportRow(inHouseTotal)] : []),
+    [hasAnyData, inHouseRows, inHouseTotal]
+  );
+
+  const exportTitle = `Head Waste Statement — ${dateLabel}`;
+  const exportFilename = isRange ? `head-waste-${fromDate}-to-${toDate}` : `head-waste-${fromDate}`;
+
   return (
     <div className="space-y-4">
       <div className="pt-2 pb-1 flex flex-wrap items-start justify-between gap-3">
@@ -101,37 +149,49 @@ export default function HeadWasteReport({
           </p>
         </div>
 
-        <div className="flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 px-3 py-2">
-          <label
-            htmlFor="waste-multiplier"
-            className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap"
-          >
-            Multiplier
-          </label>
-          <span className="text-sm font-bold text-gray-400">×</span>
-          <input
-            id="waste-multiplier"
-            type="number"
-            min="0"
-            step="0.1"
-            inputMode="decimal"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={(e) => commitMultiplier(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') e.currentTarget.blur();
-            }}
-            className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 py-1 text-sm font-bold text-right text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+        {/* Controls, not content — the multiplier they set is already spelt out
+            in the column headers, so none of this belongs on the sheet. */}
+        <div className="no-print flex flex-wrap items-center gap-2">
+          <ExportButtons
+            title={exportTitle}
+            headers={exportHeaders}
+            rows={exportRows}
+            filename={exportFilename}
           />
-          {multiplier !== DEFAULT_WASTE_MULTIPLIER && (
-            <button
-              type="button"
-              onClick={() => commitMultiplier(String(DEFAULT_WASTE_MULTIPLIER))}
-              className="text-[10px] font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 uppercase tracking-wider whitespace-nowrap"
+          <PrintButton label="Print / PDF" className="!px-3 !py-1.5 !rounded-lg !text-[11px] !font-bold" />
+
+          <div className="flex items-center gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 px-3 py-2">
+            <label
+              htmlFor="waste-multiplier"
+              className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap"
             >
-              Reset {DEFAULT_WASTE_MULTIPLIER}
-            </button>
-          )}
+              Multiplier
+            </label>
+            <span className="text-sm font-bold text-gray-400">×</span>
+            <input
+              id="waste-multiplier"
+              type="number"
+              min="0"
+              step="0.1"
+              inputMode="decimal"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={(e) => commitMultiplier(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+              }}
+              className="w-20 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-2 py-1 text-sm font-bold text-right text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+            />
+            {multiplier !== DEFAULT_WASTE_MULTIPLIER && (
+              <button
+                type="button"
+                onClick={() => commitMultiplier(String(DEFAULT_WASTE_MULTIPLIER))}
+                className="text-[10px] font-semibold text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 uppercase tracking-wider whitespace-nowrap"
+              >
+                Reset {DEFAULT_WASTE_MULTIPLIER}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
