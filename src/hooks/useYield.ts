@@ -9,6 +9,8 @@ export function useYield() {
   const [loading, setLoading] = useState(false);
   const [batchEntries, setBatchEntries] = useState<YieldEntry[]>([]);
   const [batchLoading, setBatchLoading] = useState(false);
+  const [rangeEntries, setRangeEntries] = useState<YieldEntry[]>([]);
+  const [rangeLoading, setRangeLoading] = useState(false);
 
   /**
    * Fetch all yield entries for a given date (across all locations).
@@ -29,6 +31,30 @@ export function useYield() {
       setEntries([]);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  /**
+   * Fetch all yield entries between two dates, inclusive (reports over a range).
+   */
+  const fetchRange = useCallback(async (fromDate: string, toDate: string) => {
+    setRangeLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('yield_entries')
+        .select('*, location:locations(id, name, code)')
+        .gte('work_date', fromDate)
+        .lte('work_date', toDate)
+        .order('work_date', { ascending: true })
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setRangeEntries(data || []);
+    } catch (error) {
+      console.error('Error fetching yield entries range:', error);
+      setRangeEntries([]);
+    } finally {
+      setRangeLoading(false);
     }
   }, []);
 
@@ -132,7 +158,10 @@ export function useYield() {
     loading,
     batchEntries,
     batchLoading,
+    rangeEntries,
+    rangeLoading,
     fetchYieldEntries,
+    fetchRange,
     fetchByBatch,
     saveYieldEntries,
     deleteYieldEntry,

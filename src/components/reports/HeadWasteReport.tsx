@@ -14,7 +14,8 @@ import type { YieldEntry, HlVaEntry } from '@/types';
 interface HeadWasteReportProps {
   yieldEntries: YieldEntry[];
   hlVaEntries: HlVaEntry[];
-  date: string;
+  fromDate: string;
+  toDate: string;
 }
 
 // Indian-style grouping to match the rest of the register; blank cells read as '-'
@@ -25,7 +26,12 @@ const fmt = (value: number): string =>
 
 const pct = (rate: number) => `${(rate * 100).toFixed(0)}%`;
 
-export default function HeadWasteReport({ yieldEntries, hlVaEntries, date }: HeadWasteReportProps) {
+export default function HeadWasteReport({
+  yieldEntries,
+  hlVaEntries,
+  fromDate,
+  toDate,
+}: HeadWasteReportProps) {
   // The factor applied to both waste columns. Editable, and remembered on this
   // device so the choice survives a reload without touching the database.
   const [multiplier, setMultiplier] = useState(DEFAULT_WASTE_MULTIPLIER);
@@ -65,15 +71,21 @@ export default function HeadWasteReport({ yieldEntries, hlVaEntries, date }: Hea
   const hasAnyData = inHouseTotal.hon > 0 || inHouseTotal.va > 0;
   const ezplTotal = inHouseTotal.hlEzpl;
 
+  // 'on 17 Aug 2026' for a single day, '17 Aug 2026 – 24 Aug 2026' for a span
   const dateLabel = useMemo(() => {
-    try {
-      return new Date(date + 'T00:00:00').toLocaleDateString('en-IN', {
-        day: 'numeric', month: 'short', year: 'numeric',
-      });
-    } catch {
-      return date;
-    }
-  }, [date]);
+    const day = (value: string) => {
+      try {
+        return new Date(value + 'T00:00:00').toLocaleDateString('en-IN', {
+          day: 'numeric', month: 'short', year: 'numeric',
+        });
+      } catch {
+        return value;
+      }
+    };
+    return fromDate === toDate ? day(fromDate) : `${day(fromDate)} – ${day(toDate)}`;
+  }, [fromDate, toDate]);
+
+  const isRange = fromDate !== toDate;
 
   return (
     <div className="space-y-4">
@@ -84,7 +96,7 @@ export default function HeadWasteReport({ yieldEntries, hlVaEntries, date }: Hea
             <span className="ml-2 text-sm font-semibold text-gray-400">In-house locations</span>
           </h2>
           <p className="text-sm text-gray-500 mt-0.5">
-            Waste generated on {dateLabel} — heads at {pct(HEAD_WASTE_RATE)} of HON processed,
+            Waste generated {isRange ? 'over' : 'on'} {dateLabel} — heads at {pct(HEAD_WASTE_RATE)} of HON processed,
             shell/vein at {pct(VA_WASTE_RATE)} of HL consumed.
           </p>
         </div>
@@ -129,7 +141,9 @@ export default function HeadWasteReport({ yieldEntries, hlVaEntries, date }: Hea
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 mb-3 text-amber-600 text-xl">
               🗑️
             </div>
-            <p className="text-sm font-semibold text-gray-900">No processing on this date</p>
+            <p className="text-sm font-semibold text-gray-900">
+              No processing {isRange ? 'in this range' : 'on this date'}
+            </p>
             <p className="text-sm text-gray-500 mt-1">
               Head waste is derived from HON→HL and HL→VA entries; there are none for {dateLabel}.
             </p>
@@ -196,15 +210,19 @@ export default function HeadWasteReport({ yieldEntries, hlVaEntries, date }: Hea
             <p className="text-[11px] text-gray-500">
               <span className="font-semibold">HL Used</span> is the HL consumed by HL→VA batches and
               is the base for the {pct(VA_WASTE_RATE)} waste — it is not the HL produced in the
-              first block, which may be processed on a different date.
+              first block, which may be processed on a date outside this
+              {isRange ? ' range' : ' date'}.
             </p>
             <p className="text-[11px] text-gray-500">
               <span className="font-semibold text-indigo-600">EZPL</span> is easy-peel and carries no
               meaningful waste, so its HL is excluded from the {pct(VA_WASTE_RATE)} base
               {ezplTotal > 0 ? (
-                <> — <span className="font-semibold">{fmt(ezplTotal)} kg</span> excluded on this date</>
+                <>
+                  {' '}— <span className="font-semibold">{fmt(ezplTotal)} kg</span> excluded
+                  {isRange ? ' over this range' : ' on this date'}
+                </>
               ) : (
-                <> (none on this date)</>
+                <> (none {isRange ? 'in this range' : 'on this date'})</>
               )}
               . Its VA output still counts in the VA column.
             </p>
