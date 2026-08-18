@@ -1174,6 +1174,19 @@ input:focus, select:focus, textarea:focus {
     margin: 10mm;
   }
 
+  /* Statements too wide for the short edge — the Head Waste sheets carry
+     twelve numeric columns — ask for the sheet turned on its side. Named
+     pages need a recent Chrome; anywhere they aren't honoured the report
+     still prints portrait under the tightening rules further down. */
+  @page report-landscape {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  .print-landscape {
+    page: report-landscape;
+  }
+
   /* Keep coloured table headers, badges and totals rows — Chrome drops
      backgrounds otherwise */
   *,

@@ -2,7 +2,7 @@
 
 import React, { useSyncExternalStore } from 'react';
 import { format, parseISO } from 'date-fns';
-import { exportToPDF, exportToExcel } from '@/lib/export';
+import { exportToPDF, exportToExcel, type ExportCell } from '@/lib/export';
 import type { Location } from '@/types';
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
@@ -181,17 +181,31 @@ export function ExportButtons({
   headers,
   rows,
   filename,
+  excelRows,
+  excelNumberFormat,
+  pdfOrientation,
 }: {
   title: string;
   headers: string[];
-  rows: (string | number)[][];
+  /** Display rows — pre-formatted strings, so the PDF matches the page. */
+  rows: ExportCell[][];
   filename: string;
+  /**
+   * Raw numbers for the spreadsheet, when the sheet should stay summable in
+   * Excel rather than being a picture of the page. Same shape as `rows`;
+   * defaults to `rows` when a report has no numeric form to offer.
+   */
+  excelRows?: ExportCell[][];
+  /** Number format for those numeric cells, e.g. Indian '##,##,##0.000'. */
+  excelNumberFormat?: string;
+  /** Wide tables ask for landscape so the columns stay legible. */
+  pdfOrientation?: 'portrait' | 'landscape';
 }) {
   const disabled = rows.length === 0;
   return (
     <div className="flex items-center gap-2">
       <button
-        onClick={() => exportToPDF(title, headers, rows, filename)}
+        onClick={() => exportToPDF(title, headers, rows, filename, { orientation: pdfOrientation })}
         disabled={disabled}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
       >
@@ -201,7 +215,11 @@ export function ExportButtons({
         PDF
       </button>
       <button
-        onClick={() => exportToExcel(title, headers, rows, filename)}
+        onClick={() =>
+          exportToExcel(title, headers, excelRows ?? rows, filename, {
+            numberFormat: excelNumberFormat,
+          })
+        }
         disabled={disabled}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
       >

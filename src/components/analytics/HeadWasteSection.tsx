@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { format, subDays, startOfMonth } from 'date-fns';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
-import HeadWasteReport from '@/components/reports/HeadWasteReport';
+import HeadWasteReport, { type HeadWasteView } from '@/components/reports/HeadWasteReport';
 import { useYield } from '@/hooks/useYield';
 import { useHlVa } from '@/hooks/useHlVa';
 
@@ -16,6 +16,10 @@ import { useHlVa } from '@/hooks/useHlVa';
  *
  * A single day is still the common case, so the range starts as today → today
  * and the presets below cover the usual spans.
+ *
+ * The two views are the same statement cut two ways — by location across the
+ * whole range, or day by day — so they share this one date range and the
+ * multiplier the report itself holds.
  */
 const today = () => format(new Date(), 'yyyy-MM-dd');
 
@@ -26,9 +30,15 @@ const PRESETS: { label: string; range: () => [string, string] }[] = [
   { label: 'This Month', range: () => [format(startOfMonth(new Date()), 'yyyy-MM-dd'), today()] },
 ];
 
+const VIEWS: { key: HeadWasteView; label: string }[] = [
+  { key: 'location', label: 'By Location' },
+  { key: 'date', label: 'By Date' },
+];
+
 export default function HeadWasteSection() {
   const [fromDate, setFromDate] = useState(today);
   const [toDate, setToDate] = useState(today);
+  const [view, setView] = useState<HeadWasteView>('location');
 
   const { rangeEntries: yieldEntries, rangeLoading: yieldLoading, fetchRange: fetchYieldRange } = useYield();
   const { rangeEntries: hlVaEntries, rangeLoading: hlVaLoading, fetchRange: fetchHlVaRange } = useHlVa();
@@ -106,10 +116,31 @@ export default function HeadWasteSection() {
         </div>
 
         <span className="text-[11px] text-gray-400 font-medium">
-          {fromDate === toDate
-            ? 'a single day — head waste is a daily register'
-            : 'waste totalled across the selected dates'}
+          {view === 'date'
+            ? 'one block per work date, with a subtotal for each day'
+            : fromDate === toDate
+              ? 'a single day — head waste is a daily register'
+              : 'waste totalled across the selected dates'}
         </span>
+
+        {/* Pushed to the far end so the date controls stay grouped together */}
+        <div className="ml-auto flex items-center gap-1 rounded-lg bg-gray-100 dark:bg-gray-800 p-1">
+          {VIEWS.map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              onClick={() => setView(v.key)}
+              aria-pressed={view === v.key}
+              className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition-all active:scale-95 ${
+                view === v.key
+                  ? 'bg-white dark:bg-gray-900 text-amber-600 shadow-sm'
+                  : 'text-gray-500 hover:text-amber-600'
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
@@ -122,6 +153,7 @@ export default function HeadWasteSection() {
           hlVaEntries={hlVaEntries}
           fromDate={fromDate}
           toDate={toDate}
+          view={view}
         />
       )}
     </div>

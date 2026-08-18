@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   buildHeadWasteStatement,
+  buildHeadWasteByDate,
   HEAD_WASTE_RATE,
   VA_WASTE_RATE,
   DEFAULT_WASTE_MULTIPLIER,
@@ -11,47 +12,41 @@ import {
 } from '@/lib/headWaste';
 import { ExportButtons } from '@/components/analytics/shared';
 import PrintButton from '@/components/ui/PrintButton';
+import HeadWasteByDateTable from '@/components/reports/HeadWasteByDateTable';
+import {
+  fmt,
+  pct,
+  exportRowText,
+  exportRowNum,
+  quantityHeaders,
+  EXCEL_NUMBER_FORMAT,
+  WasteCells,
+  WasteHeader,
+} from '@/components/reports/headWasteShared';
+import type { ExportCell } from '@/lib/export';
 import type { YieldEntry, HlVaEntry } from '@/types';
+
+/** Which way the statement is cut: by location across the range, or day by day. */
+export type HeadWasteView = 'location' | 'date';
 
 interface HeadWasteReportProps {
   yieldEntries: YieldEntry[];
   hlVaEntries: HlVaEntry[];
   fromDate: string;
   toDate: string;
+  view?: HeadWasteView;
 }
-
-// Indian-style grouping to match the rest of the register; blank cells read as '-'
-const fmt = (value: number): string =>
-  value > 0
-    ? value.toLocaleString('en-IN', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
-    : '-';
-
-const pct = (rate: number) => `${(rate * 100).toFixed(0)}%`;
-
-/** One statement row as a flat line for the PDF / Excel exports. */
-const exportRow = (row: HeadWasteRow): string[] => [
-  row.label,
-  fmt(row.hon),
-  fmt(row.hl),
-  fmt(row.headWaste),
-  fmt(row.headWasteX),
-  fmt(row.hlUsed),
-  fmt(row.hlEzpl),
-  fmt(row.va),
-  fmt(row.vaWaste),
-  fmt(row.vaWasteX),
-  fmt(row.totalWaste),
-  fmt(row.totalWasteX),
-];
 
 export default function HeadWasteReport({
   yieldEntries,
   hlVaEntries,
   fromDate,
   toDate,
+  view = 'location',
 }: HeadWasteReportProps) {
   // The factor applied to both waste columns. Editable, and remembered on this
-  // device so the choice survives a reload without touching the database.
+  // device so the choice survives a reload without touching the database. Both
+  // views read the same value — the same waste can't be worth two things.
   const [multiplier, setMultiplier] = useState(DEFAULT_WASTE_MULTIPLIER);
   const [draft, setDraft] = useState(String(DEFAULT_WASTE_MULTIPLIER));
 
@@ -85,7 +80,14 @@ export default function HeadWasteReport({
     [yieldEntries, hlVaEntries, multiplier]
   );
 
+  // Built off the same entries, so its grand total ties out to inHouseTotal
+  const byDate = useMemo(
+    () => buildHeadWasteByDate(yieldEntries, hlVaEntries, multiplier),
+    [yieldEntries, hlVaEntries, multiplier]
+  );
+
   const { inHouseRows, inHouseTotal } = statement;
+  const isByDate = view === 'date';
   const hasAnyData = inHouseTotal.hon > 0 || inHouseTotal.va > 0;
   const ezplTotal = inHouseTotal.hlEzpl;
 
@@ -107,33 +109,41 @@ export default function HeadWasteReport({
 
   // ── PDF / Excel ──────────────────────────────────────────────────────────
   // One flat table — the grouped header on screen can't survive a spreadsheet,
-  // so each column carries its stage in the label instead. Values are the same
-  // formatted strings the table shows, so the file and the page always agree.
-  const exportHeaders = useMemo(
-    () => [
-      'Location',
-      'HON',
-      'HL',
-      `Head Waste ${pct(HEAD_WASTE_RATE)}`,
-      `Head Waste × ${multiplier}`,
-      'HL Used',
-      'HL EZPL (excluded)',
-      'VA',
-      `VA Waste ${pct(VA_WASTE_RATE)}`,
-      `VA Waste × ${multiplier}`,
-      'Total Waste',
-      `Total Waste × ${multiplier}`,
-    ],
-    [multiplier]
+  // so each column carries its stage in the label instead. The PDF takes the
+  // same formatted strings the table shows, so file and page always agree;
+  // Excel takes the raw numbers so the columns can be summed and pivoted.
+  const exportHeaders = useMemo(() => {
+    const quantities = quantityHeaders(HEAD_WASTE_RATE, VA_WASTE_RATE, multiplier);
+    return isByDate ? ['Date', 'Location', ...quantities] : ['Location', ...quantities];
+  }, [isByDate, multiplier]);
+
+  const buildExportRows = React.useCallback(
+    (cells: (row: HeadWasteRow) => ExportCell[]): ExportCell[][] => {
+      if (!hasAnyData) return [];
+      if (!isByDate) {
+        return [...inHouseRows.map((r) => [r.label, ...cells(r)]), [inHouseTotal.label, ...cells(inHouseTotal)]];
+      }
+      // The date repeats on every line, subtotals included — on paper it is
+      // written once per group, but a sheet has to survive being sorted or
+      // filtered, and a blank date column would fall apart the moment it is.
+      return [
+        ...byDate.days.flatMap((day) => [
+          ...day.rows.map((r) => [day.date, r.label, ...cells(r)]),
+          [day.date, day.total.label, ...cells(day.total)],
+        ]),
+        ['', byDate.grandTotal.label, ...cells(byDate.grandTotal)],
+      ];
+    },
+    [hasAnyData, isByDate, inHouseRows, inHouseTotal, byDate]
   );
 
-  const exportRows = useMemo(
-    () => (hasAnyData ? [...inHouseRows.map(exportRow), exportRow(inHouseTotal)] : []),
-    [hasAnyData, inHouseRows, inHouseTotal]
-  );
+  const exportRows = useMemo(() => buildExportRows(exportRowText), [buildExportRows]);
+  const excelRows = useMemo(() => buildExportRows(exportRowNum), [buildExportRows]);
 
-  const exportTitle = `Head Waste Statement — ${dateLabel}`;
-  const exportFilename = isRange ? `head-waste-${fromDate}-to-${toDate}` : `head-waste-${fromDate}`;
+  const exportTitle = `Head Waste Statement${isByDate ? ' (Date-wise)' : ''} — ${dateLabel}`;
+  const exportFilename = `head-waste${isByDate ? '-daily' : ''}-${
+    isRange ? `${fromDate}-to-${toDate}` : fromDate
+  }`;
 
   return (
     <div className="space-y-4">
@@ -141,11 +151,14 @@ export default function HeadWasteReport({
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
             Head Waste Statement
-            <span className="ml-2 text-sm font-semibold text-gray-400">In-house locations</span>
+            <span className="ml-2 text-sm font-semibold text-gray-400">
+              {isByDate ? 'Date-wise, in-house locations' : 'In-house locations'}
+            </span>
           </h2>
           <p className="text-sm text-gray-500 mt-0.5">
-            Waste generated {isRange ? 'over' : 'on'} {dateLabel} — heads at {pct(HEAD_WASTE_RATE)} of HON processed,
-            shell/vein at {pct(VA_WASTE_RATE)} of HL consumed.
+            Waste generated {isRange ? 'over' : 'on'} {dateLabel}
+            {isByDate ? ', broken down by work date' : ''} — heads at {pct(HEAD_WASTE_RATE)} of HON
+            processed, shell/vein at {pct(VA_WASTE_RATE)} of HL consumed.
           </p>
         </div>
 
@@ -156,6 +169,10 @@ export default function HeadWasteReport({
             title={exportTitle}
             headers={exportHeaders}
             rows={exportRows}
+            excelRows={excelRows}
+            excelNumberFormat={EXCEL_NUMBER_FORMAT}
+            // Twelve numeric columns never fit the short edge of A4
+            pdfOrientation="landscape"
             filename={exportFilename}
           />
           <PrintButton label="Print / PDF" className="!px-3 !py-1.5 !rounded-lg !text-[11px] !font-bold" />
@@ -195,7 +212,9 @@ export default function HeadWasteReport({
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* print-landscape turns the sheet on its side — see the @page rule in
+          globals.css. Both views carry the same twelve columns. */}
+      <div className="print-landscape bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         {!hasAnyData ? (
           <div className="p-8 text-center">
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 mb-3 text-amber-600 text-xl">
@@ -208,45 +227,18 @@ export default function HeadWasteReport({
               Head waste is derived from HON→HL and HL→VA entries; there are none for {dateLabel}.
             </p>
           </div>
+        ) : isByDate ? (
+          <HeadWasteByDateTable byDate={byDate} multiplier={multiplier} />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
-              <thead>
-                {/* Grouped header mirrors the register: an HL block and a VA block */}
-                <tr className="bg-gray-50 border-b border-gray-100 dark:border-gray-800">
-                  <th className="px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap" rowSpan={2}>
-                    Location
-                  </th>
-                  <th
-                    className="px-4 py-2 text-[10px] font-semibold text-teal-600 uppercase tracking-wider whitespace-nowrap text-center border-l border-gray-200 dark:border-gray-700"
-                    colSpan={4}
-                  >
-                    HON → HL
-                  </th>
-                  <th
-                    className="px-4 py-2 text-[10px] font-semibold text-indigo-600 uppercase tracking-wider whitespace-nowrap text-center border-l border-gray-200 dark:border-gray-700"
-                    colSpan={4}
-                  >
-                    HL → VA
-                  </th>
-                  <th
-                    className="px-4 py-2 text-[10px] font-semibold text-amber-600 uppercase tracking-wider whitespace-nowrap text-right border-l border-gray-200 dark:border-gray-700"
-                    rowSpan={2}
-                  >
-                    Total Waste
-                  </th>
-                </tr>
-                <tr className="bg-gray-50 border-b border-gray-100 dark:border-gray-800">
-                  <th className="px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right border-l border-gray-200 dark:border-gray-700">HON</th>
-                  <th className="px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">HL</th>
-                  <th className="px-4 py-2 text-[10px] font-semibold text-teal-500 uppercase tracking-wider whitespace-nowrap text-right">Waste {pct(HEAD_WASTE_RATE)}</th>
-                  <th className="px-4 py-2 text-[10px] font-semibold text-teal-500 uppercase tracking-wider whitespace-nowrap text-right">Waste × {multiplier}</th>
-                  <th className="px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right border-l border-gray-200 dark:border-gray-700">HL Used</th>
-                  <th className="px-4 py-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">VA</th>
-                  <th className="px-4 py-2 text-[10px] font-semibold text-indigo-500 uppercase tracking-wider whitespace-nowrap text-right">Waste {pct(VA_WASTE_RATE)}</th>
-                  <th className="px-4 py-2 text-[10px] font-semibold text-indigo-500 uppercase tracking-wider whitespace-nowrap text-right">Waste × {multiplier}</th>
-                </tr>
-              </thead>
+              {/* Grouped header mirrors the register: an HL block and a VA block */}
+              <WasteHeader
+                leading={[{ label: 'Location' }]}
+                headRate={HEAD_WASTE_RATE}
+                vaRate={VA_WASTE_RATE}
+                multiplier={multiplier}
+              />
 
               <tbody className="divide-y divide-gray-50">
                 {inHouseRows.map((row) => (
@@ -257,7 +249,7 @@ export default function HeadWasteReport({
               <tfoot>
                 <tr className="bg-teal-50 dark:bg-teal-900/30 border-t-2 border-teal-100 dark:border-teal-800">
                   <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap">{inHouseTotal.label}</td>
-                  <TotalCells row={inHouseTotal} multiplier={multiplier} />
+                  <WasteCells row={inHouseTotal} multiplier={multiplier} tone="total" />
                 </tr>
               </tfoot>
             </table>
@@ -267,6 +259,15 @@ export default function HeadWasteReport({
         {/* Rules that aren't obvious from the numbers alone */}
         {hasAnyData && (
           <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 space-y-1">
+            {isByDate && (
+              <p className="text-[11px] text-gray-500">
+                <span className="font-semibold text-amber-600">Each figure sits on the date it was
+                generated</span> — head waste on the date the HON was de-headed, shell/vein waste on
+                the date the HL was consumed. A day can therefore show VA waste with no HON, or the
+                other way round, when a batch is carried over. Dates with no in-house processing are
+                left out.
+              </p>
+            )}
             <p className="text-[11px] text-gray-500">
               <span className="font-semibold">HL Used</span> is the HL consumed by HL→VA batches and
               is the base for the {pct(VA_WASTE_RATE)} waste — it is not the HL produced in the
@@ -307,62 +308,7 @@ function DataRow({ row, multiplier }: { row: HeadWasteRow; multiplier: number })
   return (
     <tr className={`hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors ${idle ? 'opacity-50' : ''}`}>
       <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap">{row.label}</td>
-      <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium border-l border-gray-100 dark:border-gray-800">{fmt(row.hon)}</td>
-      <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{fmt(row.hl)}</td>
-      <td className="px-4 py-3 text-sm font-bold text-teal-700 dark:text-teal-400 whitespace-nowrap text-right">{fmt(row.headWaste)}</td>
-      <td className="px-4 py-3 text-sm font-bold text-teal-600 dark:text-teal-300 whitespace-nowrap text-right">{fmt(row.headWasteX)}</td>
-      <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium border-l border-gray-100 dark:border-gray-800">
-        {fmt(row.hlUsed)}
-        {row.hlEzpl > 0 && (
-          <span className="block text-[10px] text-indigo-500 font-semibold">
-            +{fmt(row.hlEzpl)} EZPL
-          </span>
-        )}
-      </td>
-      <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{fmt(row.va)}</td>
-      <td className="px-4 py-3 text-sm font-bold text-indigo-700 dark:text-indigo-400 whitespace-nowrap text-right">{fmt(row.vaWaste)}</td>
-      <td className="px-4 py-3 text-sm font-bold text-indigo-600 dark:text-indigo-300 whitespace-nowrap text-right">{fmt(row.vaWasteX)}</td>
-      <td className="px-4 py-3 text-sm font-bold text-amber-700 dark:text-amber-400 whitespace-nowrap text-right border-l border-gray-100 dark:border-gray-800">
-        {fmt(row.totalWaste)}
-        {row.totalWaste > 0 && (
-          <span className="block text-[10px] text-amber-500 font-semibold">
-            × {multiplier} = {fmt(row.totalWasteX)}
-          </span>
-        )}
-      </td>
+      <WasteCells row={row} multiplier={multiplier} />
     </tr>
-  );
-}
-
-function TotalCells({ row, multiplier }: { row: HeadWasteRow; multiplier: number }) {
-  // .dark .text-teal-900 in globals.css lightens this for dark mode
-  const cell = 'px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right';
-  const divider = 'border-l border-gray-200 dark:border-gray-700';
-  return (
-    <>
-      <td className={`${cell} ${divider}`}>{fmt(row.hon)}</td>
-      <td className={cell}>{fmt(row.hl)}</td>
-      <td className={cell}>{fmt(row.headWaste)}</td>
-      <td className={cell}>{fmt(row.headWasteX)}</td>
-      <td className={`${cell} ${divider}`}>
-        {fmt(row.hlUsed)}
-        {row.hlEzpl > 0 && (
-          <span className="block text-[10px] text-indigo-500 font-semibold">
-            +{fmt(row.hlEzpl)} EZPL
-          </span>
-        )}
-      </td>
-      <td className={cell}>{fmt(row.va)}</td>
-      <td className={cell}>{fmt(row.vaWaste)}</td>
-      <td className={cell}>{fmt(row.vaWasteX)}</td>
-      <td className={`${cell} ${divider}`}>
-        {fmt(row.totalWaste)}
-        {row.totalWaste > 0 && (
-          <span className="block text-[10px] font-semibold opacity-70">
-            × {multiplier} = {fmt(row.totalWasteX)}
-          </span>
-        )}
-      </td>
-    </>
   );
 }

@@ -153,3 +153,81 @@ export function buildHeadWasteStatement(
 
   return { inHouseRows, inHouseTotal };
 }
+
+// ─── Date-wise statement ─────────────────────────────────────────────────────
+// The same statement split by work date instead of collapsed across the range:
+// each date carries its own location rows and a day subtotal, and the grand
+// total ties out to buildHeadWasteStatement() over the same entries.
+//
+// Waste is dated by the entry that generated it, not by the batch: head waste
+// lands on the HON → HL entry's date, shell/vein waste on the HL → VA entry's
+// date. A day can therefore show VA waste with no HON — the HL was de-headed
+// earlier and drawn from stock. The report says so on the sheet.
+
+/** Dates arrive as 'yyyy-MM-dd', but tolerate a timestamp creeping in. */
+const workDay = (value: string | null | undefined): string => (value || '').slice(0, 10);
+
+/** Did this location do anything at all on the day? Idle ones are left out. */
+const hasActivity = (row: HeadWasteRow): boolean =>
+  row.hon > 0 || row.hl > 0 || row.hlUsed > 0 || row.hlEzpl > 0 || row.va > 0;
+
+export interface HeadWasteDay {
+  date: string;         // yyyy-MM-dd
+  rows: HeadWasteRow[]; // only the locations that worked that day
+  total: HeadWasteRow;  // subtotal for the day
+}
+
+export interface HeadWasteByDate {
+  days: HeadWasteDay[]; // oldest first; days with no in-house processing omitted
+  grandTotal: HeadWasteRow;
+}
+
+export function buildHeadWasteByDate(
+  yieldEntries: YieldEntry[],
+  hlVaEntries: HlVaEntry[],
+  multiplier: number = DEFAULT_WASTE_MULTIPLIER
+): HeadWasteByDate {
+  // Only in-house entries open a date bucket. A day worked entirely by hired
+  // outside capacity holds no waste of ours and shouldn't appear at all.
+  const byDate = new Map<string, { yields: YieldEntry[]; hlVa: HlVaEntry[] }>();
+  const bucket = (date: string) => {
+    let day = byDate.get(date);
+    if (!day) {
+      day = { yields: [], hlVa: [] };
+      byDate.set(date, day);
+    }
+    return day;
+  };
+
+  yieldEntries.forEach((e) => {
+    if (isInHouseLocation(e.location?.name)) bucket(workDay(e.work_date)).yields.push(e);
+  });
+  hlVaEntries.forEach((e) => {
+    if (isInHouseLocation(e.location?.name)) bucket(workDay(e.work_date)).hlVa.push(e);
+  });
+
+  const days: HeadWasteDay[] = [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, entries]) => {
+      // Reuse the range builder a day at a time so both views apply the 32% /
+      // 18% rules, the EZPL exclusion and the in-house list identically
+      const { inHouseRows, inHouseTotal } = buildHeadWasteStatement(
+        entries.yields,
+        entries.hlVa,
+        multiplier
+      );
+      return {
+        date,
+        rows: inHouseRows.filter(hasActivity),
+        total: { ...inHouseTotal, key: `${date}-total`, label: 'Day total' },
+      };
+    })
+    // A date survives grouping even if every entry on it was blank
+    .filter((d) => d.rows.length > 0);
+
+  const grandTotal = emptyRow('grand-total', 'Total (In-house)');
+  days.forEach((d) => accumulate(grandTotal, d.total));
+  withWaste(grandTotal, multiplier);
+
+  return { days, grandTotal };
+}
