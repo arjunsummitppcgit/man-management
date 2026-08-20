@@ -114,9 +114,12 @@ export default function ProcessingSection({
   const hasData = total > 0;
 
   // ─── Detail table: one row per date + batch, broken out by location ────────
-  // The daily_processing figures driving the chips and charts above are keyed
-  // in as a daily total and hold no batch id, so the detail table reads the
-  // graders' batch registers instead. The two can differ — the card says so.
+  // The daily_processing figures driving the chips and charts above hold no
+  // batch id, so the detail table reads the graders' batch registers instead.
+  // Since migration 029 the two are the same quantity: a stage's completed
+  // figure IS its register's output total, so the chips tie out to this table's
+  // HL (or VA) column. Dates entered before the registers existed still carry
+  // their hand-typed figure and can differ.
   const [company, setCompany] = useState<'all' | BatchCompany>('all');
 
   const locationName = useMemo(() => {

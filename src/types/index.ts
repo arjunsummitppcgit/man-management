@@ -108,7 +108,8 @@ export interface DailyProcessing {
   // Work In Process sub-categories
   wip_hon_to_headless: number;
   wip_headless_to_va: number;
-  // Completed sub-categories (auto-summed into processed_kg by DB trigger)
+  // Completed sub-categories. Migration 029 keeps these in step with the HONS
+  // TO HL and HL to VA registers; processed_kg is their sum (migration 003).
   hon_to_headless: number;
   headless_to_va: number;
   processed_kg: number;
@@ -157,12 +158,9 @@ export interface SanitizationFormData {
 }
 
 export interface ProcessingFormData {
-  // Work In Process sub-categories
+  // Work In Process sub-categories — the only processing figures still keyed in
   wip_hon_to_headless: number;
   wip_headless_to_va: number;
-  // Completed sub-categories (processed_kg derived by DB trigger)
-  hon_to_headless: number;
-  headless_to_va: number;
   notes: string;
 }
 

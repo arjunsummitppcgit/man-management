@@ -321,8 +321,6 @@ export default function DailyEntryPage() {
   // Processing form state
   const [wipHonToHeadless, setWipHonToHeadless] = useState('');
   const [wipHeadlessToVa, setWipHeadlessToVa] = useState('');
-  const [honToHeadless, setHonToHeadless] = useState('');
-  const [headlessToVa, setHeadlessToVa] = useState('');
   const [notes, setNotes] = useState('');
 
   // Yield form state — array of batch rows
@@ -557,14 +555,10 @@ export default function DailyEntryPage() {
     if (processingData) {
       setWipHonToHeadless(processingData.wip_hon_to_headless?.toString() ?? '0');
       setWipHeadlessToVa(processingData.wip_headless_to_va?.toString() ?? '0');
-      setHonToHeadless(processingData.hon_to_headless?.toString() ?? '0');
-      setHeadlessToVa(processingData.headless_to_va?.toString() ?? '0');
       setNotes(processingData.notes ?? '');
     } else {
       setWipHonToHeadless('');
       setWipHeadlessToVa('');
-      setHonToHeadless('');
-      setHeadlessToVa('');
       setNotes('');
     }
   }, [processingData]);
@@ -649,8 +643,6 @@ export default function DailyEntryPage() {
         await saveProcessing(selectedDate, selectedLocation, {
           wip_hon_to_headless: Math.max(0, parseFloat(wipHonToHeadless) || 0),
           wip_headless_to_va: Math.max(0, parseFloat(wipHeadlessToVa) || 0),
-          hon_to_headless: Math.max(0, parseFloat(honToHeadless) || 0),
-          headless_to_va: Math.max(0, parseFloat(headlessToVa) || 0),
           notes,
         });
       } else if (activeTab === 'yield') {
@@ -1209,12 +1201,15 @@ export default function DailyEntryPage() {
                   </div>
                 </div>
 
-                {/* Processing KGs card — 4 fields in 2 groups */}
+                {/* Processing KGs card — the two Work In Process readings.
+                    Completed HON→HL and HL→VA are no longer keyed in here: they
+                    are the HONS TO HL and HL to VA registers' own totals, and
+                    the database now derives them from those tabs. */}
                 <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-gray-700">Processing KGs</h3>
-                    <span className="px-3 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-bold">
-                      Total: {((parseFloat(honToHeadless) || 0) + (parseFloat(headlessToVa) || 0)).toFixed(3)} kg
+                    <span className="px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-bold">
+                      WIP Total: {((parseFloat(wipHonToHeadless) || 0) + (parseFloat(wipHeadlessToVa) || 0)).toFixed(3)} kg
                     </span>
                   </div>
 
@@ -1261,56 +1256,10 @@ export default function DailyEntryPage() {
                     </div>
                   </div>
 
-                  {/* ── Completed Group ── */}
-                  <div className="bg-orange-50 rounded-xl p-3 space-y-3">
-                    <p className="text-xs font-bold text-orange-600 uppercase tracking-wide">✅ Completed</p>
-
-                    {/* Completed HON to Headless */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Completed — HON to Headless
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="any"
-                          min="0"
-                          value={honToHeadless}
-                          onChange={(e) => setHonToHeadless(e.target.value)}
-                          placeholder="0.000"
-                          className="w-full px-4 py-3.5 bg-white border border-orange-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 pr-12"
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
-                      </div>
-                    </div>
-
-                    {/* Completed Headless to VA */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Completed — Headless to VA
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="any"
-                          min="0"
-                          value={headlessToVa}
-                          onChange={(e) => setHeadlessToVa(e.target.value)}
-                          placeholder="0.000"
-                          className="w-full px-4 py-3.5 bg-white border border-orange-200 rounded-xl text-gray-900 text-lg font-semibold placeholder-gray-400 focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-400/10 pr-12"
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">kg</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Total Processed KG banner (completed only) */}
-                  <div className="flex items-center justify-between bg-orange-50 rounded-xl px-4 py-3">
-                    <span className="text-sm font-semibold text-orange-600">Total Processed KG</span>
-                    <span className="text-lg font-bold text-orange-700">
-                      {((parseFloat(honToHeadless) || 0) + (parseFloat(headlessToVa) || 0)).toFixed(3)} kg
-                    </span>
-                  </div>
+                  <p className="text-xs text-gray-500">
+                    Completed quantities come from the <span className="font-semibold text-gray-600">HONS TO HL</span> and{' '}
+                    <span className="font-semibold text-gray-600">HL to VA</span> tabs — no need to enter them again here.
+                  </p>
                 </div>
 
                 {/* Notes */}

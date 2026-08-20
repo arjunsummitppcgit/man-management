@@ -66,8 +66,10 @@ export function useProcessing() {
             location_id: locationId,
             wip_hon_to_headless: data.wip_hon_to_headless,
             wip_headless_to_va: data.wip_headless_to_va,
-            hon_to_headless: data.hon_to_headless,
-            headless_to_va: data.headless_to_va,
+            // hon_to_headless / headless_to_va are deliberately absent: the
+            // registers own them now (migration 029), and an upsert only writes
+            // the columns it names, so saving WIP leaves them alone. Adding them
+            // back here would blank the day's completed figures.
             // processed_kg is auto-computed by DB trigger from completed fields
             notes: data.notes.trim() || null,
             updated_at: new Date().toISOString(),
