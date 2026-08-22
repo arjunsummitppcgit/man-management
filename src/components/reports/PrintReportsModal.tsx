@@ -13,6 +13,7 @@ import { printPage } from '@/components/ui/PrintButton';
  */
 export const DAILY_REPORT_SECTIONS = [
   { key: 'location-summary', label: 'Location-wise Summary', hint: 'HON→HL & HL→VA totals per location' },
+  { key: 'plan-vs-actual', label: 'Plan vs Actual', hint: "The day's plan against what the registers recorded" },
   { key: 'hon-hl', label: 'HON to HL yields', hint: 'Batch-wise yield against the standard' },
   { key: 'company-ladies', label: 'Company Ladies', hint: 'Per-head amount, difference and P&L' },
   { key: 'hl-va', label: 'HL to VA', hint: 'Batch-wise VA yield against the standard' },

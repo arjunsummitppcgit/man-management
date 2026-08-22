@@ -251,7 +251,7 @@ export interface SupervisorAttendanceRecord {
   is_present: number;
 }
 
-export type TabType = 'workforce' | 'sanitization' | 'processing' | 'yield' | 'non_local_ladies' | 'hl_va' | 'grading';
+export type TabType = 'daily_plan' | 'workforce' | 'sanitization' | 'processing' | 'yield' | 'non_local_ladies' | 'hl_va' | 'grading';
 
 // ─── Grading Data ────────────────────────────────────────────────────────────
 
@@ -401,4 +401,61 @@ export interface MaintenanceTaskFormData {
   priority: TaskPriority;
   escalated_on: string;
   next_followup_on: string;
+}
+
+// ─── Daily Plan Types ────────────────────────────────────────────────────────
+// What the day is *meant* to look like, decided when the harvest batches land:
+// which location de-heads which batch, and how much HL each location feeds into
+// VA. Both quantities are stage inputs (HON in, HL in), so they line up with
+// yield_entries.hon_kgs and hl_va_entries.hl_kgs for the variance. Migration 031.
+
+export interface DailyPlanHonHlEntry {
+  id: string;
+  work_date: string;
+  batch_name: string;
+  count_text: string;
+  planned_qty: number;   // HON kgs planned into this location
+  boxes: number;
+  location_id: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  location?: { id: string; name: string; code: string } | null;
+}
+
+export interface DailyPlanHlVaEntry {
+  id: string;
+  work_date: string;
+  location_id: string;
+  planned_qty: number;   // HL kgs planned into VA at this location
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  location?: { id: string; name: string; code: string } | null;
+}
+
+/** One planned batch on the form; quantities are strings for input binding. */
+export interface DailyPlanHonHlFormRow {
+  batch_name: string;
+  count_text: string;
+  planned_qty: string;
+  boxes: string;
+  location_id: string;
+}
+
+/** One planned location on the HL to VA half of the form. */
+export interface DailyPlanHlVaFormRow {
+  location_id: string;
+  planned_qty: string;
+}
+
+/** A location's plan and what the registers actually recorded against it. */
+export interface DailyPlanVsActualRow {
+  location: string;
+  plannedHon: number;
+  actualHon: number;
+  plannedHl: number;
+  actualHl: number;
 }

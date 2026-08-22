@@ -19,11 +19,38 @@ import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { useHlVa } from '@/hooks/useHlVa';
 import { useGrading } from '@/hooks/useGrading';
+import { useDailyPlan } from '@/hooks/useDailyPlan';
 import { supabase } from '@/lib/supabase/client';
 import { GRADING_UNITS, runningHours, formatHours } from '@/lib/grading';
 import { lookupStandardYield, lookupCountRange, calculateYield, calculateYieldDifference, YIELD_CHART } from '@/lib/yieldChart';
 import { VA_VARIETIES, lookupHlVaStandardYield, lookupHlVaCountRange } from '@/lib/hlVa';
-import type { Supervisor, TabType, YieldFormRow, NonLocalLadyFormRow, HlVaFormRow, GradingFormRow } from '@/types';
+import DailyPlanSheet from '@/components/reports/DailyPlanSheet';
+import type {
+  Supervisor,
+  TabType,
+  YieldFormRow,
+  NonLocalLadyFormRow,
+  HlVaFormRow,
+  GradingFormRow,
+  DailyPlanHonHlFormRow,
+  DailyPlanHlVaFormRow,
+} from '@/types';
+
+// ─── Tabs ────────────────────────────────────────────────────────────────────
+// Daily Plan leads: on a harvest day it is filled in first, before anyone has a
+// figure to record anywhere else.
+const TABS: { key: TabType; label: string }[] = [
+  { key: 'daily_plan', label: 'Daily Plan' },
+  { key: 'workforce', label: 'Workforce' },
+  { key: 'sanitization', label: 'Sanitization' },
+  { key: 'processing', label: 'Processing' },
+  { key: 'yield', label: 'HONS TO HL' },
+  { key: 'non_local_ladies', label: 'Company Ladies' },
+  { key: 'hl_va', label: 'HL to VA' },
+  { key: 'grading', label: 'Grading' },
+];
+
+const TAB_LABELS = Object.fromEntries(TABS.map((t) => [t.key, t.label])) as Record<TabType, string>;
 
 // ─── Supervisor Dropdown Component ───────────────────────────────────────────
 interface SupervisorDropdownProps {
@@ -272,6 +299,14 @@ export default function DailyEntryPage() {
     saveEntries: saveGradingEntries,
   } = useGrading();
 
+  const {
+    honHl: planHonHl,
+    hlVa: planHlVa,
+    loading: planLoading,
+    fetchPlan,
+    savePlan,
+  } = useDailyPlan();
+
   // Basic rate: admin-set in Reports & Settings, but a day that already has
   // entries keeps the rate it was saved under (migration 026).
   const { nlLadiesSalaryBasic } = useAppSettings();
@@ -372,6 +407,22 @@ export default function DailyEntryPage() {
   );
   const [gradingRows, setGradingRows] = useState<GradingFormRow[]>(emptyGradingRows);
 
+  // Daily Plan form state — the day's allocation, decided when the harvest
+  // batches land. Both halves are keyed on the date, not the location selector:
+  // a plan that could only name one PPC at a time wouldn't be a plan.
+  const emptyPlanHonRow = useCallback((): DailyPlanHonHlFormRow => ({
+    batch_name: '',
+    count_text: '',
+    planned_qty: '',
+    boxes: '',
+    location_id: '',
+  }), []);
+  const [planHonRows, setPlanHonRows] = useState<DailyPlanHonHlFormRow[]>([]);
+  const [planVaRows, setPlanVaRows] = useState<DailyPlanHlVaFormRow[]>([]);
+  // Shown by Generate Plan once the plan is stored — never before, so the sheet
+  // that goes out to the floor is always the one in the database.
+  const [planSheetOpen, setPlanSheetOpen] = useState(false);
+
   // Set default location when locations load
   useEffect(() => {
     if (locations.length > 0 && !selectedLocation) {
@@ -383,7 +434,10 @@ export default function DailyEntryPage() {
   useEffect(() => {
     if (!selectedDate) return;
 
-    if (activeTab === 'yield') {
+    if (activeTab === 'daily_plan') {
+      // Covers every location at once, so it keys off the date alone
+      fetchPlan(selectedDate);
+    } else if (activeTab === 'yield') {
       fetchYieldEntries(selectedDate);
     } else if (activeTab === 'non_local_ladies') {
       fetchNllEntries(selectedDate);
@@ -402,7 +456,29 @@ export default function DailyEntryPage() {
         fetchProcessing(selectedDate, selectedLocation);
       }
     }
-  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing, fetchYieldEntries, fetchNllEntries, fetchHlVaEntries, fetchGradingEntries]);
+  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing, fetchYieldEntries, fetchNllEntries, fetchHlVaEntries, fetchGradingEntries, fetchPlan]);
+
+  // Pre-populate the plan from what's stored for the date. An empty plan opens
+  // with one blank batch row and no VA rows — VA locations are added one at a
+  // time, so a row of blanks would just be in the way.
+  useEffect(() => {
+    if (planHonHl.length > 0) {
+      setPlanHonRows(planHonHl.map((e) => ({
+        batch_name: e.batch_name,
+        count_text: e.count_text,
+        planned_qty: e.planned_qty?.toString() ?? '',
+        boxes: e.boxes?.toString() ?? '',
+        location_id: e.location_id ?? '',
+      })));
+    } else if (activeTab === 'daily_plan') {
+      setPlanHonRows([emptyPlanHonRow()]);
+    }
+    setPlanVaRows(planHlVa.map((e) => ({
+      location_id: e.location_id ?? '',
+      planned_qty: e.planned_qty?.toString() ?? '',
+    })));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planHonHl, planHlVa]);
 
   // Pre-populate the grading register from fetched data, keeping every unit's row
   // present whether or not it was recorded
@@ -620,6 +696,56 @@ export default function DailyEntryPage() {
     });
   }, [supervisors, allDailyAssignments, selectedLocation]);
 
+  // Live totals for the plan grid, and the one thing the form has to catch
+  // itself: the same location listed twice on the HL to VA side, which the
+  // unique key on (work_date, location_id) would reject at save time.
+  const planHonTotals = React.useMemo(() => {
+    return planHonRows.reduce(
+      (acc, r) => {
+        acc.qty += parseFloat(r.planned_qty) || 0;
+        acc.boxes += parseInt(r.boxes, 10) || 0;
+        if (r.batch_name.trim() !== '') acc.count += 1;
+        return acc;
+      },
+      { qty: 0, boxes: 0, count: 0 }
+    );
+  }, [planHonRows]);
+
+  const planVaTotal = React.useMemo(
+    () => planVaRows.reduce((sum, r) => sum + (parseFloat(r.planned_qty) || 0), 0),
+    [planVaRows]
+  );
+
+  // A named batch with no location is an instruction nobody can act on. The
+  // registers quietly fall back to the first location for a half-filled row,
+  // but a plan is handed to a PPC — sending Batch 3 to the wrong shed because
+  // the dropdown was left alone is not a fallback worth having.
+  const planHonMissingLocation = React.useMemo(
+    () => planHonRows.some((r) => r.batch_name.trim() !== '' && !r.location_id),
+    [planHonRows]
+  );
+
+  const planVaDuplicates = React.useMemo(() => {
+    const seen = new Set<string>();
+    const dupes = new Set<string>();
+    planVaRows.forEach((r) => {
+      if (!r.location_id) return;
+      if (seen.has(r.location_id)) dupes.add(r.location_id);
+      seen.add(r.location_id);
+    });
+    return dupes;
+  }, [planVaRows]);
+
+  const planDateLabel = React.useMemo(() => {
+    try {
+      return new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-IN', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      });
+    } catch {
+      return selectedDate;
+    }
+  }, [selectedDate]);
+
   const handleSave = () => {
     if (!selectedLocation) return;
     // A popup, not a toast: someone who cannot save has to be stopped and told
@@ -645,6 +771,29 @@ export default function DailyEntryPage() {
           wip_headless_to_va: Math.max(0, parseFloat(wipHeadlessToVa) || 0),
           notes,
         });
+      } else if (activeTab === 'daily_plan') {
+        const honRows = planHonRows
+          .filter((r) => r.batch_name.trim() !== '')
+          .map((r) => ({
+            batch_name: r.batch_name,
+            count_text: r.count_text,
+            planned_qty: Math.max(0, parseFloat(r.planned_qty) || 0),
+            boxes: Math.max(0, parseInt(r.boxes, 10) || 0),
+            location_id: r.location_id,
+          }));
+        // A location with nothing against it isn't a plan for that location —
+        // it's a row someone started and left. The unique key on
+        // (work_date, location_id) rejects a repeated location outright, so the
+        // form has to have caught that before we get here.
+        const vaRows = planVaRows
+          .filter((r) => r.location_id && (parseFloat(r.planned_qty) || 0) > 0)
+          .map((r) => ({
+            location_id: r.location_id,
+            planned_qty: Math.max(0, parseFloat(r.planned_qty) || 0),
+          }));
+        await savePlan(selectedDate, honRows, vaRows);
+        // Only now is there a stored plan to hand out
+        setPlanSheetOpen(true);
       } else if (activeTab === 'yield') {
         const validRows = yieldRows
           .filter((r) => r.batch_id.trim() !== '')
@@ -716,10 +865,7 @@ export default function DailyEntryPage() {
         if (logError) console.error('Could not write data_edit_log:', logError);
       }
 
-      showToast(
-        `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} data saved successfully!`,
-        'success'
-      );
+      showToast(`${TAB_LABELS[activeTab]} data saved successfully!`, 'success');
       setIsConfirmSaveModalOpen(false);
     } catch (error) {
       // If the database was the one that refused, name the reason instead of
@@ -732,17 +878,8 @@ export default function DailyEntryPage() {
   };
 
 
-  const tabs: { key: TabType; label: string }[] = [
-    { key: 'workforce', label: 'Workforce' },
-    { key: 'sanitization', label: 'Sanitization' },
-    { key: 'processing', label: 'Processing' },
-    { key: 'yield', label: 'HONS TO HL' },
-    { key: 'non_local_ladies', label: 'Company Ladies' },
-    { key: 'hl_va', label: 'HL to VA' },
-    { key: 'grading', label: 'Grading' },
-  ];
-
   const isDataLoading =
+    (activeTab === 'daily_plan' && planLoading) ||
     (activeTab === 'workforce' && (workforceLoading || supervisorsLoading)) ||
     (activeTab === 'sanitization' && sanitizationLoading) ||
     (activeTab === 'processing' && processingLoading) ||
@@ -801,7 +938,7 @@ export default function DailyEntryPage() {
 
         {/* Tab Buttons */}
         <div className="flex bg-gray-100 rounded-xl p-1">
-          {tabs.map((tab) => (
+          {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
@@ -835,6 +972,285 @@ export default function DailyEntryPage() {
           <LoadingSpinner />
         ) : (
           <>
+            {/* --- Daily Plan Tab ----------------------------------------- */}
+            {activeTab === 'daily_plan' && (
+              <div className="animate-fade-in space-y-4">
+                {/* What this tab is for */}
+                <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-2xl p-4 border border-indigo-200">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">&#128197;</span>
+                    <h3 className="text-sm font-semibold text-indigo-800">Daily Plan</h3>
+                  </div>
+                  <p className="text-xs text-indigo-700">
+                    Share the day&apos;s harvest out before processing starts &mdash; which location de-heads
+                    which batch, and how much HL each location takes for VA. Covers{' '}
+                    <strong>every location</strong>, so the location picker above doesn&apos;t apply here.
+                  </p>
+                </div>
+
+                {/* HON to HL: batch-wise allocation */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
+                  <div className="min-w-[620px] p-3">
+                    <div className="flex items-center justify-between mb-3 px-1">
+                      <h3 className="text-sm font-semibold text-gray-700">HON to HL</h3>
+                      <span className="px-3 py-1 bg-teal-50 text-teal-700 rounded-full text-xs font-bold">
+                        {planHonTotals.qty.toFixed(3)} kg &middot; {planHonTotals.boxes} boxes
+                      </span>
+                    </div>
+
+                    {/* Header row */}
+                    <div className="grid grid-cols-[140px_90px_110px_80px_140px_32px] gap-1.5 mb-2 px-1 border-b border-gray-100 pb-2">
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Batch Name</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Count</span>
+                      <span className="text-[10px] font-semibold text-teal-500 uppercase tracking-wider text-right">Quantity (kg)</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Boxes</span>
+                      <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Location</span>
+                      <span></span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {planHonRows.map((row, idx) => {
+                        const update = (field: keyof DailyPlanHonHlFormRow, value: string) =>
+                          setPlanHonRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r)));
+
+                        const handleKeyDown = (e: React.KeyboardEvent, colIdx: number) => {
+                          let nextRow = idx;
+                          let nextCol = colIdx;
+                          if (e.key === 'ArrowUp') nextRow = Math.max(0, idx - 1);
+                          else if (e.key === 'ArrowDown') nextRow = Math.min(planHonRows.length - 1, idx + 1);
+                          else if (e.key === 'ArrowLeft') nextCol = Math.max(0, colIdx - 1);
+                          else if (e.key === 'ArrowRight') nextCol = Math.min(4, colIdx + 1);
+                          else return;
+                          if (nextRow !== idx || nextCol !== colIdx) {
+                            e.preventDefault();
+                            document.getElementById(`plan-hon-${nextRow}-${nextCol}`)?.focus();
+                          }
+                        };
+
+                        return (
+                          <div key={idx} className="grid grid-cols-[140px_90px_110px_80px_140px_32px] gap-1.5 items-center group">
+                            <input
+                              id={`plan-hon-${idx}-0`}
+                              type="text"
+                              value={row.batch_name}
+                              onChange={(e) => update('batch_name', e.target.value)}
+                              onKeyDown={(e) => handleKeyDown(e, 0)}
+                              placeholder="Batch 2"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+                            <input
+                              id={`plan-hon-${idx}-1`}
+                              type="text"
+                              value={row.count_text}
+                              onChange={(e) => update('count_text', e.target.value)}
+                              onKeyDown={(e) => handleKeyDown(e, 1)}
+                              placeholder="30-40"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+                            <input
+                              id={`plan-hon-${idx}-2`}
+                              type="number"
+                              step="any"
+                              min="0"
+                              value={row.planned_qty}
+                              onChange={(e) => update('planned_qty', e.target.value)}
+                              onKeyDown={(e) => handleKeyDown(e, 2)}
+                              placeholder="0.000"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+                            <input
+                              id={`plan-hon-${idx}-3`}
+                              type="number"
+                              step="1"
+                              min="0"
+                              value={row.boxes}
+                              onChange={(e) => update('boxes', e.target.value)}
+                              onKeyDown={(e) => handleKeyDown(e, 3)}
+                              placeholder="0"
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                            />
+                            <select
+                              id={`plan-hon-${idx}-4`}
+                              value={row.location_id}
+                              onChange={(e) => update('location_id', e.target.value)}
+                              onKeyDown={(e) => handleKeyDown(e, 4)}
+                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 appearance-none"
+                            >
+                              <option value="">PPC</option>
+                              {locations.map((loc) => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                              ))}
+                            </select>
+                            <div className="flex justify-center">
+                              {planHonRows.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPlanHonRows((prev) => prev.filter((_, i) => i !== idx))}
+                                  aria-label="Remove batch"
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9.75L14.25 12m0 0l2.25 2.25M14.25 12l2.25-2.25M14.25 12L12 14.25m-2.58 4.92l-6.375-6.375a1.125 1.125 0 010-1.59L9.42 4.83c.211-.211.498-.33.796-.33H19.5a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-9.284c-.298 0-.585-.119-.796-.33z" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Running total, so the split is visible while it is being cut */}
+                    <div className="grid grid-cols-[140px_90px_110px_80px_140px_32px] gap-1.5 items-center mt-2 pt-2 border-t-2 border-teal-100">
+                      <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider">
+                        Total &middot; {planHonTotals.count} batch{planHonTotals.count === 1 ? '' : 'es'}
+                      </span>
+                      <span />
+                      <span className="text-xs font-extrabold text-right px-1 text-teal-800">{planHonTotals.qty.toFixed(3)}</span>
+                      <span className="text-xs font-extrabold text-right px-1 text-teal-800">{planHonTotals.boxes || '—'}</span>
+                      <span />
+                      <span />
+                    </div>
+                  </div>
+                </div>
+
+                {planHonMissingLocation && (
+                  <p className="text-[11px] font-bold text-rose-600 px-1">
+                    Every batch needs a location before the plan can go out.
+                  </p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setPlanHonRows((prev) => [...prev, emptyPlanHonRow()])}
+                  className="w-full py-3 border-2 border-dashed border-gray-200 rounded-2xl text-sm font-semibold text-gray-500 hover:border-teal-300 hover:text-teal-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Add Batch
+                </button>
+
+                {/* HL to VA: how much HL each location takes */}
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-700">HL to VA</h3>
+                    <span className="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold">
+                      {planVaTotal.toFixed(3)} kg
+                    </span>
+                  </div>
+
+                  {planVaRows.length === 0 ? (
+                    <p className="text-xs text-gray-400 py-1">
+                      No location planned for VA yet &mdash; add one below.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {planVaRows.map((row, idx) => {
+                        const duplicate = row.location_id !== '' && planVaDuplicates.has(row.location_id);
+                        return (
+                          <div key={idx} className="grid grid-cols-[1fr_120px_32px] gap-2 items-center">
+                            <select
+                              value={row.location_id}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setPlanVaRows((prev) => prev.map((r, i) => (i === idx ? { ...r, location_id: val } : r)));
+                              }}
+                              className={`w-full px-3 py-2.5 bg-gray-50 border rounded-xl text-sm text-gray-900 focus:bg-white focus:ring-2 focus:ring-indigo-400/10 appearance-none ${
+                                duplicate ? 'border-rose-300 focus:border-rose-400' : 'border-gray-200 focus:border-indigo-400'
+                              }`}
+                            >
+                              <option value="">Select location...</option>
+                              {locations.map((loc) => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                              ))}
+                            </select>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                value={row.planned_qty}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setPlanVaRows((prev) => prev.map((r, i) => (i === idx ? { ...r, planned_qty: val } : r)));
+                                }}
+                                placeholder="0.000"
+                                className="w-full pl-3 pr-8 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/10"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-medium text-gray-400">kg</span>
+                            </div>
+                            <div className="flex justify-center">
+                              <button
+                                type="button"
+                                onClick={() => setPlanVaRows((prev) => prev.filter((_, i) => i !== idx))}
+                                aria-label="Remove location"
+                                className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9.75L14.25 12m0 0l2.25 2.25M14.25 12l2.25-2.25M14.25 12L12 14.25m-2.58 4.92l-6.375-6.375a1.125 1.125 0 010-1.59L9.42 4.83c.211-.211.498-.33.796-.33H19.5a2.25 2.25 0 012.25 2.25v10.5a2.25 2.25 0 01-2.25 2.25h-9.284c-.298 0-.585-.119-.796-.33z" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* One location cannot be planned two amounts - the database
+                      will not take it, so say so before Generate is pressed. */}
+                  {planVaDuplicates.size > 0 && (
+                    <p className="text-[11px] font-bold text-rose-600">
+                      The same location is listed twice. Combine those rows into one.
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setPlanVaRows((prev) => [...prev, { location_id: '', planned_qty: '' }])}
+                    disabled={planVaRows.length >= locations.length}
+                    className="w-full py-2.5 border-2 border-dashed border-gray-200 rounded-xl text-xs font-semibold text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:text-gray-500"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Add Location
+                  </button>
+                </div>
+
+                {/* Generate - saves first, then shows the sheet that goes out */}
+                <button
+                  onClick={handleSave}
+                  disabled={saving || planVaDuplicates.size > 0 || planHonMissingLocation}
+                  className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-xl shadow-lg shadow-indigo-600/25 transition-all disabled:opacity-50 min-h-[48px] flex items-center justify-center gap-2"
+                >
+                  {saving ? (
+                    <>
+                      <svg className="animate-spin w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    'Generate Plan'
+                  )}
+                </button>
+
+                {/* A plan already stored can be re-opened without re-saving */}
+                {(planHonHl.length > 0 || planHlVa.length > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => setPlanSheetOpen(true)}
+                    className="w-full py-2.5 border border-indigo-200 rounded-xl text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition-colors"
+                  >
+                    View saved plan sheet
+                  </button>
+                )}
+              </div>
+            )}
+
             {/* Workforce Tab */}
             {activeTab === 'workforce' && (
               <div className="animate-fade-in space-y-4">
@@ -2239,6 +2655,20 @@ export default function DailyEntryPage() {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* The generated plan, ready to print, export or send on */}
+      <Modal
+        isOpen={planSheetOpen}
+        onClose={() => setPlanSheetOpen(false)}
+        title="Daily Plan"
+      >
+        <DailyPlanSheet
+          honHl={planHonHl}
+          hlVa={planHlVa}
+          date={selectedDate}
+          dateLabel={planDateLabel}
+        />
       </Modal>
     </div>
   );
