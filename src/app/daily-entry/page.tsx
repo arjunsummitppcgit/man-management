@@ -916,24 +916,30 @@ export default function DailyEntryPage() {
 
       {/* Date & Location Selectors - Sticky */}
       <div className="sticky top-0 z-10 bg-gray-50 px-4 pb-3 space-y-2">
-        <div className="grid grid-cols-2 gap-2">
+        {/* The plan names a location on every row, so the page-wide picker has
+            nothing to say there — it is dropped and the date takes the width.
+            selectedLocation still holds the default underneath, which is all
+            the save path needs. */}
+        <div className={`grid gap-2 ${activeTab === 'daily_plan' ? 'grid-cols-1' : 'grid-cols-2'}`}>
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500"
           />
-          <select
-            value={selectedLocation}
-            onChange={(e) => setSelectedLocation(e.target.value)}
-            className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 appearance-none"
-          >
-            {locations.map((loc) => (
-              <option key={loc.id} value={loc.id}>
-                {loc.name}
-              </option>
-            ))}
-          </select>
+          {activeTab !== 'daily_plan' && (
+            <select
+              value={selectedLocation}
+              onChange={(e) => setSelectedLocation(e.target.value)}
+              className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 appearance-none"
+            >
+              {locations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Tab Buttons */}
@@ -983,8 +989,8 @@ export default function DailyEntryPage() {
                   </div>
                   <p className="text-xs text-indigo-700">
                     Share the day&apos;s harvest out before processing starts &mdash; which location de-heads
-                    which batch, and how much HL each location takes for VA. Covers{' '}
-                    <strong>every location</strong>, so the location picker above doesn&apos;t apply here.
+                    which batch, and how much HL each location takes for VA. One plan covers{' '}
+                    <strong>every location</strong>, so each row names its own.
                   </p>
                 </div>
 
