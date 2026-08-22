@@ -38,6 +38,8 @@ export interface HlVaRow {
   work_date: string;
   location_id: string | null;
   batch_id: string;
+  /** Prawn count as the grader wrote it, e.g. '30-40'. */
+  count_text: string;
   variety: string;
   grade: string;
   hl_kgs: number;
@@ -54,6 +56,8 @@ export interface YieldBatchRow {
   work_date: string;
   location_id: string;
   batch_id: string;
+  /** Prawn count as the grader wrote it, e.g. '30-40'. */
+  count_text: string;
   hon_kgs: number;
   hl_kgs: number;
 }
@@ -163,7 +167,7 @@ export function useAnalytics() {
           .order('work_date', { ascending: true }),
         supabase
           .from('yield_entries')
-          .select('work_date, location_id, batch_id, hon_kgs, hl_kgs')
+          .select('work_date, location_id, batch_id, count_text, hon_kgs, hl_kgs')
           .gte('work_date', fromDate)
           .lte('work_date', toDate)
           .order('work_date', { ascending: true }),
@@ -177,7 +181,7 @@ export function useAnalytics() {
           .order('work_date', { ascending: true }),
         supabase
           .from('hl_va_entries')
-          .select('work_date, location_id, batch_id, variety, grade, hl_kgs, va_kgs')
+          .select('work_date, location_id, batch_id, count_text, variety, grade, hl_kgs, va_kgs')
           .gte('work_date', fromDate)
           .lte('work_date', toDate)
           .order('work_date', { ascending: true }),
@@ -210,7 +214,7 @@ export function useAnalytics() {
           .not('location_id', 'is', null),
         supabase
           .from('hl_va_entries')
-          .select('work_date, location_id, batch_id, variety, grade, hl_kgs, va_kgs')
+          .select('work_date, location_id, batch_id, count_text, variety, grade, hl_kgs, va_kgs')
           .gte('work_date', monthStart)
           .lte('work_date', monthEnd),
       ]);

@@ -137,6 +137,7 @@ export default function ProcessingSection({
           work_date: r.work_date,
           location_id: r.location_id as string | null,
           batch_id: r.batch_id,
+          count_text: r.count_text || '',
           inKg: r.hon_kgs || 0,
           outKg: r.hl_kgs || 0,
         }))
@@ -144,6 +145,7 @@ export default function ProcessingSection({
           work_date: r.work_date,
           location_id: r.location_id,
           batch_id: r.batch_id,
+          count_text: r.count_text || '',
           inKg: r.hl_kgs || 0,
           outKg: r.va_kgs || 0,
         }));
@@ -158,6 +160,7 @@ export default function ProcessingSection({
     () => [
       'Date',
       'Batch ID',
+      'Count',
       'Company',
       'Location',
       `${inLabel} (Kgs)`,
@@ -170,13 +173,27 @@ export default function ProcessingSection({
   const tableRows = useMemo(() => {
     const groups = new Map<
       string,
-      { date: string; batchId: string; locs: Set<string>; inKg: number; outKg: number }
+      {
+        date: string;
+        batchId: string;
+        locs: Set<string>;
+        counts: Set<string>;
+        inKg: number;
+        outKg: number;
+      }
     >();
     for (const r of batchRows) {
       const key = `${r.work_date}|${r.batch_id}`;
       let g = groups.get(key);
       if (!g) {
-        g = { date: r.work_date, batchId: r.batch_id, locs: new Set(), inKg: 0, outKg: 0 };
+        g = {
+          date: r.work_date,
+          batchId: r.batch_id,
+          locs: new Set(),
+          counts: new Set(),
+          inKg: 0,
+          outKg: 0,
+        };
         groups.set(key, g);
       }
       // A yield batch is unique per date, so this is one location. HL→VA splits
@@ -184,6 +201,10 @@ export default function ProcessingSection({
       // and may carry none at all, hence the fallback.
       const name = locationName(r.location_id);
       if (name) g.locs.add(name);
+      // Same reason the counts are a set: one HL→VA batch is graded across
+      // several counts, and the grouped row has to name all of them rather
+      // than silently keep whichever came back first.
+      if (r.count_text) g.counts.add(r.count_text);
       g.inKg += r.inKg;
       g.outKg += r.outKg;
     }
@@ -193,6 +214,9 @@ export default function ProcessingSection({
       .map((g) => [
         fmtDay(g.date),
         g.batchId,
+        Array.from(g.counts)
+          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+          .join(', ') || '—',
         batchCompany(g.batchId),
         Array.from(g.locs).sort().join(', ') || '—',
         fmt(g.inKg),
@@ -204,7 +228,7 @@ export default function ProcessingSection({
   const footer = useMemo(() => {
     const grandIn = batchRows.reduce((s, r) => s + r.inKg, 0);
     const grandOut = batchRows.reduce((s, r) => s + r.outKg, 0);
-    return ['Total', '', '', '', fmt(grandIn), fmt(grandOut), yieldPct(grandIn, grandOut)];
+    return ['Total', '', '', '', '', fmt(grandIn), fmt(grandOut), yieldPct(grandIn, grandOut)];
   }, [batchRows]);
 
   const slug = isHonHl ? 'hon-to-hl' : 'hl-to-va';
