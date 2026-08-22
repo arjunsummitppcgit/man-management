@@ -4,8 +4,8 @@ import React, { useMemo, useState } from 'react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useYield } from '@/hooks/useYield';
 import { useHlVa } from '@/hooks/useHlVa';
-import { calculateYield, lookupStandardYield, calculateYieldDifference } from '@/lib/yieldChart';
-import { lookupHlVaStandardYield, lookupHlVaCountRange } from '@/lib/hlVa';
+import { calculateYield, standardForYieldEntry, calculateYieldDifference } from '@/lib/yieldChart';
+import { standardForHlVaEntry, lookupHlVaCountRange } from '@/lib/hlVa';
 
 /**
  * Look one Batch ID up across every date and show both processing stages side
@@ -122,7 +122,7 @@ export default function BatchPipeline() {
                         const honNum = Number(entry.hon_kgs) || 0;
                         const hlNum = Number(entry.hl_kgs) || 0;
                         const yieldPct = calculateYield(honNum, hlNum);
-                        const stdYield = lookupStandardYield(entry.count_text);
+                        const stdYield = standardForYieldEntry(entry);
                         const diff = calculateYieldDifference(yieldPct, stdYield);
                         return (
                           <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group">
@@ -201,7 +201,7 @@ export default function BatchPipeline() {
                         const hlNum = Number(entry.hl_kgs) || 0;
                         const vaNum = Number(entry.va_kgs) || 0;
                         const yieldPct = calculateYield(hlNum, vaNum);
-                        const stdYield = lookupHlVaStandardYield(entry.count_text, entry.variety);
+                        const stdYield = standardForHlVaEntry(entry);
                         const diff = calculateYieldDifference(yieldPct, stdYield);
                         const grade = entry.grade || lookupHlVaCountRange(entry.count_text) || '-';
                         return (

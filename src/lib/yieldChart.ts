@@ -1,6 +1,16 @@
 // ─── Standard Yield Chart ─────────────────────────────────────────────────────
-// Constant reference table mapping count ranges to standard yield percentages.
-// Used for auto-calculating standard yield from the count field.
+// Reference table mapping count ranges to standard yield percentages, used to
+// auto-calculate the standard a batch is measured against.
+//
+// The bands below are the shipped chart. Since migration 032 an admin can edit
+// the *percentages* from Daily Entry; the bands themselves stay here, because
+// yield_entries.count_range is stamped from them at save time and a band whose
+// bounds moved would strand those stored labels.
+//
+// The shipped percentages are also what pre-032 rows are read against — a row
+// with no std_yield of its own was measured under these, so they are history
+// as much as they are a default. Change a number here only if it was wrong all
+// along; to change the standard going forward, edit it in the app.
 
 export interface YieldChartEntry {
   label: string;      // Display label, e.g. "22-40"
@@ -59,13 +69,50 @@ export function extractCountNumber(countText: string): number | null {
 /**
  * Look up the standard yield % for a given count text.
  * Returns the standard yield percentage (e.g. 71.00) or null if not matched.
+ *
+ * `chart` defaults to the shipped bands. Pass the live chart from
+ * useYieldStandards when stamping a new entry or previewing one being typed;
+ * leave it off when reading a saved row that has no std_yield of its own,
+ * since the shipped values are what applied to it.
  */
-export function lookupStandardYield(countText: string): number | null {
+export function lookupStandardYield(
+  countText: string,
+  chart: YieldChartEntry[] = YIELD_CHART
+): number | null {
   const count = extractCountNumber(countText);
   if (count === null) return null;
 
-  const entry = YIELD_CHART.find((e) => count >= e.min && count <= e.max);
+  const entry = chart.find((e) => count >= e.min && count <= e.max);
   return entry?.standardYield ?? null;
+}
+
+/**
+ * The chart as it currently stands: shipped bands with any admin-edited
+ * percentages laid over the top, keyed by band label.
+ *
+ * Overlaying rather than replacing is what keeps the two halves in step — an
+ * override for a band that no longer exists is ignored, and a band added to
+ * the code later shows its shipped percentage until someone edits it, instead
+ * of appearing as a blank.
+ */
+export function applyYieldOverrides(
+  overrides: Record<string, number> | null | undefined
+): YieldChartEntry[] {
+  if (!overrides) return YIELD_CHART;
+  return YIELD_CHART.map((entry) => {
+    const override = overrides[entry.label];
+    return Number.isFinite(override) ? { ...entry, standardYield: Number(override) } : entry;
+  });
+}
+
+/** Just the edited bands, so an untouched chart stores nothing at all. */
+export function yieldOverridesOf(chart: YieldChartEntry[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  const shipped = new Map(YIELD_CHART.map((e) => [e.label, e.standardYield]));
+  chart.forEach((e) => {
+    if (shipped.get(e.label) !== e.standardYield) out[e.label] = e.standardYield;
+  });
+  return out;
 }
 
 /**
@@ -78,6 +125,48 @@ export function lookupCountRange(countText: string): string | null {
 
   const entry = YIELD_CHART.find((e) => count >= e.min && count <= e.max);
   return entry?.label ?? null;
+}
+
+/**
+ * The HON→HL standard a *saved* row was measured against.
+ *
+ * Prefers the value stamped on the row at save time. A row with none was saved
+ * before the chart became editable (migration 032), so the shipped chart is
+ * what applied to it — reading it against today's edited chart would rewrite
+ * what yesterday's report said.
+ */
+export function standardForYieldEntry(entry: {
+  std_yield?: number | string | null;
+  count_text: string;
+}): number | null {
+  const stamped = Number(entry.std_yield);
+  if (Number.isFinite(stamped) && stamped > 0) return stamped;
+  return lookupStandardYield(entry.count_text);
+}
+
+/**
+ * The standard a row *on the form* is measured against — and the one a save
+ * will stamp, so the two can never disagree.
+ *
+ * A row loaded from the database keeps the standard it was saved under, the
+ * same way a day's Company Ladies rate survives a re-save (migration 026).
+ * Re-opening an old date to fix a grader's name must not quietly re-measure
+ * the whole day against a chart edited since. Retype the count and the stamp
+ * no longer describes the row, so it is recomputed.
+ */
+export function standardForYieldFormRow(
+  row: { count_text: string; std_yield?: number | null; stamped_count?: string },
+  chart: YieldChartEntry[]
+): number | null {
+  const stamped = Number(row.std_yield);
+  if (
+    Number.isFinite(stamped) &&
+    stamped > 0 &&
+    (row.stamped_count ?? '').trim() === row.count_text.trim()
+  ) {
+    return stamped;
+  }
+  return lookupStandardYield(row.count_text, chart);
 }
 
 /**

@@ -20,11 +20,13 @@ import { useAppSettings } from '@/hooks/useAppSettings';
 import { useHlVa } from '@/hooks/useHlVa';
 import { useGrading } from '@/hooks/useGrading';
 import { useDailyPlan } from '@/hooks/useDailyPlan';
+import { useYieldStandards } from '@/hooks/useYieldStandards';
 import { supabase } from '@/lib/supabase/client';
 import { GRADING_UNITS, runningHours, formatHours } from '@/lib/grading';
-import { lookupStandardYield, lookupCountRange, calculateYield, calculateYieldDifference, YIELD_CHART } from '@/lib/yieldChart';
-import { VA_VARIETIES, lookupHlVaStandardYield, lookupHlVaCountRange } from '@/lib/hlVa';
+import { lookupCountRange, calculateYield, calculateYieldDifference, standardForYieldFormRow } from '@/lib/yieldChart';
+import { VA_VARIETIES, lookupHlVaCountRange, standardForHlVaFormRow } from '@/lib/hlVa';
 import DailyPlanSheet from '@/components/reports/DailyPlanSheet';
+import StandardYieldPanel from '@/components/daily-entry/StandardYieldPanel';
 import type {
   Supervisor,
   TabType,
@@ -307,6 +309,18 @@ export default function DailyEntryPage() {
     savePlan,
   } = useDailyPlan();
 
+  // The standard yield charts as they currently stand — shipped bands with any
+  // admin edits over the top (migration 032). Used to preview a row being typed
+  // and to stamp std_yield on save; never to re-read a row already saved.
+  const {
+    honHlChart,
+    hlVaChart,
+    honHlEdited,
+    hlVaEdited,
+    saveHonHlChart,
+    saveHlVaChart,
+  } = useYieldStandards();
+
   // Basic rate: admin-set in Reports & Settings, but a day that already has
   // entries keeps the rate it was saved under (migration 026).
   const { nlLadiesSalaryBasic } = useAppSettings();
@@ -510,6 +524,9 @@ export default function DailyEntryPage() {
         va_kgs: e.va_kgs?.toString() ?? '',
         location_id: e.location_id ?? '',
         grader_name: e.grader_name,
+        std_yield: e.std_yield,
+        stamped_count: e.count_text,
+        stamped_variety: e.variety,
       })));
     } else if (activeTab === 'hl_va') {
       setHlVaRows([emptyHlVaRow()]);
@@ -651,6 +668,8 @@ export default function DailyEntryPage() {
         hl_kgs: e.hl_kgs?.toString() ?? '',
         location_id: e.location_id,
         grader_name: e.grader_name,
+        std_yield: e.std_yield,
+        stamped_count: e.count_text,
       })));
     } else if (activeTab === 'yield') {
       setYieldRows([emptyYieldRow()]);
@@ -805,6 +824,11 @@ export default function DailyEntryPage() {
             hl_kgs: Math.max(0, parseFloat(r.hl_kgs) || 0),
             location_id: r.location_id || locations[0]?.id || '',
             grader_name: r.grader_name,
+            // Recorded with the row, not looked up when it is next read: an
+            // admin editing the chart tomorrow must not move what today was
+            // measured against. A row loaded with a stamp keeps it unless its
+            // count was retyped — the same number the form has been showing.
+            std_yield: standardForYieldFormRow(r, honHlChart),
           }));
         await saveYieldEntries(selectedDate, validRows);
       } else if (activeTab === 'non_local_ladies') {
@@ -829,6 +853,7 @@ export default function DailyEntryPage() {
             va_kgs: Math.max(0, parseFloat(r.va_kgs) || 0),
             location_id: r.location_id || locations[0]?.id || '',
             grader_name: r.grader_name,
+            std_yield: standardForHlVaFormRow(r, hlVaChart),
           }));
         await saveHlVaEntries(selectedDate, validRows);
       } else if (activeTab === 'grading') {
@@ -1719,35 +1744,16 @@ export default function DailyEntryPage() {
             {/* ─── Yield Tab ─────────────────────────────────────────────── */}
             {activeTab === 'yield' && (
               <div className="animate-fade-in space-y-4">
-                {/* Standard Yield Reference Chart */}
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const el = document.getElementById('yield-chart-panel');
-                      if (el) el.classList.toggle('hidden');
-                    }}
-                    className="w-full flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">📊</span>
-                      <span className="text-sm font-semibold text-gray-700">Standard Yield Chart</span>
-                    </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                    </svg>
-                  </button>
-                  <div id="yield-chart-panel" className="hidden mt-3 border-t border-gray-100 pt-3">
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {YIELD_CHART.map((entry) => (
-                        <div key={entry.label} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                          <span className="text-xs font-medium text-gray-600">{entry.label}</span>
-                          <span className="text-xs font-bold text-teal-700">{entry.standardYield.toFixed(2)}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                {/* Standard Yield Reference Chart — admins can retype the
+                    percentages; everyone else reads them. */}
+                <StandardYieldPanel
+                  mode="hon_hl"
+                  chart={honHlChart}
+                  canEdit={isAdmin}
+                  edited={honHlEdited}
+                  onSave={saveHonHlChart}
+                  onSaved={(m) => showToast(m, 'success')}
+                />
 
                 {/* Yield Grid */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
@@ -1772,7 +1778,7 @@ export default function DailyEntryPage() {
                         const honNum = parseFloat(row.hon_kgs) || 0;
                         const hlNum = parseFloat(row.hl_kgs) || 0;
                         const yieldPct = calculateYield(honNum, hlNum);
-                        const stdYield = lookupStandardYield(row.count_text);
+                        const stdYield = standardForYieldFormRow(row, honHlChart);
                         const yieldDiff = calculateYieldDifference(yieldPct, stdYield);
                         
                         const handleKeyDown = (e: React.KeyboardEvent, colIdx: number) => {
@@ -2227,6 +2233,15 @@ export default function DailyEntryPage() {
                   <p className="text-xs text-indigo-700">Enter batch-wise HL to VA quantities. Grade is auto-picked from Count, and Std % from the standard chart based on Count and Variety. Yield = VA / HL x 100.</p>
                 </div>
 
+                <StandardYieldPanel
+                  mode="hl_va"
+                  chart={hlVaChart}
+                  canEdit={isAdmin}
+                  edited={hlVaEdited}
+                  onSave={saveHlVaChart}
+                  onSaved={(m) => showToast(m, 'success')}
+                />
+
                 {/* HL to VA Grid */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
                   <div className="min-w-[1080px] p-3">
@@ -2252,7 +2267,7 @@ export default function DailyEntryPage() {
                         const hlNum = parseFloat(row.hl_kgs) || 0;
                         const vaNum = parseFloat(row.va_kgs) || 0;
                         const yieldPct = calculateYield(hlNum, vaNum);
-                        const stdYield = lookupHlVaStandardYield(row.count_text, row.variety);
+                        const stdYield = standardForHlVaFormRow(row, hlVaChart);
                         const grade = lookupHlVaCountRange(row.count_text);
                         const yieldDiff = calculateYieldDifference(yieldPct, stdYield);
 

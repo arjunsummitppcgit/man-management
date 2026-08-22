@@ -96,6 +96,8 @@ export function useYield() {
       hl_kgs: number;
       location_id: string;
       grader_name: string;
+      /** The standard in force now, stamped so a later chart edit can't move it. */
+      std_yield: number | null;
     }[]
   ) => {
     try {
@@ -118,6 +120,7 @@ export function useYield() {
           hl_kgs: row.hl_kgs,
           location_id: row.location_id,
           grader_name: row.grader_name.trim(),
+          std_yield: row.std_yield,
         }));
 
         const { error: insertError } = await supabase

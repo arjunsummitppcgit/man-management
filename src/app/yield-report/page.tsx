@@ -9,8 +9,8 @@ import { todayIST, yesterdayIST } from '@/lib/auth/permissions';
 import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useHlVa } from '@/hooks/useHlVa';
-import { calculateYield, lookupStandardYield, calculateYieldDifference } from '@/lib/yieldChart';
-import { formatVaQty, lookupHlVaStandardYield, lookupHlVaCountRange } from '@/lib/hlVa';
+import { calculateYield, standardForYieldEntry, calculateYieldDifference } from '@/lib/yieldChart';
+import { formatVaQty, standardForHlVaEntry, lookupHlVaCountRange } from '@/lib/hlVa';
 import GradeVaReport from '@/components/reports/GradeVaReport';
 import LabourBreakdownReport from '@/components/reports/LabourBreakdownReport';
 import GradingDataReport from '@/components/reports/GradingDataReport';
@@ -71,7 +71,7 @@ export default function YieldReportPage() {
         const honNum = Number(entry.hon_kgs) || 0;
         const hlNum = Number(entry.hl_kgs) || 0;
         const yieldPct = calculateYield(honNum, hlNum);
-        const stdYield = lookupStandardYield(entry.count_text);
+        const stdYield = standardForYieldEntry(entry);
         const diff = calculateYieldDifference(yieldPct, stdYield);
         if (diff === null) return false;
         if (diffFilter === 'Positive' && diff < 0) return false;
@@ -566,7 +566,7 @@ export default function YieldReportPage() {
                       const honNum = Number(entry.hon_kgs) || 0;
                       const hlNum = Number(entry.hl_kgs) || 0;
                       const yieldPct = calculateYield(honNum, hlNum);
-                      const stdYield = lookupStandardYield(entry.count_text);
+                      const stdYield = standardForYieldEntry(entry);
                       const diff = calculateYieldDifference(yieldPct, stdYield);
                       return (
                         <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group">
@@ -848,7 +848,7 @@ export default function YieldReportPage() {
                       const hlNum = Number(entry.hl_kgs) || 0;
                       const vaNum = Number(entry.va_kgs) || 0;
                       const yieldPct = calculateYield(hlNum, vaNum);
-                      const stdYield = lookupHlVaStandardYield(entry.count_text, entry.variety);
+                      const stdYield = standardForHlVaEntry(entry);
                       const diff = calculateYieldDifference(yieldPct, stdYield);
                       const grade = entry.grade || lookupHlVaCountRange(entry.count_text) || '-';
                       return (

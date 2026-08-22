@@ -289,6 +289,12 @@ export interface YieldEntry {
   hl_kgs: number;
   location_id: string;
   grader_name: string;
+  /**
+   * The HON→HL standard this row was measured against, stamped at save time
+   * (migration 032). Null on rows saved before the chart became editable —
+   * read those against the shipped chart in lib/yieldChart.
+   */
+  std_yield: number | null;
   created_at: string;
   updated_at: string;
   // Joined
@@ -304,6 +310,10 @@ export interface YieldFormRow {
   hl_kgs: string;     // string for input binding
   location_id: string;
   grader_name: string;
+  /** Standard this row was loaded with; undefined on a row being added now. */
+  std_yield?: number | null;
+  /** The count that stamp belongs to — retyping the count invalidates it. */
+  stamped_count?: string;
 }
 
 // ─── Non Local Ladies Report Types ──────────────────────────────────────────
@@ -344,6 +354,12 @@ export interface HlVaEntry {
   va_kgs: number;
   location_id: string | null;
   grader_name: string;
+  /**
+   * The HL→VA standard this row was measured against — its count band and
+   * variety group resolved at save time (migration 032). Null on rows saved
+   * before the chart became editable; read those against lib/hlVa.
+   */
+  std_yield: number | null;
   created_at: string;
   updated_at: string;
   // Joined
@@ -358,6 +374,11 @@ export interface HlVaFormRow {
   va_kgs: string;
   location_id: string;
   grader_name: string;
+  /** Standard this row was loaded with; undefined on a row being added now. */
+  std_yield?: number | null;
+  /** Count and variety that stamp belongs to — changing either invalidates it. */
+  stamped_count?: string;
+  stamped_variety?: string;
 }
 
 // ─── Maintenance Task Types ("My Tasks") ─────────────────────────────────────

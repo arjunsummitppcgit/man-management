@@ -20,6 +20,10 @@ export type VaVariety = (typeof VA_VARIETIES)[number];
 //   pd   → PD / PUD / PVPD / BTFLY
 //   pdto → PDTO / PVPDTO
 //   ezpl → EZPL
+//
+// Same arrangement as the HON→HL chart: since migration 032 admins edit the
+// percentages in the app, the bands stay here (hl_va_entries.grade is stamped
+// from them), and these shipped values are what pre-032 rows are read against.
 export interface HlVaYieldEntry {
   label: string; // Display label, e.g. "13-15"
   min: number;   // Inclusive lower bound
@@ -61,12 +65,63 @@ function varietyColumn(variety: string): 'pd' | 'pdto' | 'ezpl' {
  * Returns the standard yield percentage (e.g. 83.00) or null if the count
  * doesn't fall in any chart range.
  */
-export function lookupHlVaStandardYield(countText: string, variety: string): number | null {
+export function lookupHlVaStandardYield(
+  countText: string,
+  variety: string,
+  chart: HlVaYieldEntry[] = HLVA_YIELD_CHART
+): number | null {
   const count = extractCountNumber(countText);
   if (count === null) return null;
-  const entry = HLVA_YIELD_CHART.find((e) => count >= e.min && count <= e.max);
+  const entry = chart.find((e) => count >= e.min && count <= e.max);
   if (!entry) return null;
   return entry[varietyColumn(variety)];
+}
+
+/** The three editable columns on a band. */
+export type HlVaYieldColumn = 'pd' | 'pdto' | 'ezpl';
+
+/** Which chart column a variety is measured against. */
+export const hlVaColumnFor = varietyColumn;
+
+export const HLVA_COLUMNS: { key: HlVaYieldColumn; label: string; hint: string }[] = [
+  { key: 'pd', label: 'PD', hint: 'PD · PUD · PVPD · BTFLY' },
+  { key: 'pdto', label: 'PDTO', hint: 'PDTO · PVPDTO' },
+  { key: 'ezpl', label: 'EZPL', hint: 'EZPL' },
+];
+
+/** Shipped bands with any admin-edited percentages laid over the top. */
+export function applyHlVaOverrides(
+  overrides: Record<string, Partial<Record<HlVaYieldColumn, number>>> | null | undefined
+): HlVaYieldEntry[] {
+  if (!overrides) return HLVA_YIELD_CHART;
+  return HLVA_YIELD_CHART.map((entry) => {
+    const override = overrides[entry.label];
+    if (!override) return entry;
+    const next = { ...entry };
+    HLVA_COLUMNS.forEach(({ key }) => {
+      const value = override[key];
+      if (Number.isFinite(value)) next[key] = Number(value);
+    });
+    return next;
+  });
+}
+
+/** Just the edited cells, so an untouched chart stores nothing at all. */
+export function hlVaOverridesOf(
+  chart: HlVaYieldEntry[]
+): Record<string, Partial<Record<HlVaYieldColumn, number>>> {
+  const out: Record<string, Partial<Record<HlVaYieldColumn, number>>> = {};
+  const shipped = new Map(HLVA_YIELD_CHART.map((e) => [e.label, e]));
+  chart.forEach((e) => {
+    const base = shipped.get(e.label);
+    if (!base) return;
+    const diff: Partial<Record<HlVaYieldColumn, number>> = {};
+    HLVA_COLUMNS.forEach(({ key }) => {
+      if (base[key] !== e[key]) diff[key] = e[key];
+    });
+    if (Object.keys(diff).length > 0) out[e.label] = diff;
+  });
+  return out;
 }
 
 /**
@@ -78,6 +133,49 @@ export function lookupHlVaCountRange(countText: string): string | null {
   if (count === null) return null;
   const entry = HLVA_YIELD_CHART.find((e) => count >= e.min && count <= e.max);
   return entry?.label ?? null;
+}
+
+/**
+ * The HL→VA standard a *saved* row was measured against — stamped value first,
+ * shipped chart for rows that predate migration 032. Same reasoning as
+ * standardForYieldEntry.
+ */
+export function standardForHlVaEntry(entry: {
+  std_yield?: number | string | null;
+  count_text: string;
+  variety: string;
+}): number | null {
+  const stamped = Number(entry.std_yield);
+  if (Number.isFinite(stamped) && stamped > 0) return stamped;
+  return lookupHlVaStandardYield(entry.count_text, entry.variety);
+}
+
+/**
+ * The standard an HL→VA row on the form is measured against, and the one a
+ * save will stamp. Variety is part of the match because it selects the column:
+ * switching PD to PDTO makes the old stamp describe a different number.
+ * See standardForYieldFormRow for why a loaded row keeps its stamp.
+ */
+export function standardForHlVaFormRow(
+  row: {
+    count_text: string;
+    variety: string;
+    std_yield?: number | null;
+    stamped_count?: string;
+    stamped_variety?: string;
+  },
+  chart: HlVaYieldEntry[]
+): number | null {
+  const stamped = Number(row.std_yield);
+  if (
+    Number.isFinite(stamped) &&
+    stamped > 0 &&
+    (row.stamped_count ?? '').trim() === row.count_text.trim() &&
+    (row.stamped_variety ?? '') === row.variety
+  ) {
+    return stamped;
+  }
+  return lookupHlVaStandardYield(row.count_text, row.variety, chart);
 }
 
 // Indian-style grouping to match the register (e.g. 2,10,178.000)
