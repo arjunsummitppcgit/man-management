@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { formatVaQty, HLVA_YIELD_CHART } from '@/lib/hlVa';
+import { formatVaQty, HLVA_YIELD_CHART, normaliseVariety } from '@/lib/hlVa';
 
 // ─── Fixed grade row labels matching the Pre-Processing register ────────────
 // Derived from the HL→VA standard yield chart (single source of truth) so the
@@ -16,7 +16,7 @@ const REPORT_GRADE_ORDER = [
 
 // VA variety columns to show in the report, in register order. Covers every
 // entry variety, so the columns add up to the TOTAL column.
-const REPORT_VARIETIES = ['PD', 'PDTO', 'PVPD', 'PVPDTO', 'EZPL', 'PUD', 'BTFLY'] as const;
+const REPORT_VARIETIES = ['PD', 'PDTO', 'PVPD', 'PVPDTO', 'EZPL', 'PUD', 'BTFY'] as const;
 
 interface GradeVaReportProps {
   entries: { grade?: string; variety?: string; va_kgs?: number | string }[];
@@ -36,7 +36,10 @@ export default function GradeVaReport({ entries, date }: GradeVaReportProps) {
     // Aggregate entries
     for (const entry of entries) {
       const grade = (entry.grade || '').trim() || 'MIX';
-      const variety = (entry.variety || '').trim().toUpperCase();
+      // Normalised, so rows saved under the old 'BTFLY' spelling land in the
+      // BTFY column instead of falling outside the fixed column list — which
+      // would quietly stop the columns adding up to TOTAL.
+      const variety = normaliseVariety(entry.variety || '');
       const vaKgs = Number(entry.va_kgs) || 0;
 
       if (vaKgs <= 0) continue;

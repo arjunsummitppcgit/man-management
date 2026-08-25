@@ -8,9 +8,14 @@
 // bounds moved would strand those stored labels.
 //
 // The shipped percentages are also what pre-032 rows are read against — a row
-// with no std_yield of its own was measured under these, so they are history
-// as much as they are a default. Change a number here only if it was wrong all
-// along; to change the standard going forward, edit it in the app.
+// with no std_yield of its own has no stamp, so it is measured against whatever
+// stands here. That makes this table history as much as it is a default: moving
+// a number moves what every unstamped row is judged by, retrospectively.
+//
+// It was moved once, deliberately, in migration 033: the client's own chart
+// arrived and the shipped one turned out to have been wrong all along. That is
+// the bar for editing this file. To change the standard *going forward*, edit
+// it in the app instead — that stamps new rows and leaves old ones alone.
 
 export interface YieldChartEntry {
   label: string;      // Display label, e.g. "22-40"
@@ -19,15 +24,33 @@ export interface YieldChartEntry {
   standardYield: number; // Standard yield percentage, e.g. 71.00
 }
 
+// Transcribed from the client's STANDARD YIELD chart (HON STANDARD YIELD),
+// received 2026-08-25. Twelve bands covering counts 1–220; the chart the app
+// shipped with stopped at 120 and grouped 22-40 and 41-60, which is why counts
+// above 120 came back without a standard at all and 31-40 / 41-50 were measured
+// against their neighbour's percentage.
+//
+// Labels carry no "C" suffix, matching the client's chart. Rows saved before
+// this change keep the old labels in yield_entries.count_range — see migration
+// 033 for why those are left standing.
 export const YIELD_CHART: YieldChartEntry[] = [
-  { label: '22-40',    min: 22,  max: 40,  standardYield: 71.00 },
-  { label: '41-60',    min: 41,  max: 60,  standardYield: 70.00 },
-  { label: '61-70C',   min: 61,  max: 70,  standardYield: 69.00 },
-  { label: '71-80C',   min: 71,  max: 80,  standardYield: 68.00 },
-  { label: '81-90C',   min: 81,  max: 90,  standardYield: 67.00 },
-  { label: '91-100C',  min: 91,  max: 100, standardYield: 66.00 },
-  { label: '101-110C', min: 101, max: 110, standardYield: 65.00 },
-  { label: '111-120C', min: 111, max: 120, standardYield: 64.00 },
+  { label: '01-30',   min: 1,   max: 30,  standardYield: 71.00 },
+  { label: '31-40',   min: 31,  max: 40,  standardYield: 70.00 },
+  { label: '41-50',   min: 41,  max: 50,  standardYield: 69.00 },
+  { label: '51-60',   min: 51,  max: 60,  standardYield: 68.00 },
+  { label: '61-70',   min: 61,  max: 70,  standardYield: 67.50 },
+  { label: '71-80',   min: 71,  max: 80,  standardYield: 67.00 },
+  { label: '81-90',   min: 81,  max: 90,  standardYield: 66.50 },
+  { label: '91-100',  min: 91,  max: 100, standardYield: 66.00 },
+  { label: '101-110', min: 101, max: 110, standardYield: 65.00 },
+  { label: '111-130', min: 111, max: 130, standardYield: 64.00 },
+  { label: '131-150', min: 131, max: 150, standardYield: 63.00 },
+  { label: '151-220', min: 151, max: 220, standardYield: 62.00 },
+  // Added at the client's instruction (2026-08-25), beyond the pdf's last row.
+  // The chart ended at 220 and counts do run past it — one batch on the
+  // register is 393.3 — so without this the top of the range falls off the
+  // chart exactly as everything above 120 used to.
+  { label: '221+',    min: 221, max: 999999, standardYield: 61.00 },
 ];
 
 /**

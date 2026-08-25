@@ -2,10 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase/client';
-import { applyYieldOverrides, yieldOverridesOf, type YieldChartEntry } from '@/lib/yieldChart';
+import {
+  applyYieldOverrides,
+  yieldOverridesOf,
+  YIELD_CHART,
+  type YieldChartEntry,
+} from '@/lib/yieldChart';
 import {
   applyHlVaOverrides,
   hlVaOverridesOf,
+  HLVA_YIELD_CHART,
+  VA_VARIETIES,
   type HlVaYieldColumn,
   type HlVaYieldEntry,
 } from '@/lib/hlVa';
@@ -125,8 +132,18 @@ export function useYieldStandards() {
     fetchStandards,
     saveHonHlChart,
     saveHlVaChart,
-    /** True once an admin has moved anything off the shipped values. */
-    honHlEdited: !!overrides.honHl && Object.keys(overrides.honHl).length > 0,
-    hlVaEdited: !!overrides.hlVa && Object.keys(overrides.hlVa).length > 0,
+    /**
+     * True once an admin has moved anything off the shipped values.
+     *
+     * Counted against the chart as rendered, not against the stored keys. An
+     * override for a band that no longer exists is already ignored by
+     * applyYieldOverrides — migration 033 renamed every band, so the edits made
+     * under the old one are inert. The badge has to agree with what is on
+     * screen, or it claims a customisation the reader cannot find.
+     */
+    honHlEdited: honHlChart.some((e, i) => e.standardYield !== YIELD_CHART[i].standardYield),
+    hlVaEdited: hlVaChart.some((e, i) =>
+      VA_VARIETIES.some((v) => e[v] !== HLVA_YIELD_CHART[i][v])
+    ),
   };
 }

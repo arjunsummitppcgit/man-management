@@ -12,6 +12,27 @@ type Draft = Record<string, Record<string, string>>;
 
 const pct = (n: number) => n.toFixed(2);
 
+/**
+ * One column per variety since migration 033, so the HL→VA grid no longer fits
+ * a phone. The count label is pinned at a fixed width and the variety columns
+ * scroll under it rather than crushing to an unreadable two characters each.
+ *
+ * Written as a style object rather than a `grid-cols-[...]` class because the
+ * column count comes from HLVA_COLUMNS. Tailwind generates arbitrary values by
+ * scanning source text, so a class built by interpolation is never emitted at
+ * all — the grid would silently collapse to one column.
+ */
+const HLVA_LABEL_WIDTH = 64;
+const HLVA_COL_WIDTH = 62;
+const HLVA_GRID: React.CSSProperties = {
+  gridTemplateColumns: `${HLVA_LABEL_WIDTH}px repeat(${HLVA_COLUMNS.length}, minmax(${HLVA_COL_WIDTH}px, 1fr))`,
+};
+const HLVA_MIN_WIDTH = HLVA_LABEL_WIDTH + HLVA_COLUMNS.length * HLVA_COL_WIDTH;
+
+/** A band's cells, keyed the way the chart itself is keyed. */
+const draftRow = (entry: HlVaYieldEntry): Record<string, string> =>
+  Object.fromEntries(HLVA_COLUMNS.map((c) => [c.key, pct(entry[c.key])]));
+
 /** Blank, non-numeric and out-of-range all mean "don't move this one". */
 function cleaned(raw: string, fallback: number): number {
   const n = parseFloat(raw);
@@ -67,7 +88,7 @@ export default function StandardYieldPanel(props: StandardYieldPanelProps) {
       });
     } else {
       props.chart.forEach((e) => {
-        next[e.label] = { pd: pct(e.pd), pdto: pct(e.pdto), ezpl: pct(e.ezpl) };
+        next[e.label] = draftRow(e);
       });
     }
     setDraft(next);
@@ -84,7 +105,7 @@ export default function StandardYieldPanel(props: StandardYieldPanelProps) {
       });
     } else {
       HLVA_YIELD_CHART.forEach((e) => {
-        next[e.label] = { pd: pct(e.pd), pdto: pct(e.pdto), ezpl: pct(e.ezpl) };
+        next[e.label] = draftRow(e);
       });
     }
     setDraft(next);
@@ -106,12 +127,13 @@ export default function StandardYieldPanel(props: StandardYieldPanelProps) {
         );
       } else {
         await props.onSave(
-          props.chart.map((e) => ({
-            ...e,
-            pd: cleaned(draft[e.label]?.pd ?? '', e.pd),
-            pdto: cleaned(draft[e.label]?.pdto ?? '', e.pdto),
-            ezpl: cleaned(draft[e.label]?.ezpl ?? '', e.ezpl),
-          }))
+          props.chart.map((e) => {
+            const next = { ...e };
+            HLVA_COLUMNS.forEach(({ key }) => {
+              next[key] = cleaned(draft[e.label]?.[key] ?? '', e[key]);
+            });
+            return next;
+          })
         );
       }
       setEditing(false);
@@ -176,9 +198,12 @@ export default function StandardYieldPanel(props: StandardYieldPanelProps) {
             </p>
           )}
 
+          <div className={mode === 'hl_va' ? 'overflow-x-auto -mx-1 px-1' : undefined}>
+          <div style={mode === 'hl_va' ? { minWidth: HLVA_MIN_WIDTH } : undefined}>
+
           {/* Column key, only where there is more than one */}
           {mode === 'hl_va' && (
-            <div className="grid grid-cols-[70px_1fr_1fr_1fr] gap-1.5 mb-1.5 px-1">
+            <div className="grid gap-1.5 mb-1.5 px-1" style={HLVA_GRID}>
               <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Count</span>
               {HLVA_COLUMNS.map((c) => (
                 <span
@@ -221,7 +246,8 @@ export default function StandardYieldPanel(props: StandardYieldPanelProps) {
               : props.chart.map((entry) => (
                   <div
                     key={entry.label}
-                    className="grid grid-cols-[70px_1fr_1fr_1fr] gap-1.5 items-center bg-gray-50 rounded-lg px-3 py-2"
+                    className="grid gap-1.5 items-center bg-gray-50 rounded-lg px-3 py-2"
+                    style={HLVA_GRID}
                   >
                     <span className="text-xs font-medium text-gray-600">{entry.label}</span>
                     {HLVA_COLUMNS.map((c) =>
@@ -245,6 +271,9 @@ export default function StandardYieldPanel(props: StandardYieldPanelProps) {
                     )}
                   </div>
                 ))}
+          </div>
+
+          </div>
           </div>
 
           {error && <p className="mt-2.5 text-[11px] font-bold text-rose-600">{error}</p>}

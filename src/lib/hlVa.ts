@@ -10,54 +10,104 @@ export const VA_VARIETIES = [
   'PVPDTO',
   'EZPL',
   'PUD',
-  'BTFLY',
+  'BTFY',
 ] as const;
 
 export type VaVariety = (typeof VA_VARIETIES)[number];
 
+/**
+ * Butterfly was 'BTFLY' in the app and 'BTFY' on the client's chart; the client
+ * settled on BTFY (2026-08-25). The 38 rows already saved as 'BTFLY' keep that
+ * spelling — a stored variety is what the operator picked that day, and
+ * rewriting it would be the same mistake as rewriting a count.
+ *
+ * So every read normalises instead. This must be applied anywhere a variety is
+ * matched or grouped, or those 38 rows fall through to PD and get measured
+ * ~7 points off — which is a milder version of the exact bug migration 033
+ * exists to fix.
+ */
+const VARIETY_ALIASES: Record<string, VaVariety> = { BTFLY: 'BTFY' };
+
+/** A stored variety string as the current chart names it. */
+export function normaliseVariety(variety: string): string {
+  const v = (variety || '').trim().toUpperCase();
+  return VARIETY_ALIASES[v] ?? v;
+}
+
 // ─── HL to VA Standard Yield Chart ────────────────────────────────────────────
-// Standard yield % by HL count range, split across three variety groups:
-//   pd   → PD / PUD / PVPD / BTFLY
-//   pdto → PDTO / PVPDTO
-//   ezpl → EZPL
+// Standard yield % by HL count range, one column per variety.
+//
+// From the client's STANDARD YIELD chart (V/A STANDARD YIELD) received
+// 2026-08-25, with EZPL and BTFY per their correction the same day.
+//
+// It used to be three grouped columns — pd (PD/PUD/PVPD/BTFLY), pdto
+// (PDTO/PVPDTO) and ezpl — and the client's chart showed two of those groupings
+// to be wrong: BTFY does not track PD, and PVPDTO holds 87% at 71/90 and 91/110
+// where PDTO drops to 86%. A grouping is an assertion that two varieties will
+// never diverge, and it cost the 38 butterfly rows ~5 points of standard each.
+// So there is no grouping now: every variety carries its own column, and a
+// variety that moves on the next chart moves on its own. PD, PUD and PVPD share
+// a figure at every band, but as three columns that agree, not as one column.
 //
 // Same arrangement as the HON→HL chart: since migration 032 admins edit the
 // percentages in the app, the bands stay here (hl_va_entries.grade is stamped
-// from them), and these shipped values are what pre-032 rows are read against.
-export interface HlVaYieldEntry {
-  label: string; // Display label, e.g. "13-15"
+// from them), and these values are what rows without a std_yield stamp are read
+// against.
+export type HlVaYieldColumn = VaVariety;
+
+export type HlVaYieldEntry = {
+  label: string; // Display label, e.g. "13/15"
   min: number;   // Inclusive lower bound
   max: number;   // Inclusive upper bound
-  pd: number;    // PD / PUD / PVPD / BTFLY standard yield %
-  pdto: number;  // PDTO / PVPDTO standard yield %
-  ezpl: number;  // EZPL standard yield %
-}
+} & Record<HlVaYieldColumn, number>;
 
+const band = (
+  label: string,
+  min: number,
+  max: number,
+  pd: number,
+  pdto: number,
+  pvpdto: number,
+  ezpl: number,
+  btfy: number
+): HlVaYieldEntry => ({
+  label,
+  min,
+  max,
+  // PD, PUD and PVPD are one figure on the client's chart at every band. They
+  // are still three columns — same value today, independently editable.
+  PD: pd,
+  PUD: pd,
+  PVPD: pd,
+  PDTO: pdto,
+  PVPDTO: pvpdto,
+  EZPL: ezpl,
+  BTFY: btfy,
+});
+
+// EZPL and BTFY carry the figures the client gave on 2026-08-25, which differ
+// from the pdf they sent the same day: EZPL 99.5 (pdf said 99.0) and BTFY 87.0
+// (pdf said 99.0). The client's later instruction wins over the pdf.
 export const HLVA_YIELD_CHART: HlVaYieldEntry[] = [
-  { label: '13/15',  min: 13,  max: 15,  pd: 83.0, pdto: 89.0, ezpl: 99.5 },
-  { label: '16/20',  min: 16,  max: 20,  pd: 83.0, pdto: 89.0, ezpl: 99.5 },
-  { label: '21/25',  min: 21,  max: 25,  pd: 82.0, pdto: 88.5, ezpl: 99.5 },
-  { label: '26/30',  min: 26,  max: 30,  pd: 82.0, pdto: 88.0, ezpl: 99.5 },
-  { label: '31/40',  min: 31,  max: 40,  pd: 81.5, pdto: 87.0, ezpl: 99.5 },
-  { label: '41/50',  min: 41,  max: 50,  pd: 81.0, pdto: 86.0, ezpl: 99.0 },
-  { label: '51/60',  min: 51,  max: 60,  pd: 81.0, pdto: 85.0, ezpl: 99.0 },
-  { label: '61/70',  min: 61,  max: 70,  pd: 80.0, pdto: 85.0, ezpl: 99.0 },
-  { label: '71/90',  min: 71,  max: 90,  pd: 80.0, pdto: 84.0, ezpl: 99.0 },
-  { label: '91/110', min: 91,  max: 110, pd: 79.0, pdto: 83.0, ezpl: 98.0 },
+  //      label     min  max     PD  PDTO  PVPDTO  EZPL  BTFY
+  band('13/15',  13,  15,  83.0, 87.0, 87.0, 99.5, 87.0),
+  band('16/20',  16,  20,  83.0, 87.0, 87.0, 99.5, 87.0),
+  band('21/25',  21,  25,  82.0, 87.0, 87.0, 99.5, 87.0),
+  band('26/30',  26,  30,  82.0, 87.0, 87.0, 99.5, 87.0),
+  band('31/40',  31,  40,  81.5, 87.0, 87.0, 99.5, 87.0),
+  band('41/50',  41,  50,  81.0, 87.0, 87.0, 99.5, 87.0),
+  band('51/60',  51,  60,  81.0, 87.0, 87.0, 99.5, 87.0),
+  band('61/70',  61,  70,  80.0, 87.0, 87.0, 99.5, 87.0),
+  band('71/90',  71,  90,  80.0, 86.0, 87.0, 99.5, 87.0),
+  band('91/110', 91, 110,  79.0, 86.0, 87.0, 99.5, 87.0),
 ];
 
-// Map a variety to its yield-chart column. Blank/unknown varieties fall back to
-// the PD/PUD/PVPD column.
-function varietyColumn(variety: string): 'pd' | 'pdto' | 'ezpl' {
-  switch (variety) {
-    case 'PDTO':
-    case 'PVPDTO':
-      return 'pdto';
-    case 'EZPL':
-      return 'ezpl';
-    default: // PD, PUD, PVPD, BTFLY, and blank
-      return 'pd';
-  }
+// Which column a variety is measured against — now itself, for every variety
+// the register offers. A blank or unrecognised variety still falls back to PD,
+// which is what the register's own default chip is.
+function varietyColumn(variety: string): HlVaYieldColumn {
+  const v = normaliseVariety(variety);
+  return (VA_VARIETIES as readonly string[]).includes(v) ? (v as HlVaYieldColumn) : 'PD';
 }
 
 /**
@@ -77,17 +127,12 @@ export function lookupHlVaStandardYield(
   return entry[varietyColumn(variety)];
 }
 
-/** The three editable columns on a band. */
-export type HlVaYieldColumn = 'pd' | 'pdto' | 'ezpl';
-
 /** Which chart column a variety is measured against. */
 export const hlVaColumnFor = varietyColumn;
 
-export const HLVA_COLUMNS: { key: HlVaYieldColumn; label: string; hint: string }[] = [
-  { key: 'pd', label: 'PD', hint: 'PD · PUD · PVPD · BTFLY' },
-  { key: 'pdto', label: 'PDTO', hint: 'PDTO · PVPDTO' },
-  { key: 'ezpl', label: 'EZPL', hint: 'EZPL' },
-];
+/** The editable columns on a band, in the register's own variety order. */
+export const HLVA_COLUMNS: { key: HlVaYieldColumn; label: string; hint: string }[] =
+  VA_VARIETIES.map((v) => ({ key: v, label: v, hint: `${v} standard yield` }));
 
 /** Shipped bands with any admin-edited percentages laid over the top. */
 export function applyHlVaOverrides(

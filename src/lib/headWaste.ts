@@ -3,14 +3,18 @@
 //
 // Waste is charged against what goes INTO each stage, not what comes out:
 //   HON → HL : heads removed  = 32% of HON processed
-//              (matches YIELD_CHART, whose HON→HL yields run 64–71%)
+//              (matches YIELD_CHART, whose HON→HL yields run 62–71%)
 //   HL  → VA : shell/vein loss = 18% of HL consumed
 //              (matches HLVA_YIELD_CHART, whose PD yields run 79–83%)
 //
 // EZPL is easy-peel — the shell is scored, not removed — so it carries
-// effectively no weight loss (99–99.5% yield in the chart). HL consumed by EZPL
+// effectively no weight loss (99.5% yield in the chart). HL consumed by EZPL
 // batches is therefore excluded from the VA waste base, though its VA output
 // still counts toward the location's produced quantity.
+//
+// BTFY (butterfly) is not in that bracket: it is cut from peeled meat, and the
+// client puts it at 87%, so the 18% is genuinely taken off before it. It stays
+// in the waste base.
 
 import type { YieldEntry, HlVaEntry } from '@/types';
 

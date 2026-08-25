@@ -349,7 +349,7 @@ export interface HlVaEntry {
   batch_id: string;
   count_text: string;
   grade: string;            // auto-derived from count via standard yield chart
-  variety: string;          // PD | PDTO | PVPD | PVPDTO | EZPL | PUD | BTFLY
+  variety: string;          // PD | PDTO | PVPD | PVPDTO | EZPL | PUD | BTFY ('BTFLY' on rows saved before 2026-08-25)
   hl_kgs: number;
   va_kgs: number;
   location_id: string | null;
