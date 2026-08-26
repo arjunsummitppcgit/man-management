@@ -223,6 +223,11 @@ export default function AssistantPage() {
         ]);
         saveRecent(question);
         setRecents(loadRecents());
+        // The question just landed in the query log — pull the ranked list back
+        // so the chips reflect what this user actually asks, not just this tab.
+        fetchSuggestions().then((fromLog) => {
+          if (fromLog.length > 0) setRecents(fromLog);
+        });
       } catch {
         setMessages((prev) => [
           ...prev,
@@ -247,6 +252,23 @@ export default function AssistantPage() {
   );
 
   const chips = messages.length === 0 ? (recents.length > 0 ? recents : SEED_QUESTIONS) : followUps;
+
+  // Once a conversation is running the follow-ups take the first row, but the
+  // recents stay useful — offer the ones this session has not already asked
+  // and that the follow-ups are not already suggesting.
+  const askedThisSession = new Set(
+    messages.filter((m) => m.role === 'user').map((m) => m.content.toLowerCase().trim())
+  );
+  const shownAsChips = new Set(chips.map((c) => c.toLowerCase().trim()));
+  const recentChips =
+    messages.length === 0
+      ? []
+      : recents
+          .filter((r) => {
+            const key = r.toLowerCase().trim();
+            return !shownAsChips.has(key) && !askedThisSession.has(key);
+          })
+          .slice(0, 3);
 
   return (
     <div className="animate-fade-in">
@@ -329,23 +351,46 @@ export default function AssistantPage() {
           </div>
 
           {/* Chips */}
-          {chips.length > 0 && (
-            <div className="px-4 pb-2">
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 mb-1.5">
-                {messages.length === 0 ? (recents.length > 0 ? 'Recent' : 'Try asking') : 'Follow up'}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {chips.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => send(c)}
-                    disabled={loading}
-                    className="asst-chip px-3 py-1.5 rounded-full text-[11px] font-semibold disabled:opacity-50"
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
+          {(chips.length > 0 || recentChips.length > 0) && (
+            <div className="px-4 pb-2 space-y-2">
+              {chips.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 mb-1.5">
+                    {messages.length === 0 ? (recents.length > 0 ? 'Recent' : 'Try asking') : 'Follow up'}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {chips.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => send(c)}
+                        disabled={loading}
+                        className="asst-chip px-3 py-1.5 rounded-full text-[11px] font-semibold disabled:opacity-50"
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {recentChips.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 mb-1.5">
+                    Recent
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {recentChips.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => send(c)}
+                        disabled={loading}
+                        className="asst-chip px-3 py-1.5 rounded-full text-[11px] font-semibold disabled:opacity-50"
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

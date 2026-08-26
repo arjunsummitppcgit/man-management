@@ -13,6 +13,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { STATIC_SYSTEM_PROMPT, buildRuntimePrompt } from '@/lib/assistant/prompt';
+import { humanizeDates } from '@/lib/assistant/format';
 import { buildAssistantTools, type ToolContext } from '@/lib/assistant/tools';
 import type { AssistantApiRequest, AssistantApiResponse, ToolResult } from '@/lib/assistant/types';
 
@@ -216,7 +217,8 @@ export async function POST(request: NextRequest) {
     const payload: AssistantApiResponse = {
       summary: summary || 'Done — see the results panel.',
       results: collected,
-      resolved: resolvedParts.length ? resolvedParts.join(' · ') : undefined,
+      // dd-mm-yy for the chat pill, same as the results panel shows.
+      resolved: resolvedParts.length ? humanizeDates(resolvedParts.join(' · ')) : undefined,
       model: ROUTER_MODEL,
     };
     await logQuery(supabase, user.id, {
