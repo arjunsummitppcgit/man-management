@@ -43,6 +43,30 @@ const DISCOVERY: { q: string; tool: string; range?: boolean; admin?: boolean }[]
 ];
 
 /**
+ * Shuffle driven by an explicit seed rather than Math.random() at the call site.
+ * Two reasons it has to work this way: the chips are computed during render, so
+ * a fresh random draw would reorder them on every keystroke in the input box;
+ * and this page is prerendered, so a random order on the first client render
+ * would not match the server HTML. Seed 0 means "not shuffled yet" and returns
+ * the pool untouched, which is what the server renders.
+ */
+function shuffled<T>(items: T[], seed: number): T[] {
+  if (!seed) return items;
+  let state = seed;
+  const rand = () => {
+    // Numerical Recipes LCG — small, deterministic, good enough for chip order.
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+/**
  * The user's real question history from assistant_query_log. Falls back to the
  * per-browser localStorage list when the log is empty or migration 034 has not
  * been applied yet, so chips never disappear.
@@ -163,12 +187,17 @@ export default function AssistantPage() {
   const [loading, setLoading] = useState(false);
   const [recents, setRecents] = useState<string[]>([]);
   const [usedTools, setUsedTools] = useState<string[]>([]);
+  // Re-drawn once per page load, so the suggestions differ on every refresh.
+  const [shuffleSeed, setShuffleSeed] = useState(0);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Show the local list immediately, then upgrade to the shared history.
     setRecents(loadRecents());
+    // Seeding after mount (not during render) keeps the prerendered HTML and
+    // the first client render identical — the reshuffle lands on the next pass.
+    setShuffleSeed(Math.floor(Math.random() * 2147483647) || 1);
     let cancelled = false;
     fetchSuggestions().then((fromLog) => {
       if (cancelled) return;
@@ -305,10 +334,12 @@ export default function AssistantPage() {
   const runnable = DISCOVERY.filter(
     (d) => !(isSubUser && (d.range || d.admin)) && !alreadyOffered.has(d.q.toLowerCase().trim())
   );
-  const untried = runnable.filter((d) => !usedTools.includes(d.tool));
-  const suggestedChips = (untried.length >= 3 ? untried : [...untried, ...runnable.filter((d) => !untried.includes(d))])
-    .slice(0, 3)
-    .map((d) => d.q);
+  // Untried capabilities come first so the suggestions stay useful, but the
+  // order inside each group is redrawn per page load — refresh and you get a
+  // different three.
+  const untried = shuffled(runnable.filter((d) => !usedTools.includes(d.tool)), shuffleSeed);
+  const tried = shuffled(runnable.filter((d) => usedTools.includes(d.tool)), shuffleSeed + 1);
+  const suggestedChips = [...untried, ...tried].slice(0, 3).map((d) => d.q);
 
   return (
     <div className="animate-fade-in">
