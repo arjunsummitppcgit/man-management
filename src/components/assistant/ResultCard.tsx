@@ -37,7 +37,7 @@ const TONE_COLORS: Record<ColumnTone, { light: string; dark: string }> = {
   neutral: { light: '#374151', dark: '#D1D5DB' },
 };
 
-const MUTED = { light: '#9CA3AF', dark: '#6B7280' };
+const MUTED = { light: '#6B7280', dark: '#7C8AA0' };
 
 function toneColor(tone: ColumnTone | undefined, isDark: boolean | undefined): string {
   const entry = TONE_COLORS[tone ?? 'neutral'];
@@ -80,7 +80,7 @@ function kpiTone(tone?: KpiTile['tone']): string {
   }
 }
 
-export default function ResultCard({ result, isDark }: { result: CanvasResult; isDark?: boolean }) {
+export default function ResultCard({ result, isDark }: { result: CanvasResult; isDark: boolean }) {
   const columns = result.columns;
   const rows = result.rows;
   const hasTable = !!columns?.length && !!rows?.length;

@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PageHeader from '@/components/layout/PageHeader';
 import ResultCard from '@/components/assistant/ResultCard';
+import { useIsDark } from '@/components/analytics/shared';
 import { useAuth } from '@/hooks/useAuth';
 import type {
   AssistantApiResponse,
@@ -135,6 +136,7 @@ function nextId(prefix: string): string {
 
 export default function AssistantPage() {
   const { user, isSubUser, loading: authLoading } = useAuth();
+  const isDark = useIsDark();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [results, setResults] = useState<CanvasResult[]>([]);
   const [input, setInput] = useState('');
@@ -390,7 +392,7 @@ export default function AssistantPage() {
               </p>
             </div>
           ) : (
-            results.map((r) => <ResultCard key={r.id} result={r} />)
+            results.map((r) => <ResultCard key={r.id} result={r} isDark={isDark} />)
           )}
         </div>
       </div>
