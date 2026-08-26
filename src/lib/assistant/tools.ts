@@ -12,6 +12,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { betaTool } from '@anthropic-ai/sdk/helpers/beta/json-schema';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ToolResult } from './types';
+import { dayCount, daysPhrase, eachDay, periodLabel, toDdMm, toMonthLabel } from './format';
 
 export interface ToolContext {
   supabase: SupabaseClient;
@@ -20,6 +21,8 @@ export interface ToolContext {
   today: string; // yyyy-MM-dd (IST)
   collected: ToolResult[];
   resolved: { person?: string; date?: string };
+  /** Tool names in call order — written to assistant_query_log by the route. */
+  toolsUsed: string[];
 }
 
 const ANALYSIS_MODEL = 'claude-sonnet-5';
@@ -37,6 +40,21 @@ function checkDate(ctx: ToolContext, date: string): string | null {
   if (!DATE_RE.test(date)) return `Invalid date "${date}" — use yyyy-MM-dd.`;
   if (!ctx.isAdmin && date !== ctx.today) {
     return `STAFF_RESTRICTED: staff accounts can only view today's data (${ctx.today}).`;
+  }
+  return null;
+}
+
+/** Longest span a trend tool will pull in one call. */
+const MAX_TREND_DAYS = 92;
+
+/** Validates both ends of a range and caps how much history one call can pull. */
+function checkRange(ctx: ToolContext, from: string, to: string): string | null {
+  const err = checkDate(ctx, from) || checkDate(ctx, to);
+  if (err) return err;
+  const span = dayCount(from, to);
+  if (span === 0) return `Invalid range "${from}" to "${to}" — "to" must be on or after "from".`;
+  if (span > MAX_TREND_DAYS) {
+    return `Range too long (${span} days). Ask for at most ${MAX_TREND_DAYS} days in one call.`;
   }
   return null;
 }
@@ -96,6 +114,7 @@ export function buildAssistantTools(ctx: ToolContext) {
       additionalProperties: false,
     } as const,
     run: async ({ name }) => {
+      ctx.toolsUsed.push('resolve_person');
       const [sup, batches] = await Promise.all([
         ctx.supabase.from('supervisors').select('id, name, is_active').eq('is_active', true),
         ctx.isAdmin
@@ -132,6 +151,7 @@ export function buildAssistantTools(ctx: ToolContext) {
       additionalProperties: false,
     } as const,
     run: async ({ date, supervisor_id }) => {
+      ctx.toolsUsed.push('get_supervisor_attendance');
       const err = checkDate(ctx, date);
       if (err) return err;
       ctx.resolved.date = date;
@@ -161,7 +181,10 @@ export function buildAssistantTools(ctx: ToolContext) {
 
       const result: ToolResult = {
         kind: 'table',
-        title: supervisor_id ? 'Supervisor attendance' : 'Supervisors present',
+        title: supervisor_id ? 'Supervisor attendance' : 'Supervisors present by location',
+        subtitle: supervisor_id
+          ? `Attendance record for the selected supervisor on ${periodLabel(date)}.`
+          : `Every supervisor marked present on ${periodLabel(date)} and the location they worked at — ${totalPresent} present, ${absent.length} absent.`,
         kpis: [
           { label: 'Present', value: totalPresent, tone: 'success' },
           { label: 'Locations', value: locations.size },
@@ -174,6 +197,7 @@ export function buildAssistantTools(ctx: ToolContext) {
         rows: rows.map((r) => ({ supervisor: r.supervisor?.name ?? '—', location: r.location?.name ?? '—' })),
         meta: {
           date_resolved: date,
+          period_label: periodLabel(date),
           source_tables: ['daily_supervisor_assignments', 'supervisors'],
           row_count: rows.length,
           no_data: rows.length === 0,
@@ -197,6 +221,7 @@ export function buildAssistantTools(ctx: ToolContext) {
       additionalProperties: false,
     } as const,
     run: async ({ supervisor_id }) => {
+      ctx.toolsUsed.push('get_supervisor_details');
       const gate = adminOnly(ctx);
       if (gate) return gate;
       const { data, error } = await ctx.supabase
@@ -237,6 +262,7 @@ export function buildAssistantTools(ctx: ToolContext) {
       additionalProperties: false,
     } as const,
     run: async ({ supervisor_id, month }) => {
+      ctx.toolsUsed.push('get_absent_days');
       if (!/^\d{4}-\d{2}$/.test(month)) return `Invalid month "${month}" — use yyyy-MM.`;
       if (!ctx.isAdmin && month !== ctx.today.slice(0, 7)) {
         return `STAFF_RESTRICTED: staff accounts can only view today's data (${ctx.today}).`;
@@ -271,16 +297,18 @@ export function buildAssistantTools(ctx: ToolContext) {
 
       const result: ToolResult = {
         kind: 'table',
-        title: `${sup.data.name} — absences in ${month}`,
+        title: `${sup.data.name} — absent days in ${toMonthLabel(month)}`,
+        subtitle: `A day counts as absent only when attendance was recorded for other supervisors that day but not for ${sup.data.name}. Days with no attendance entered at all are excluded.`,
         kpis: [
           { label: 'Absent days', value: absentDays.length, tone: absentDays.length ? 'danger' : 'success' },
           { label: 'Present days', value: presentDays.size, tone: 'success' },
           { label: 'Recorded days', value: recordedDays.length },
         ],
-        columns: [{ key: 'date', label: 'Absent on', format: 'date' }],
+        columns: [{ key: 'date', label: 'Absent on', format: 'date', total: 'none' }],
         rows: absentDays.map((d) => ({ date: d })),
         meta: {
           person_resolved: sup.data.name,
+          period_label: toMonthLabel(month),
           source_tables: ['daily_supervisor_assignments'],
           row_count: absentDays.length,
           no_data: recordedDays.length === 0,
@@ -304,6 +332,7 @@ export function buildAssistantTools(ctx: ToolContext) {
       additionalProperties: false,
     } as const,
     run: async ({ date }) => {
+      ctx.toolsUsed.push('compare_labour_sources');
       const err = checkDate(ctx, date);
       if (err) return err;
       ctx.resolved.date = date;
@@ -334,17 +363,18 @@ export function buildAssistantTools(ctx: ToolContext) {
       const result: ToolResult = {
         kind: 'chart',
         title: 'Company vs outside labour by location',
+        subtitle: `Labour headcount at each location on ${periodLabel(date)}. Company = our own workers; Outside = hired non-local labour. KG basic and daily wage are the two pay bases that make up the total.`,
         kpis: [
           { label: 'Company', value: totalCompany, tone: 'accent' },
           { label: 'Outside (non-local)', value: totalNonLocal, tone: 'default' },
         ],
         columns: [
           { key: 'location', label: 'Location' },
-          { key: 'company', label: 'Company', format: 'number' },
-          { key: 'non_local', label: 'Outside', format: 'number' },
-          { key: 'kg_basic', label: 'KG basic', format: 'number' },
-          { key: 'daily_wage', label: 'Daily wage', format: 'number' },
-          { key: 'total_labour', label: 'Total labour', format: 'number' },
+          { key: 'company', label: 'Company', format: 'number', tone: 'company' },
+          { key: 'non_local', label: 'Outside', format: 'number', tone: 'outside' },
+          { key: 'kg_basic', label: 'KG basic', format: 'number', tone: 'kgBasic' },
+          { key: 'daily_wage', label: 'Daily wage', format: 'number', tone: 'dailyWage' },
+          { key: 'total_labour', label: 'Total labour', format: 'number', tone: 'total' },
         ],
         rows,
         chart: {
@@ -357,6 +387,7 @@ export function buildAssistantTools(ctx: ToolContext) {
         },
         meta: {
           date_resolved: date,
+          period_label: periodLabel(date),
           source_tables: ['daily_workforce'],
           row_count: rows.length,
           no_data: rows.length === 0,
@@ -381,6 +412,7 @@ export function buildAssistantTools(ctx: ToolContext) {
       additionalProperties: false,
     } as const,
     run: async ({ from, to }) => {
+      ctx.toolsUsed.push('get_grade_vs_va');
       const end = to || from;
       const err = checkDate(ctx, from) || checkDate(ctx, end);
       if (err) return err;
@@ -417,7 +449,8 @@ export function buildAssistantTools(ctx: ToolContext) {
 
       const result: ToolResult = {
         kind: 'table',
-        title: 'Grade vs VA',
+        title: 'Value addition by prawn grade',
+        subtitle: `HL input and VA output per grade from HL to VA entries over ${periodLabel(from, end)} (${daysPhrase(from, end)}). VA/HL % is the value-addition yield for that grade; the footer averages it across grades that reported.`,
         kpis: [
           { label: 'Total HL', value: totalHl, unit: 'kg' },
           { label: 'Total VA', value: totalVa, unit: 'kg', tone: 'accent' },
@@ -425,14 +458,15 @@ export function buildAssistantTools(ctx: ToolContext) {
         ],
         columns: [
           { key: 'grade', label: 'Grade' },
-          { key: 'hl_kgs', label: 'HL', format: 'kg' },
-          { key: 'va_kgs', label: 'VA', format: 'kg' },
-          { key: 'yield_pct', label: 'VA/HL %', format: 'number' },
+          { key: 'hl_kgs', label: 'HL', format: 'kg', tone: 'hl' },
+          { key: 'va_kgs', label: 'VA', format: 'kg', tone: 'va' },
+          { key: 'yield_pct', label: 'VA/HL %', format: 'percent', total: 'avg' },
           { key: 'varieties', label: 'Varieties' },
         ],
         rows,
         meta: {
           date_resolved: ctx.resolved.date,
+          period_label: periodLabel(from, end),
           source_tables: ['hl_va_entries'],
           row_count: rows.length,
           no_data: rows.length === 0,
@@ -458,6 +492,7 @@ export function buildAssistantTools(ctx: ToolContext) {
       additionalProperties: false,
     } as const,
     run: async ({ from, to }) => {
+      ctx.toolsUsed.push('get_processing_summary');
       const end = to || from;
       const err = checkDate(ctx, from) || checkDate(ctx, end);
       if (err) return err;
@@ -497,21 +532,23 @@ export function buildAssistantTools(ctx: ToolContext) {
 
       const result: ToolResult = {
         kind: 'table',
-        title: 'Processing summary',
+        title: 'Processing output by location',
+        subtitle: `Completed kg per location over ${periodLabel(from, end)} (${daysPhrase(from, end)}). HON to HL is de-heading, HL to VA is value addition; the WIP columns are material still in process, not yet finished.`,
         kpis: [
           { label: 'HON → HL', value: tHonHl, unit: 'kg', tone: 'accent' },
           { label: 'HL → VA', value: tHlVa, unit: 'kg', tone: 'accent' },
         ],
         columns: [
           { key: 'location', label: 'Location' },
-          { key: 'hon_to_hl', label: 'HON→HL', format: 'kg' },
-          { key: 'hl_to_va', label: 'HL→VA', format: 'kg' },
-          { key: 'wip_hon_to_hl', label: 'WIP HON→HL', format: 'kg' },
-          { key: 'wip_hl_to_va', label: 'WIP HL→VA', format: 'kg' },
+          { key: 'hon_to_hl', label: 'HON→HL', format: 'kg', tone: 'hon' },
+          { key: 'hl_to_va', label: 'HL→VA', format: 'kg', tone: 'va' },
+          { key: 'wip_hon_to_hl', label: 'WIP HON→HL', format: 'kg', tone: 'wip' },
+          { key: 'wip_hl_to_va', label: 'WIP HL→VA', format: 'kg', tone: 'wip' },
         ],
         rows,
         meta: {
           date_resolved: ctx.resolved.date,
+          period_label: periodLabel(from, end),
           source_tables: ['daily_processing'],
           row_count: rows.length,
           no_data: rows.length === 0,
@@ -538,6 +575,7 @@ export function buildAssistantTools(ctx: ToolContext) {
       additionalProperties: false,
     } as const,
     run: async ({ from, to, batch_id }) => {
+      ctx.toolsUsed.push('get_ladies_attendance');
       const gate = adminOnly(ctx);
       if (gate) return gate;
       const end = to || from;
@@ -572,7 +610,8 @@ export function buildAssistantTools(ctx: ToolContext) {
 
       const result: ToolResult = {
         kind: 'table',
-        title: 'Ladies attendance',
+        title: 'Ladies attendance by batch',
+        subtitle: `Headcount per batch for each day in ${periodLabel(from, end)} (${daysPhrase(from, end)}). Each dated column is one working day; Total is that batch's lady-days over the whole period.`,
         kpis: [
           { label: 'Total lady-days', value: grandTotal, tone: 'accent' },
           { label: 'Batches', value: rows.length },
@@ -580,12 +619,14 @@ export function buildAssistantTools(ctx: ToolContext) {
         ],
         columns: [
           { key: 'batch', label: 'Batch' },
-          ...dates.map((d) => ({ key: d, label: d.slice(5), format: 'number' as const })),
-          { key: 'total', label: 'Total', format: 'number' as const },
+          // One column per working day — per-cell shares would be noise at this width.
+          ...dates.map((d) => ({ key: d, label: toDdMm(d), format: 'number' as const, share: false })),
+          { key: 'total', label: 'Total', format: 'number' as const, tone: 'total' as const },
         ],
         rows,
         meta: {
           date_resolved: ctx.resolved.date,
+          period_label: periodLabel(from, end),
           source_tables: ['local_ladies_attendance'],
           row_count: rows.length,
           no_data: raw.length === 0,
@@ -593,6 +634,381 @@ export function buildAssistantTools(ctx: ToolContext) {
       };
       ctx.collected.push(result);
       return forModel(result, { from, to: end, dates });
+    },
+  });
+
+  // ─── daily trend tools ─────────────────────────────────────────────────────
+  // One row per calendar day so the canvas can draw a line chart. A day with no
+  // register entry comes back as null — a gap in the line, never a zero, because
+  // "nobody entered it" and "nobody turned up" are different facts.
+
+  const getLabourTrend = betaTool({
+    name: 'get_labour_trend',
+    description:
+      'Day-by-day labour headcount across a date range (max 92 days): company, outside (non-local), kg-basic, daily-wage and total for each day, optionally for one location. Use this for "labour this month", "workforce trend", "labour line chart", or any labour question spanning more than one day — compare_labour_sources covers a single day only.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: 'yyyy-MM-dd' },
+        to: { type: 'string', description: 'yyyy-MM-dd' },
+        location: { type: 'string', description: 'Optional: one location name to filter to' },
+      },
+      required: ['from', 'to'],
+      additionalProperties: false,
+    } as const,
+    run: async ({ from, to, location }) => {
+      ctx.toolsUsed.push('get_labour_trend');
+      const err = checkRange(ctx, from, to);
+      if (err) return err;
+      ctx.resolved.date = periodLabel(from, to);
+
+      const { data, error } = await ctx.supabase
+        .from('daily_workforce')
+        .select(
+          'work_date, labour_company, labour_non_locals, labour_kg_basic, labour_daily_wage, labour_count, location:locations(name)'
+        )
+        .gte('work_date', from)
+        .lte('work_date', to)
+        .order('work_date');
+      if (error) throw error;
+
+      type Row = {
+        work_date: string; labour_company: number; labour_non_locals: number;
+        labour_kg_basic: number; labour_daily_wage: number; labour_count: number;
+        location: { name: string } | null;
+      };
+      const wanted = location?.trim().toLowerCase();
+      const raw = ((data as unknown as Row[]) || []).filter(
+        (r) => !wanted || (r.location?.name ?? '').toLowerCase() === wanted
+      );
+
+      const byDate = new Map<string, { company: number; non_local: number; kg_basic: number; daily_wage: number; total: number }>();
+      for (const r of raw) {
+        const cur = byDate.get(r.work_date) || { company: 0, non_local: 0, kg_basic: 0, daily_wage: 0, total: 0 };
+        cur.company += Number(r.labour_company) || 0;
+        cur.non_local += Number(r.labour_non_locals) || 0;
+        cur.kg_basic += Number(r.labour_kg_basic) || 0;
+        cur.daily_wage += Number(r.labour_daily_wage) || 0;
+        cur.total += Number(r.labour_count) || 0;
+        byDate.set(r.work_date, cur);
+      }
+
+      const rows: Record<string, string | number | null>[] = eachDay(from, to).map((d) => {
+        const v = byDate.get(d);
+        return v
+          ? { date: d, company: v.company, non_local: v.non_local, kg_basic: v.kg_basic, daily_wage: v.daily_wage, total: v.total }
+          : { date: d, company: null, non_local: null, kg_basic: null, daily_wage: null, total: null };
+      });
+
+      const span = dayCount(from, to);
+      const recorded = byDate.size;
+      const labourDays = [...byDate.values()].reduce((sum, v) => sum + v.total, 0);
+      const avgDaily = recorded ? Math.round(labourDays / recorded) : 0;
+      const missing = eachDay(from, to).filter((d) => !byDate.has(d));
+
+      const scope = location ? ` at ${location}` : ' across all locations';
+      const result: ToolResult = {
+        kind: 'chart',
+        title: `Daily labour headcount${location ? ` — ${location}` : ''}`,
+        subtitle: `Labour on site each day${scope} over ${periodLabel(from, to)} (${daysPhrase(from, to)}). Data was entered on ${recorded} of ${span} days; days with no entry are shown as gaps, not zeros. The footer shows the average working day, not a sum of headcounts.`,
+        kpis: [
+          { label: 'Avg per day', value: avgDaily, tone: 'accent' },
+          { label: 'Total labour-days', value: labourDays },
+          { label: 'Days recorded', value: `${recorded}/${span}`, tone: recorded < span ? 'danger' : 'success' },
+        ],
+        columns: [
+          { key: 'date', label: 'Date', format: 'date', total: 'none' },
+          { key: 'company', label: 'Company', format: 'number', tone: 'company', total: 'avg', share: false },
+          { key: 'non_local', label: 'Outside', format: 'number', tone: 'outside', total: 'avg', share: false },
+          { key: 'kg_basic', label: 'KG basic', format: 'number', tone: 'kgBasic', total: 'avg', share: false },
+          { key: 'daily_wage', label: 'Daily wage', format: 'number', tone: 'dailyWage', total: 'avg', share: false },
+          { key: 'total', label: 'Total labour', format: 'number', tone: 'total', total: 'avg', share: false },
+        ],
+        rows,
+        chart: {
+          type: 'line',
+          xKey: 'date',
+          series: [
+            { key: 'company', label: 'Company' },
+            { key: 'non_local', label: 'Outside' },
+            { key: 'total', label: 'Total' },
+          ],
+        },
+        meta: {
+          date_resolved: `${from} → ${to}`,
+          period_label: periodLabel(from, to),
+          source_tables: ['daily_workforce'],
+          row_count: rows.length,
+          no_data: recorded === 0,
+        },
+      };
+      ctx.collected.push(result);
+      return forModel(result, {
+        from, to, location: location ?? 'all',
+        days_recorded: recorded, days_in_range: span,
+        days_missing: missing.slice(0, 10),
+        avg_labour_per_day: avgDaily, total_labour_days: labourDays,
+      });
+    },
+  });
+
+  const getProductionTrend = betaTool({
+    name: 'get_production_trend',
+    description:
+      'Day-by-day production across a date range (max 92 days): HON→HL (de-heading) and HL→VA (value addition) completed kg per day, optionally for one location. Use for "production trend", "output this month", "processing line chart" — get_processing_summary totals a period by location instead of showing it day by day.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: 'yyyy-MM-dd' },
+        to: { type: 'string', description: 'yyyy-MM-dd' },
+        location: { type: 'string', description: 'Optional: one location name to filter to' },
+      },
+      required: ['from', 'to'],
+      additionalProperties: false,
+    } as const,
+    run: async ({ from, to, location }) => {
+      ctx.toolsUsed.push('get_production_trend');
+      const err = checkRange(ctx, from, to);
+      if (err) return err;
+      ctx.resolved.date = periodLabel(from, to);
+
+      const { data, error } = await ctx.supabase
+        .from('daily_processing')
+        .select('work_date, hon_to_headless, headless_to_va, location:locations(name)')
+        .gte('work_date', from)
+        .lte('work_date', to)
+        .order('work_date');
+      if (error) throw error;
+
+      type Row = {
+        work_date: string; hon_to_headless: number; headless_to_va: number;
+        location: { name: string } | null;
+      };
+      const wanted = location?.trim().toLowerCase();
+      const raw = ((data as unknown as Row[]) || []).filter(
+        (r) => !wanted || (r.location?.name ?? '').toLowerCase() === wanted
+      );
+
+      const byDate = new Map<string, { honHl: number; hlVa: number }>();
+      for (const r of raw) {
+        const cur = byDate.get(r.work_date) || { honHl: 0, hlVa: 0 };
+        cur.honHl += Number(r.hon_to_headless) || 0;
+        cur.hlVa += Number(r.headless_to_va) || 0;
+        byDate.set(r.work_date, cur);
+      }
+
+      const rows: Record<string, string | number | null>[] = eachDay(from, to).map((d) => {
+        const v = byDate.get(d);
+        return v
+          ? { date: d, hon_to_hl: kg(v.honHl), hl_to_va: kg(v.hlVa) }
+          : { date: d, hon_to_hl: null, hl_to_va: null };
+      });
+
+      const span = dayCount(from, to);
+      const recorded = byDate.size;
+      const totalHonHl = kg([...byDate.values()].reduce((s, v) => s + v.honHl, 0));
+      const totalHlVa = kg([...byDate.values()].reduce((s, v) => s + v.hlVa, 0));
+      const best = [...byDate.entries()].sort((a, b) => b[1].honHl + b[1].hlVa - (a[1].honHl + a[1].hlVa))[0];
+
+      const result: ToolResult = {
+        kind: 'chart',
+        title: `Daily production output${location ? ` — ${location}` : ''}`,
+        subtitle: `Completed kg finished each day${location ? ` at ${location}` : ' across all locations'} over ${periodLabel(from, to)} (${daysPhrase(from, to)}). HON→HL is de-heading, HL→VA is value addition. Production was entered on ${recorded} of ${span} days; blank days are gaps in the register, not zero output.`,
+        kpis: [
+          { label: 'Total HON → HL', value: totalHonHl, unit: 'kg', tone: 'accent' },
+          { label: 'Total HL → VA', value: totalHlVa, unit: 'kg', tone: 'accent' },
+          { label: 'Days recorded', value: `${recorded}/${span}`, tone: recorded < span ? 'danger' : 'success' },
+        ],
+        columns: [
+          { key: 'date', label: 'Date', format: 'date', total: 'none' },
+          { key: 'hon_to_hl', label: 'HON→HL', format: 'kg', tone: 'hon', share: false },
+          { key: 'hl_to_va', label: 'HL→VA', format: 'kg', tone: 'va', share: false },
+        ],
+        rows,
+        chart: {
+          type: 'line',
+          xKey: 'date',
+          series: [
+            { key: 'hon_to_hl', label: 'HON→HL' },
+            { key: 'hl_to_va', label: 'HL→VA' },
+          ],
+        },
+        meta: {
+          date_resolved: `${from} → ${to}`,
+          period_label: periodLabel(from, to),
+          source_tables: ['daily_processing'],
+          row_count: rows.length,
+          no_data: recorded === 0,
+          unit: 'kg',
+        },
+      };
+      ctx.collected.push(result);
+      return forModel(result, {
+        from, to, location: location ?? 'all',
+        days_recorded: recorded, days_in_range: span,
+        total_hon_to_hl: totalHonHl, total_hl_to_va: totalHlVa,
+        busiest_day: best ? best[0] : null,
+      });
+    },
+  });
+
+  const getAttendanceTrend = betaTool({
+    name: 'get_attendance_trend',
+    description:
+      'Day-by-day supervisor attendance across a date range (max 92 days): how many supervisors were present each day. Use for "attendance trend", "supervisor attendance this month", "attendance line chart".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: 'yyyy-MM-dd' },
+        to: { type: 'string', description: 'yyyy-MM-dd' },
+      },
+      required: ['from', 'to'],
+      additionalProperties: false,
+    } as const,
+    run: async ({ from, to }) => {
+      ctx.toolsUsed.push('get_attendance_trend');
+      const err = checkRange(ctx, from, to);
+      if (err) return err;
+      ctx.resolved.date = periodLabel(from, to);
+
+      const { data, error } = await ctx.supabase
+        .from('daily_supervisor_assignments')
+        .select('work_date, is_present')
+        .gte('work_date', from)
+        .lte('work_date', to)
+        .gt('is_present', 0)
+        .order('work_date');
+      if (error) throw error;
+
+      const byDate = new Map<string, number>();
+      for (const r of (data as { work_date: string; is_present: number }[]) || []) {
+        byDate.set(r.work_date, (byDate.get(r.work_date) || 0) + (Number(r.is_present) || 0));
+      }
+
+      const rows: Record<string, string | number | null>[] = eachDay(from, to).map((d) => ({
+        date: d,
+        present: byDate.has(d) ? (byDate.get(d) as number) : null,
+      }));
+
+      const span = dayCount(from, to);
+      const recorded = byDate.size;
+      const supervisorDays = [...byDate.values()].reduce((s, n) => s + n, 0);
+      const avgDaily = recorded ? Math.round((supervisorDays / recorded) * 10) / 10 : 0;
+
+      const result: ToolResult = {
+        kind: 'chart',
+        title: 'Daily supervisor attendance',
+        subtitle: `Supervisors present each day over ${periodLabel(from, to)} (${daysPhrase(from, to)}). Attendance was taken on ${recorded} of ${span} days; days with no register are gaps, not zero attendance.`,
+        kpis: [
+          { label: 'Avg per day', value: avgDaily, tone: 'accent' },
+          { label: 'Total supervisor-days', value: supervisorDays },
+          { label: 'Days recorded', value: `${recorded}/${span}`, tone: recorded < span ? 'danger' : 'success' },
+        ],
+        columns: [
+          { key: 'date', label: 'Date', format: 'date', total: 'none' },
+          { key: 'present', label: 'Present', format: 'number', tone: 'present', total: 'avg', share: false },
+        ],
+        rows,
+        chart: {
+          type: 'line',
+          xKey: 'date',
+          series: [{ key: 'present', label: 'Supervisors present' }],
+        },
+        meta: {
+          date_resolved: `${from} → ${to}`,
+          period_label: periodLabel(from, to),
+          source_tables: ['daily_supervisor_assignments'],
+          row_count: rows.length,
+          no_data: recorded === 0,
+        },
+      };
+      ctx.collected.push(result);
+      return forModel(result, {
+        from, to, days_recorded: recorded, days_in_range: span,
+        avg_present_per_day: avgDaily, total_supervisor_days: supervisorDays,
+      });
+    },
+  });
+
+  const getLadiesTrend = betaTool({
+    name: 'get_ladies_trend',
+    description:
+      'ADMIN ONLY. Day-by-day ladies attendance across a date range (max 92 days): total ladies present each day, optionally one batch. Use for "ladies trend", "ladies attendance this month", "ladies line chart" — get_ladies_attendance gives a batch × day grid instead of a daily series.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: 'yyyy-MM-dd' },
+        to: { type: 'string', description: 'yyyy-MM-dd' },
+        batch_id: { type: 'string', description: 'Optional ladies batch id from resolve_person' },
+      },
+      required: ['from', 'to'],
+      additionalProperties: false,
+    } as const,
+    run: async ({ from, to, batch_id }) => {
+      ctx.toolsUsed.push('get_ladies_trend');
+      const gate = adminOnly(ctx);
+      if (gate) return gate;
+      const err = checkRange(ctx, from, to);
+      if (err) return err;
+      ctx.resolved.date = periodLabel(from, to);
+
+      let q = ctx.supabase
+        .from('local_ladies_attendance')
+        .select('work_date, ladies_count')
+        .gte('work_date', from)
+        .lte('work_date', to)
+        .order('work_date');
+      if (batch_id) q = q.eq('batch_id', batch_id);
+      const { data, error } = await q;
+      if (error) throw error;
+
+      const byDate = new Map<string, number>();
+      for (const r of (data as { work_date: string; ladies_count: number }[]) || []) {
+        byDate.set(r.work_date, (byDate.get(r.work_date) || 0) + (Number(r.ladies_count) || 0));
+      }
+
+      const rows: Record<string, string | number | null>[] = eachDay(from, to).map((d) => ({
+        date: d,
+        ladies: byDate.has(d) ? (byDate.get(d) as number) : null,
+      }));
+
+      const span = dayCount(from, to);
+      const recorded = byDate.size;
+      const ladyDays = [...byDate.values()].reduce((s, n) => s + n, 0);
+      const avgDaily = recorded ? Math.round(ladyDays / recorded) : 0;
+
+      const result: ToolResult = {
+        kind: 'chart',
+        title: batch_id ? 'Daily ladies attendance — single batch' : 'Daily ladies attendance',
+        subtitle: `Ladies present each day over ${periodLabel(from, to)} (${daysPhrase(from, to)})${batch_id ? ' for the selected batch' : ' across all batches'}. Recorded on ${recorded} of ${span} days; blank days are gaps in the register.`,
+        kpis: [
+          { label: 'Avg per day', value: avgDaily, tone: 'accent' },
+          { label: 'Total lady-days', value: ladyDays },
+          { label: 'Days recorded', value: `${recorded}/${span}`, tone: recorded < span ? 'danger' : 'success' },
+        ],
+        columns: [
+          { key: 'date', label: 'Date', format: 'date', total: 'none' },
+          { key: 'ladies', label: 'Ladies present', format: 'number', tone: 'present', total: 'avg', share: false },
+        ],
+        rows,
+        chart: {
+          type: 'line',
+          xKey: 'date',
+          series: [{ key: 'ladies', label: 'Ladies present' }],
+        },
+        meta: {
+          date_resolved: `${from} → ${to}`,
+          period_label: periodLabel(from, to),
+          source_tables: ['local_ladies_attendance'],
+          row_count: rows.length,
+          no_data: recorded === 0,
+        },
+      };
+      ctx.collected.push(result);
+      return forModel(result, {
+        from, to, days_recorded: recorded, days_in_range: span,
+        avg_ladies_per_day: avgDaily, total_lady_days: ladyDays,
+      });
     },
   });
 
@@ -609,6 +1025,7 @@ export function buildAssistantTools(ctx: ToolContext) {
       additionalProperties: false,
     } as const,
     run: async ({ question }) => {
+      ctx.toolsUsed.push('analyze');
       const gate = adminOnly(ctx);
       if (gate) return gate;
       if (ctx.collected.length === 0) {
@@ -660,6 +1077,10 @@ export function buildAssistantTools(ctx: ToolContext) {
     getGradeVsVa,
     getProcessingSummary,
     getLadiesAttendance,
+    getLabourTrend,
+    getProductionTrend,
+    getAttendanceTrend,
+    getLadiesTrend,
     analyze,
   ];
 }

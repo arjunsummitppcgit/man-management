@@ -5,10 +5,38 @@
 
 export type ResultKind = 'kpi' | 'table' | 'card' | 'chart';
 
+/**
+ * Meaning-based colour. The same metric carries the same colour everywhere in
+ * the assistant — company labour is always teal, outside labour always amber —
+ * so a number's colour tells you WHAT it is, not how big it is.
+ */
+export type ColumnTone =
+  | 'company'
+  | 'outside'
+  | 'kgBasic'
+  | 'dailyWage'
+  | 'total'
+  | 'hon'
+  | 'hl'
+  | 'va'
+  | 'wip'
+  | 'present'
+  | 'absent'
+  | 'neutral';
+
 export interface ResultColumn {
   key: string;
   label: string;
-  format?: 'number' | 'kg' | 'currency' | 'date' | 'text';
+  format?: 'number' | 'kg' | 'currency' | 'date' | 'text' | 'percent';
+  /** Colour tied to the metric's meaning; omit for plain text columns. */
+  tone?: ColumnTone;
+  /**
+   * Footer maths for this column. Numeric columns default to 'sum'; use 'avg'
+   * for rates and 'none' where a total would be meaningless (grades, ₹ rates).
+   */
+  total?: 'sum' | 'avg' | 'none';
+  /** Show each cell's share of the column total beneath the value. */
+  share?: boolean;
 }
 
 export interface KpiTile {
@@ -20,7 +48,10 @@ export interface KpiTile {
 
 export interface ToolResult {
   kind: ResultKind;
+  /** Specific heading naming the metric and its scope, not a generic label. */
   title: string;
+  /** One line under the title saying what the table actually contains. */
+  subtitle?: string;
   /** KPI tiles shown above the table (optional for any kind) */
   kpis?: KpiTile[];
   columns?: ResultColumn[];
@@ -33,7 +64,10 @@ export interface ToolResult {
     series: { key: string; label: string }[];
   };
   meta: {
+    /** ISO yyyy-MM-dd (or "from → to"). Rendered as dd-mm-yy by the UI. */
     date_resolved?: string;
+    /** Pre-formatted dd-mm-yy period for the pill and export headers. */
+    period_label?: string;
     person_resolved?: string;
     source_tables: string[];
     row_count: number;

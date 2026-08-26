@@ -14,7 +14,7 @@ const RECENT_KEY = 'ppc-assistant-recent-v1';
 
 const SEED_QUESTIONS = [
   'How many supervisors attended today?',
-  "Today's processing summary",
+  'Labour trend this month',
   'Company vs outside labour today',
 ];
 
@@ -22,6 +22,22 @@ interface RecentEntry {
   q: string;
   count: number;
   last: number;
+}
+
+/**
+ * The user's real question history from assistant_query_log. Falls back to the
+ * per-browser localStorage list when the log is empty or migration 034 has not
+ * been applied yet, so chips never disappear.
+ */
+async function fetchSuggestions(): Promise<string[]> {
+  try {
+    const res = await fetch('/api/assistant');
+    if (!res.ok) return [];
+    const data: { suggestions?: string[] } = await res.json();
+    return Array.isArray(data.suggestions) ? data.suggestions : [];
+  } catch {
+    return [];
+  }
 }
 
 function loadRecents(): string[] {
@@ -60,17 +76,39 @@ function saveRecent(question: string) {
 
 /** Template follow-up chips keyed by the data source of the latest result. */
 function followUpsFor(results: CanvasResult[], isAdmin: boolean): string[] {
-  const src = results[0]?.meta.source_tables[0];
+  const top = results[0];
+  const src = top?.meta.source_tables[0];
+
+  // A line chart is already a period view — drill sideways, not into a trend.
+  if (top?.chart?.type === 'line') {
+    switch (src) {
+      case 'daily_workforce':
+        return isAdmin
+          ? ['Break it down by location', 'Analyse this trend', 'Same period last month']
+          : ['Break it down by location'];
+      case 'daily_processing':
+        return isAdmin
+          ? ['Analyse this trend', 'Grade vs VA for the same period', 'Which day was highest?']
+          : ['Which day was highest?'];
+      case 'daily_supervisor_assignments':
+        return ['Which days had the fewest?', 'Who was absent most often?'];
+      case 'local_ladies_attendance':
+        return ['Which batch attended most?', 'Analyse this trend'];
+      default:
+        return ['Analyse this trend'];
+    }
+  }
+
   switch (src) {
     case 'daily_supervisor_assignments':
       return isAdmin
-        ? ['Who was absent?', 'Compare with yesterday', 'Labour breakdown today']
+        ? ['Who was absent?', 'Attendance trend this month', 'Labour breakdown today']
         : ['Who was absent?', 'Labour breakdown today'];
     case 'supervisors':
       return ['Is he present today?', 'How many days absent this month?'];
     case 'daily_workforce':
       return isAdmin
-        ? ['Show grade vs VA today', "Today's processing summary", 'Compare with yesterday']
+        ? ['Labour trend this month', "Today's processing summary", 'Compare with yesterday']
         : ['Show grade vs VA today', "Today's processing summary"];
     case 'hl_va_entries':
       return isAdmin
@@ -78,7 +116,7 @@ function followUpsFor(results: CanvasResult[], isAdmin: boolean): string[] {
         : ['HON to HL summary today'];
     case 'daily_processing':
       return isAdmin
-        ? ['Analyse this', 'Grade vs VA for the same period']
+        ? ['Analyse this', 'Production trend this month', 'Grade vs VA for the same period']
         : ['Grade vs VA today'];
     case 'local_ladies_attendance':
       return ['Which batch attended most?', 'Compare with last week'];
@@ -106,7 +144,15 @@ export default function AssistantPage() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Show the local list immediately, then upgrade to the shared history.
     setRecents(loadRecents());
+    let cancelled = false;
+    fetchSuggestions().then((fromLog) => {
+      if (!cancelled && fromLog.length > 0) setRecents(fromLog);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {

@@ -4,6 +4,10 @@
 // and drives Claude Haiku 4.5 with the SDK Tool Runner. "Analyse" questions
 // escalate to Sonnet 5 inside the analyze tool. Returns the final summary
 // plus the full ToolResult envelopes for the results canvas.
+//
+// Every turn is appended to assistant_query_log (migration 034) under the
+// asker's own session. GET on this route reads that log back as suggestion
+// chips. Both sides degrade quietly if the migration has not been applied.
 
 import Anthropic from '@anthropic-ai/sdk';
 import { NextRequest, NextResponse } from 'next/server';
@@ -21,6 +25,94 @@ const MAX_QUESTION_CHARS = 600;
 function todayInIST(): string {
   // en-CA formats as yyyy-MM-dd
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+}
+
+/** Collapses phrasing differences so repeats of one question rank together. */
+function normalizeQuestion(q: string): string {
+  return q.toLowerCase().replace(/\s+/g, ' ').replace(/[?.!]+$/, '').trim();
+}
+
+/**
+ * Appends one turn to the query log. Never throws and never blocks the answer:
+ * if migration 034 has not been applied yet the insert simply fails and the
+ * assistant carries on — logging is for tuning, not for correctness.
+ */
+async function logQuery(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  userId: string,
+  entry: {
+    question: string;
+    toolsUsed: string[];
+    results: ToolResult[];
+    succeeded: boolean;
+    errorText?: string;
+    durationMs: number;
+  }
+): Promise<void> {
+  try {
+    await supabase.from('assistant_query_log').insert({
+      user_id: userId,
+      question: entry.question,
+      normalized_question: normalizeQuestion(entry.question),
+      tools_used: entry.toolsUsed,
+      result_kinds: entry.results.map((r) => r.kind),
+      row_total: entry.results.reduce((sum, r) => sum + (r.meta.row_count || 0), 0),
+      succeeded: entry.succeeded,
+      error_text: entry.errorText ?? null,
+      model: ROUTER_MODEL,
+      duration_ms: entry.durationMs,
+    });
+  } catch (err) {
+    console.warn('assistant_query_log insert skipped:', err);
+  }
+}
+
+// ─── GET /api/assistant ──────────────────────────────────────────────────────
+// Suggestion chips: this user's own questions that actually reached a tool,
+// ranked by how often they ask it and how recently. Returns an empty list (not
+// an error) when there is no history yet — the page falls back to its seeds.
+export async function GET() {
+  const supabase = await createServerSupabaseClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Not signed in.' }, { status: 401 });
+  }
+
+  const { data, error } = await supabase
+    .from('assistant_query_log')
+    .select('question, normalized_question, created_at')
+    .eq('user_id', user.id)
+    .eq('succeeded', true)
+    .neq('tools_used', '{}')
+    .order('created_at', { ascending: false })
+    .limit(60);
+
+  if (error || !data) {
+    // Table missing (migration not applied) or unreadable — no chips, no noise.
+    return NextResponse.json({ suggestions: [] });
+  }
+
+  type Entry = { question: string; hits: number; rank: number };
+  const byQuestion = new Map<string, Entry>();
+  data.forEach((row, i) => {
+    const key = row.normalized_question;
+    const existing = byQuestion.get(key);
+    if (existing) {
+      existing.hits += 1;
+    } else {
+      // `i` is position in a newest-first list, so a smaller i is more recent.
+      byQuestion.set(key, { question: row.question, hits: 1, rank: i });
+    }
+  });
+
+  const suggestions = [...byQuestion.values()]
+    .sort((a, b) => b.hits - a.hits || a.rank - b.rank)
+    .slice(0, 3)
+    .map((e) => e.question);
+
+  return NextResponse.json({ suggestions });
 }
 
 export async function POST(request: NextRequest) {
@@ -93,7 +185,9 @@ export async function POST(request: NextRequest) {
     today,
     collected,
     resolved: {},
+    toolsUsed: [],
   };
+  const startedAt = Date.now();
 
   try {
     const finalMessage = await anthropic.beta.messages.toolRunner({
@@ -125,6 +219,13 @@ export async function POST(request: NextRequest) {
       resolved: resolvedParts.length ? resolvedParts.join(' · ') : undefined,
       model: ROUTER_MODEL,
     };
+    await logQuery(supabase, user.id, {
+      question,
+      toolsUsed: ctx.toolsUsed,
+      results: collected,
+      succeeded: true,
+      durationMs: Date.now() - startedAt,
+    });
     return NextResponse.json(payload);
   } catch (err) {
     console.error('Assistant error:', err);
@@ -132,6 +233,14 @@ export async function POST(request: NextRequest) {
       err instanceof Anthropic.APIError
         ? `Assistant model error (${err.status}): ${err.message}`
         : 'Something went wrong answering that — please try again.';
+    await logQuery(supabase, user.id, {
+      question,
+      toolsUsed: ctx.toolsUsed,
+      results: collected,
+      succeeded: false,
+      errorText: err instanceof Error ? err.message.slice(0, 500) : String(err).slice(0, 500),
+      durationMs: Date.now() - startedAt,
+    });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
