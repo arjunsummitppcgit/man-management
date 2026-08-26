@@ -637,6 +637,261 @@ export function buildAssistantTools(ctx: ToolContext) {
     },
   });
 
+  // ─── batch (harvest lot) tools ─────────────────────────────────────────────
+  // A batch is a lot of prawn carrying an id like 26H24/2A. It moves through
+  // two registers: yield_entries holds its HON→HL de-heading, hl_va_entries its
+  // HL→VA value addition — and the two can happen on different dates at
+  // different locations, so neither table alone is the whole story.
+
+  const getBatches = betaTool({
+    name: 'get_batches',
+    description:
+      'Which prawn/harvest batches were processed on a date or range, optionally at one location. Returns one row per batch per stage (HON→HL de-heading from yield_entries, HL→VA value addition from hl_va_entries) with count, kg in, kg out, yield and grader. Use for "which batches were processed yesterday", "what batches ran at SME today", "batches handled this week". This is prawn batches — NOT ladies batches.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from: { type: 'string', description: 'yyyy-MM-dd' },
+        to: { type: 'string', description: 'yyyy-MM-dd; omit for a single day' },
+        location: { type: 'string', description: 'Optional: one location name, e.g. SME' },
+      },
+      required: ['from'],
+      additionalProperties: false,
+    } as const,
+    run: async ({ from, to, location }) => {
+      ctx.toolsUsed.push('get_batches');
+      const end = to || from;
+      const err = checkRange(ctx, from, end);
+      if (err) return err;
+      ctx.resolved.date = periodLabel(from, end);
+
+      const [honHl, hlVa] = await Promise.all([
+        ctx.supabase
+          .from('yield_entries')
+          .select('work_date, batch_id, count_text, hon_kgs, hl_kgs, grader_name, location:locations(name)')
+          .gte('work_date', from)
+          .lte('work_date', end)
+          .order('work_date'),
+        ctx.supabase
+          .from('hl_va_entries')
+          .select('work_date, batch_id, count_text, grade, variety, hl_kgs, va_kgs, grader_name, location:locations(name)')
+          .gte('work_date', from)
+          .lte('work_date', end)
+          .order('work_date'),
+      ]);
+      if (honHl.error) throw honHl.error;
+      if (hlVa.error) throw hlVa.error;
+
+      const wanted = location?.trim().toLowerCase();
+      const atLocation = (name: string | undefined) => !wanted || (name ?? '').toLowerCase() === wanted;
+
+      type HonRow = {
+        work_date: string; batch_id: string; count_text: string; hon_kgs: number;
+        hl_kgs: number; grader_name: string; location: { name: string } | null;
+      };
+      type VaRow = {
+        work_date: string; batch_id: string; count_text: string; grade: string; variety: string;
+        hl_kgs: number; va_kgs: number; grader_name: string; location: { name: string } | null;
+      };
+
+      const rows: Record<string, string | number | null>[] = [];
+
+      for (const r of ((honHl.data as unknown as HonRow[]) || []).filter((r) => atLocation(r.location?.name))) {
+        const inKg = kg(Number(r.hon_kgs) || 0);
+        const outKg = kg(Number(r.hl_kgs) || 0);
+        rows.push({
+          batch: r.batch_id,
+          stage: 'HON→HL',
+          date: r.work_date,
+          count: r.count_text || '—',
+          detail: r.grader_name || '—',
+          location: r.location?.name ?? '—',
+          in_kgs: inKg,
+          out_kgs: outKg,
+          yield_pct: inKg > 0 ? Math.round((outKg / inKg) * 1000) / 10 : null,
+        });
+      }
+      for (const r of ((hlVa.data as unknown as VaRow[]) || []).filter((r) => atLocation(r.location?.name))) {
+        const inKg = kg(Number(r.hl_kgs) || 0);
+        const outKg = kg(Number(r.va_kgs) || 0);
+        rows.push({
+          batch: r.batch_id,
+          stage: 'HL→VA',
+          date: r.work_date,
+          count: r.count_text || '—',
+          detail: [r.variety, r.grade].filter(Boolean).join(' ') || '—',
+          location: r.location?.name ?? '—',
+          in_kgs: inKg,
+          out_kgs: outKg,
+          yield_pct: inKg > 0 ? Math.round((outKg / inKg) * 1000) / 10 : null,
+        });
+      }
+      rows.sort((a, b) =>
+        String(a.date).localeCompare(String(b.date)) || String(a.batch).localeCompare(String(b.batch))
+      );
+
+      const distinct = [...new Set(rows.map((r) => String(r.batch)))];
+      const deheaded = [...new Set(rows.filter((r) => r.stage === 'HON→HL').map((r) => String(r.batch)))];
+      const valueAdded = [...new Set(rows.filter((r) => r.stage === 'HL→VA').map((r) => String(r.batch)))];
+      const scope = location ? ` at ${location}` : '';
+
+      const result: ToolResult = {
+        kind: 'table',
+        title: `Batches processed${location ? ` — ${location}` : ''}`,
+        subtitle: `Every prawn batch with a register entry${scope} over ${periodLabel(from, end)} (${daysPhrase(from, end)}). One row per batch per stage: HON→HL is de-heading (input is head-on weight), HL→VA is value addition (input is headless weight). A batch can be de-headed at one location and value-added at another, so the same batch may appear twice with different locations.`,
+        kpis: [
+          { label: 'Batches', value: distinct.length, tone: 'accent' },
+          { label: 'De-headed', value: deheaded.length },
+          { label: 'Value-added', value: valueAdded.length },
+        ],
+        columns: [
+          { key: 'batch', label: 'Batch' },
+          { key: 'stage', label: 'Stage' },
+          { key: 'date', label: 'Date', format: 'date', total: 'none' },
+          { key: 'count', label: 'Count' },
+          { key: 'location', label: 'Location' },
+          { key: 'detail', label: 'Grader / product' },
+          { key: 'in_kgs', label: 'Input', format: 'kg', tone: 'hon' },
+          { key: 'out_kgs', label: 'Output', format: 'kg', tone: 'va' },
+          { key: 'yield_pct', label: 'Yield %', format: 'percent', total: 'avg' },
+        ],
+        rows,
+        meta: {
+          date_resolved: from === end ? from : `${from} → ${end}`,
+          period_label: periodLabel(from, end),
+          source_tables: ['yield_entries', 'hl_va_entries'],
+          row_count: rows.length,
+          no_data: rows.length === 0,
+          unit: 'kg',
+        },
+      };
+      ctx.collected.push(result);
+      return forModel(result, {
+        from, to: end, location: location ?? 'all',
+        batch_ids: distinct.slice(0, 40),
+        batch_count: distinct.length,
+        deheaded_batches: deheaded.slice(0, 40),
+        value_added_batches: valueAdded.slice(0, 40),
+      });
+    },
+  });
+
+  const getBatchPipeline = betaTool({
+    name: 'get_batch_pipeline',
+    description:
+      'Follow ONE prawn batch across every date and location: its HON→HL de-heading entries and its HL→VA value-addition entries. Matches the batch id loosely, so a partial id like "26H24" finds 26H24/2A. Use for "track batch 26F04/3", "where did batch X go", "show me batch X history".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        batch_id: { type: 'string', description: 'Batch id or part of one, e.g. 26F04/3' },
+      },
+      required: ['batch_id'],
+      additionalProperties: false,
+    } as const,
+    run: async ({ batch_id }) => {
+      ctx.toolsUsed.push('get_batch_pipeline');
+      if (!ctx.isAdmin) {
+        return `STAFF_RESTRICTED: a batch spans multiple dates; staff accounts can only view today's data (${ctx.today}).`;
+      }
+      const needle = batch_id.trim();
+      if (!needle) return 'Give a batch id to look up.';
+
+      const [honHl, hlVa] = await Promise.all([
+        ctx.supabase
+          .from('yield_entries')
+          .select('work_date, batch_id, count_text, hon_kgs, hl_kgs, grader_name, location:locations(name)')
+          .ilike('batch_id', `%${needle}%`)
+          .order('work_date'),
+        ctx.supabase
+          .from('hl_va_entries')
+          .select('work_date, batch_id, count_text, grade, variety, hl_kgs, va_kgs, location:locations(name)')
+          .ilike('batch_id', `%${needle}%`)
+          .order('work_date'),
+      ]);
+      if (honHl.error) throw honHl.error;
+      if (hlVa.error) throw hlVa.error;
+
+      type HonRow = {
+        work_date: string; batch_id: string; count_text: string; hon_kgs: number;
+        hl_kgs: number; grader_name: string; location: { name: string } | null;
+      };
+      type VaRow = {
+        work_date: string; batch_id: string; count_text: string; grade: string; variety: string;
+        hl_kgs: number; va_kgs: number; location: { name: string } | null;
+      };
+
+      const rows: Record<string, string | number | null>[] = [];
+      for (const r of (honHl.data as unknown as HonRow[]) || []) {
+        const inKg = kg(Number(r.hon_kgs) || 0);
+        const outKg = kg(Number(r.hl_kgs) || 0);
+        rows.push({
+          batch: r.batch_id, stage: 'HON→HL', date: r.work_date, count: r.count_text || '—',
+          location: r.location?.name ?? '—', detail: r.grader_name || '—',
+          in_kgs: inKg, out_kgs: outKg,
+          yield_pct: inKg > 0 ? Math.round((outKg / inKg) * 1000) / 10 : null,
+        });
+      }
+      for (const r of (hlVa.data as unknown as VaRow[]) || []) {
+        const inKg = kg(Number(r.hl_kgs) || 0);
+        const outKg = kg(Number(r.va_kgs) || 0);
+        rows.push({
+          batch: r.batch_id, stage: 'HL→VA', date: r.work_date, count: r.count_text || '—',
+          location: r.location?.name ?? '—',
+          detail: [r.variety, r.grade].filter(Boolean).join(' ') || '—',
+          in_kgs: inKg, out_kgs: outKg,
+          yield_pct: inKg > 0 ? Math.round((outKg / inKg) * 1000) / 10 : null,
+        });
+      }
+      rows.sort((a, b) =>
+        String(a.date).localeCompare(String(b.date)) || String(a.stage).localeCompare(String(b.stage))
+      );
+
+      const matched = [...new Set(rows.map((r) => String(r.batch)))];
+      const totalHon = kg(rows.filter((r) => r.stage === 'HON→HL').reduce((sum, r) => sum + Number(r.in_kgs || 0), 0));
+      const totalVa = kg(rows.filter((r) => r.stage === 'HL→VA').reduce((sum, r) => sum + Number(r.out_kgs || 0), 0));
+      const dates = [...new Set(rows.map((r) => String(r.date)))].sort();
+      const locations = [...new Set(rows.map((r) => String(r.location)))];
+      if (dates.length) ctx.resolved.date = dates.length === 1 ? dates[0] : `${dates[0]} → ${dates[dates.length - 1]}`;
+
+      const result: ToolResult = {
+        kind: 'table',
+        title: `Batch pipeline — ${matched.join(', ') || needle}`,
+        subtitle: matched.length
+          ? `Every register entry for ${matched.length === 1 ? 'this batch' : `${matched.length} matching batches`}, across ${dates.length === 1 ? '1 date' : `${dates.length} dates`} and ${locations.length === 1 ? locations[0] : `${locations.length} locations`}. HON→HL is de-heading, HL→VA is value addition — a batch is often de-headed at one location and value-added at another days later.`
+          : `No register entry matches a batch id containing "${needle}".`,
+        kpis: [
+          { label: 'HON received', value: totalHon, unit: 'kg', tone: 'accent' },
+          { label: 'VA produced', value: totalVa, unit: 'kg', tone: 'accent' },
+          { label: 'Entries', value: rows.length },
+        ],
+        columns: [
+          { key: 'batch', label: 'Batch' },
+          { key: 'stage', label: 'Stage' },
+          { key: 'date', label: 'Date', format: 'date', total: 'none' },
+          { key: 'count', label: 'Count' },
+          { key: 'location', label: 'Location' },
+          { key: 'detail', label: 'Grader / product' },
+          { key: 'in_kgs', label: 'Input', format: 'kg', tone: 'hon', share: false },
+          { key: 'out_kgs', label: 'Output', format: 'kg', tone: 'va', share: false },
+          { key: 'yield_pct', label: 'Yield %', format: 'percent', total: 'avg' },
+        ],
+        rows,
+        meta: {
+          date_resolved: ctx.resolved.date,
+          period_label: dates.length ? periodLabel(dates[0], dates[dates.length - 1]) : undefined,
+          source_tables: ['yield_entries', 'hl_va_entries'],
+          row_count: rows.length,
+          no_data: rows.length === 0,
+          unit: 'kg',
+        },
+      };
+      ctx.collected.push(result);
+      return forModel(result, {
+        query: needle, matched_batches: matched, dates, locations,
+        total_hon_kgs: totalHon, total_va_kgs: totalVa,
+      });
+    },
+  });
+
   // ─── daily trend tools ─────────────────────────────────────────────────────
   // One row per calendar day so the canvas can draw a line chart. A day with no
   // register entry comes back as null — a gap in the line, never a zero, because
@@ -1077,6 +1332,8 @@ export function buildAssistantTools(ctx: ToolContext) {
     getGradeVsVa,
     getProcessingSummary,
     getLadiesAttendance,
+    getBatches,
+    getBatchPipeline,
     getLabourTrend,
     getProductionTrend,
     getAttendanceTrend,
