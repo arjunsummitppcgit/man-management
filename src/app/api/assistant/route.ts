@@ -69,9 +69,10 @@ async function logQuery(
 }
 
 // ─── GET /api/assistant ──────────────────────────────────────────────────────
-// Suggestion chips: this user's own questions that actually reached a tool,
-// ranked by how often they ask it and how recently. Returns an empty list (not
-// an error) when there is no history yet — the page falls back to its seeds.
+// Two things for the chip rows: this user's own questions that actually reached
+// a tool (ranked by how often they ask it and how recently), and the set of
+// tools they have used at all — the page suggests the ones they have not.
+// Returns empty lists (not an error) when there is no history yet.
 export async function GET() {
   const supabase = await createServerSupabaseClient();
   const {
@@ -83,7 +84,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('assistant_query_log')
-    .select('question, normalized_question, created_at')
+    .select('question, normalized_question, tools_used, created_at')
     .eq('user_id', user.id)
     .eq('succeeded', true)
     .neq('tools_used', '{}')
@@ -92,8 +93,12 @@ export async function GET() {
 
   if (error || !data) {
     // Table missing (migration not applied) or unreadable — no chips, no noise.
-    return NextResponse.json({ suggestions: [] });
+    return NextResponse.json({ suggestions: [], usedTools: [] });
   }
+
+  const usedTools = [
+    ...new Set(data.flatMap((row) => (row.tools_used as string[] | null) ?? [])),
+  ];
 
   type Entry = { question: string; hits: number; rank: number };
   const byQuestion = new Map<string, Entry>();
@@ -113,7 +118,7 @@ export async function GET() {
     .slice(0, 3)
     .map((e) => e.question);
 
-  return NextResponse.json({ suggestions });
+  return NextResponse.json({ suggestions, usedTools });
 }
 
 export async function POST(request: NextRequest) {

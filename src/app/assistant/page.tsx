@@ -26,18 +26,38 @@ interface RecentEntry {
 }
 
 /**
+ * Questions worth discovering, each tagged with the tool it exercises so we can
+ * offer the ones this user has never reached for. `range` marks a question that
+ * spans more than today (staff accounts are clamped to today, so those are
+ * dropped for them); `admin` marks admin-only data.
+ */
+const DISCOVERY: { q: string; tool: string; range?: boolean; admin?: boolean }[] = [
+  { q: 'Labour trend this month', tool: 'get_labour_trend', range: true },
+  { q: 'Production trend this month', tool: 'get_production_trend', range: true },
+  { q: 'Supervisor attendance this month', tool: 'get_attendance_trend', range: true },
+  { q: 'Company vs outside labour today', tool: 'compare_labour_sources' },
+  { q: 'Grade vs VA this month', tool: 'get_grade_vs_va', range: true },
+  { q: "Today's processing summary", tool: 'get_processing_summary' },
+  { q: 'Supervisors present today', tool: 'get_supervisor_attendance' },
+  { q: 'Ladies attendance this week', tool: 'get_ladies_trend', range: true, admin: true },
+];
+
+/**
  * The user's real question history from assistant_query_log. Falls back to the
  * per-browser localStorage list when the log is empty or migration 034 has not
  * been applied yet, so chips never disappear.
  */
-async function fetchSuggestions(): Promise<string[]> {
+async function fetchSuggestions(): Promise<{ recents: string[]; usedTools: string[] }> {
   try {
     const res = await fetch('/api/assistant');
-    if (!res.ok) return [];
-    const data: { suggestions?: string[] } = await res.json();
-    return Array.isArray(data.suggestions) ? data.suggestions : [];
+    if (!res.ok) return { recents: [], usedTools: [] };
+    const data: { suggestions?: string[]; usedTools?: string[] } = await res.json();
+    return {
+      recents: Array.isArray(data.suggestions) ? data.suggestions : [],
+      usedTools: Array.isArray(data.usedTools) ? data.usedTools : [],
+    };
   } catch {
-    return [];
+    return { recents: [], usedTools: [] };
   }
 }
 
@@ -142,6 +162,7 @@ export default function AssistantPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [recents, setRecents] = useState<string[]>([]);
+  const [usedTools, setUsedTools] = useState<string[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -150,7 +171,9 @@ export default function AssistantPage() {
     setRecents(loadRecents());
     let cancelled = false;
     fetchSuggestions().then((fromLog) => {
-      if (!cancelled && fromLog.length > 0) setRecents(fromLog);
+      if (cancelled) return;
+      if (fromLog.recents.length > 0) setRecents(fromLog.recents);
+      setUsedTools(fromLog.usedTools);
     });
     return () => {
       cancelled = true;
@@ -226,7 +249,8 @@ export default function AssistantPage() {
         // The question just landed in the query log — pull the ranked list back
         // so the chips reflect what this user actually asks, not just this tab.
         fetchSuggestions().then((fromLog) => {
-          if (fromLog.length > 0) setRecents(fromLog);
+          if (fromLog.recents.length > 0) setRecents(fromLog.recents);
+          setUsedTools(fromLog.usedTools);
         });
       } catch {
         setMessages((prev) => [
@@ -269,6 +293,22 @@ export default function AssistantPage() {
             return !shownAsChips.has(key) && !askedThisSession.has(key);
           })
           .slice(0, 3);
+
+  // Three things to try, biased towards tools this account has never used —
+  // once everything has been tried it falls back to the pool order rather than
+  // going empty.
+  const alreadyOffered = new Set([
+    ...shownAsChips,
+    ...recentChips.map((c) => c.toLowerCase().trim()),
+    ...askedThisSession,
+  ]);
+  const runnable = DISCOVERY.filter(
+    (d) => !(isSubUser && (d.range || d.admin)) && !alreadyOffered.has(d.q.toLowerCase().trim())
+  );
+  const untried = runnable.filter((d) => !usedTools.includes(d.tool));
+  const suggestedChips = (untried.length >= 3 ? untried : [...untried, ...runnable.filter((d) => !untried.includes(d))])
+    .slice(0, 3)
+    .map((d) => d.q);
 
   return (
     <div className="animate-fade-in">
@@ -351,7 +391,7 @@ export default function AssistantPage() {
           </div>
 
           {/* Chips */}
-          {(chips.length > 0 || recentChips.length > 0) && (
+          {(chips.length > 0 || suggestedChips.length > 0 || recentChips.length > 0) && (
             <div className="px-4 pb-2 space-y-2">
               {chips.length > 0 && (
                 <div>
@@ -360,6 +400,25 @@ export default function AssistantPage() {
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {chips.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => send(c)}
+                        disabled={loading}
+                        className="asst-chip px-3 py-1.5 rounded-full text-[11px] font-semibold disabled:opacity-50"
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {suggestedChips.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-gray-400 mb-1.5">
+                    Suggested
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {suggestedChips.map((c) => (
                       <button
                         key={c}
                         onClick={() => send(c)}
