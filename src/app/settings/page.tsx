@@ -13,7 +13,6 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppSettings, SETTING_NL_LADIES_SALARY_BASIC } from '@/hooks/useAppSettings';
 import UserManagementSection from '@/components/settings/UserManagementSection';
-import TicketsSection from '@/components/settings/TicketsSection';
 import { getTodayString } from '@/lib/utils';
 
 
@@ -30,7 +29,7 @@ export default function SettingsPage() {
   const { requireAdmin, reportError } = usePermissionAlert();
   const router = useRouter();
   const { locations, addLocation } = useLocations();
-  const { isAdmin } = useAuth();
+  const { isAdmin, canView } = useAuth();
   // Supervisor Attendance is an admin report
   const reportTypes = isAdmin
     ? REPORT_TYPES
@@ -69,6 +68,9 @@ export default function SettingsPage() {
   // My Tasks summary (maintenance tasks)
   const [taskCounts, setTaskCounts] = useState({ pending: 0, due: 0 });
 
+  // Tickets summary for the card — open, and how many are waiting on the user to test
+  const [ticketCounts, setTicketCounts] = useState({ open: 0, testing: 0 });
+
   // User email from auth and check dark mode
   const [userEmail, setUserEmail] = useState('');
   useEffect(() => {
@@ -94,6 +96,26 @@ export default function SettingsPage() {
         setTaskCounts({
           pending: data?.length || 0,
           due: (data || []).filter((t) => t.next_followup_on && t.next_followup_on <= today).length,
+        });
+      });
+  }, []);
+
+  // Open / awaiting-test counts for the Tickets card badge
+  useEffect(() => {
+    supabase
+      .from('tickets')
+      .select('status')
+      .neq('status', 'done')
+      .then(({ data, error }) => {
+        // Missing table just means migration 035 hasn't run — leave the card
+        // showing its plain subtitle rather than an error nobody can act on.
+        if (error) {
+          console.error('Error fetching ticket counts:', error);
+          return;
+        }
+        setTicketCounts({
+          open: data?.length || 0,
+          testing: (data || []).filter((t) => t.status === 'testing').length,
         });
       });
   }, []);
@@ -474,7 +496,36 @@ export default function SettingsPage() {
         )}
 
         {/* Tickets — bugs and small enhancement requests raised for the developer */}
-        <TicketsSection />
+        {canView('tickets') && (
+          <Link
+            href="/tickets"
+            className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100 transition-transform active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-sky-600">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 010 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 010-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375z" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-semibold text-gray-700">Tickets</h3>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  {ticketCounts.open > 0
+                    ? `${ticketCounts.open} open ticket${ticketCounts.open > 1 ? 's' : ''}`
+                    : 'Report a bug or ask for a small change'}
+                </p>
+              </div>
+              {ticketCounts.testing > 0 && (
+                <span className="px-2 py-0.5 bg-purple-50 text-purple-600 text-[10px] font-semibold rounded-full flex-shrink-0">
+                  {ticketCounts.testing} to test
+                </span>
+              )}
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-gray-400 flex-shrink-0">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </div>
+          </Link>
+        )}
 
         {/* Master control: logins, page rights and old-date windows (admin-only) */}
         {isAdmin && <UserManagementSection actorEmail={userEmail} />}

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useToast } from '@/components/ui/Toast';
+import { usePermissionAlert } from '@/components/ui/PermissionAlert';
 import { TICKET_PRIORITIES, statusLabel, ticketRef } from '@/hooks/useTickets';
 import type { Ticket, TicketAttachment, TicketPriority, TicketStatus } from '@/types';
 import {
@@ -57,6 +58,7 @@ export default function TicketDetailSheet({
   getAttachmentUrl,
 }: Props) {
   const { showToast } = useToast();
+  const { requireModify, reportError } = usePermissionAlert();
   const fileInput = useRef<HTMLInputElement>(null);
   const commentBox = useRef<HTMLTextAreaElement>(null);
 
@@ -94,13 +96,16 @@ export default function TicketDetailSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attachmentKey, getAttachmentUrl]);
 
+  // Every write in this sheet goes through run(), so one gate covers them all:
+  // refuse before the round-trip and explain why, the way the rest of the app does.
   const run = async (action: () => Promise<void>, failure: string) => {
+    if (!requireModify('tickets')) return;
     setBusy(true);
     try {
       await action();
     } catch (e) {
       console.error(failure, e);
-      showToast(e instanceof Error ? e.message : failure, 'error');
+      if (!reportError(e)) showToast(e instanceof Error ? e.message : failure, 'error');
     } finally {
       setBusy(false);
     }
@@ -154,6 +159,7 @@ export default function TicketDetailSheet({
 
   const attach = async (picked: FileList | null) => {
     if (!picked?.length) return;
+    if (!requireModify('tickets')) return;
     setUploading(true);
     try {
       await onAddAttachments([...picked]);

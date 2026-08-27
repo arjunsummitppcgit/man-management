@@ -21,6 +21,7 @@ export const APP_PAGES: AppPage[] = [
   { key: 'local-ladies-attendance', label: 'Ladies Attendance', path: '/local-ladies-attendance', dated: true, modifyHint: 'batch attendance per day' },
   { key: 'ladies-per-head-amount', label: 'Per Head Amount', path: '/ladies-per-head-amount', dated: true, modifyHint: 'per-head amounts per day' },
   { key: 'maintenance-tasks', label: 'My Tasks', path: '/maintenance-tasks', dated: false, modifyHint: 'create and close maintenance tasks' },
+  { key: 'tickets', label: 'Tickets', path: '/tickets', dated: false, modifyHint: 'raise tickets, comment and move them along' },
   { key: 'yield-report', label: 'Daily Report', path: '/yield-report', dated: false, modifyHint: 'read-only report' },
   { key: 'analytics', label: 'Analytics', path: '/analytics', dated: false, modifyHint: 'set monthly VA targets' },
   { key: 'assistant', label: 'Assistant', path: '/assistant', dated: false, modifyHint: 'ask questions about the data' },
