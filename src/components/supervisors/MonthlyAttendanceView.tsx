@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/Toast';
 import { usePermissionAlert } from '@/components/ui/PermissionAlert';
 import { useAuth } from '@/hooks/useAuth';
 import { getDaysInMonth } from 'date-fns';
+import { getTodayString } from '@/lib/utils';
 
 const MONTHS = [
   { value: 1, label: 'January' },
@@ -172,6 +173,19 @@ export default function MonthlyAttendanceView() {
     });
   }, [month, year]);
 
+  /**
+   * How many days of the selected month have actually happened.
+   *
+   * Absent is worked out as "days minus days present", so a month in progress
+   * used to report every day still to come as an absence — on 27 August a
+   * supervisor with a clean record showed 4 absents for the 28th to the 31st.
+   * A finished month counts in full; a future month counts nothing.
+   */
+  const daysElapsed = useMemo(() => {
+    const today = getTodayString();
+    return daysInMonth.filter((day) => day.formattedDate <= today).length;
+  }, [daysInMonth]);
+
   // Create a quick lookup map for assignments: supervisorId_dateString -> details
   const assignmentLookup = useMemo(() => {
     const lookup = new Map<string, { isPresent: number; locationId: string; assignmentId: string }>();
@@ -272,7 +286,9 @@ export default function MonthlyAttendanceView() {
         };
       });
 
-      const calculatedAbsent = daysInMonth.length - presentCount;
+      // Half days make presentCount fractional and overtime can push it past
+      // the elapsed days, so floor the result at zero.
+      const calculatedAbsent = daysElapsed - presentCount;
       const absentCount = calculatedAbsent < 0 ? 0 : calculatedAbsent;
 
       return {
@@ -285,7 +301,7 @@ export default function MonthlyAttendanceView() {
         absentCount,
       };
     });
-  }, [supervisors, daysInMonth, assignmentLookup]);
+  }, [supervisors, daysInMonth, daysElapsed, assignmentLookup]);
 
   // Hold the render while the redirect for users without access kicks in
   if (authLoading || !canSeeSupervisors) {
@@ -372,7 +388,10 @@ export default function MonthlyAttendanceView() {
                     <th className="px-3 py-3 font-bold text-emerald-600 dark:text-emerald-400 text-center uppercase tracking-wider min-w-[65px] sticky-th-emerald border-r border-gray-100 dark:border-gray-800 sticky top-0 z-20">
                       Pres
                     </th>
-                    <th className="px-3 py-3 font-bold text-rose-600 dark:text-rose-400 text-center uppercase tracking-wider min-w-[65px] sticky-th-rose sticky top-0 z-20">
+                    <th
+                      className="px-3 py-3 font-bold text-rose-600 dark:text-rose-400 text-center uppercase tracking-wider min-w-[65px] sticky-th-rose sticky top-0 z-20"
+                      title={`Counted over the ${daysElapsed} day${daysElapsed === 1 ? '' : 's'} of this month so far — days still to come are not absences.`}
+                    >
                       Abs
                     </th>
                   </tr>
