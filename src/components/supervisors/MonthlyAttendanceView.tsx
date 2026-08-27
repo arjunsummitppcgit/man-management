@@ -9,6 +9,8 @@ import { usePermissionAlert } from '@/components/ui/PermissionAlert';
 import { useAuth } from '@/hooks/useAuth';
 import { getDaysInMonth } from 'date-fns';
 import { getTodayString } from '@/lib/utils';
+import { exportToExcel, type ExportCell } from '@/lib/export';
+import { printPage } from '@/components/ui/PrintButton';
 
 const MONTHS = [
   { value: 1, label: 'January' },
@@ -174,11 +176,8 @@ export default function MonthlyAttendanceView() {
   }, [month, year]);
 
   /**
-   * How many days of the selected month have actually happened.
-   *
-   * Absent is worked out as "days minus days present", so a month in progress
-   * used to report every day still to come as an absence — on 27 August a
-   * supervisor with a clean record showed 4 absents for the 28th to the 31st.
+   * How many days of the selected month have actually happened — the window
+   * absences are counted over, and what the Abs column header reports.
    * A finished month counts in full; a future month counts nothing.
    */
   const daysElapsed = useMemo(() => {
@@ -269,13 +268,21 @@ export default function MonthlyAttendanceView() {
 
   // Map supervisors to their calculated monthly attendance
   const rows = useMemo(() => {
+    const today = getTodayString();
+
     return supervisors.map((sup, idx) => {
       let presentCount = 0;
+      let absentCount = 0;
       const dailyAttendance = daysInMonth.map((day) => {
         const assignment = assignmentLookup.get(`${sup.id}_${day.formattedDate}`);
         const attendanceValue = assignment ? assignment.isPresent : 0;
         if (attendanceValue > 0) {
           presentCount += attendanceValue;
+        } else if (day.formattedDate <= today) {
+          // A blank day that has already happened is one absence — counted in
+          // whole days. Present is a sum of values, so a 1.5 overtime day would
+          // otherwise cancel out a day somebody actually missed.
+          absentCount += 1;
         }
         return {
           dayNum: day.dayNum,
@@ -285,11 +292,6 @@ export default function MonthlyAttendanceView() {
           assignmentId: assignment?.assignmentId || '',
         };
       });
-
-      // Half days make presentCount fractional and overtime can push it past
-      // the elapsed days, so floor the result at zero.
-      const calculatedAbsent = daysElapsed - presentCount;
-      const absentCount = calculatedAbsent < 0 ? 0 : calculatedAbsent;
 
       return {
         sNo: idx + 1,
@@ -301,7 +303,37 @@ export default function MonthlyAttendanceView() {
         absentCount,
       };
     });
-  }, [supervisors, daysInMonth, daysElapsed, assignmentLookup]);
+  }, [supervisors, daysInMonth, assignmentLookup]);
+
+  /**
+   * The register as a flat sheet: one row per supervisor, one column per day,
+   * then Pres and Abs. Half days stay numeric so Excel can still sum a column;
+   * a day with no entry is left genuinely empty rather than zero, because a
+   * blank and a recorded zero are not the same thing on an attendance sheet.
+   */
+  const exportSheet = useMemo(() => {
+    const headers = [
+      'S.No',
+      'Name',
+      ...daysInMonth.map((d) => String(d.dayNum)),
+      'Present',
+      'Absent',
+    ];
+    const body: ExportCell[][] = rows.map((row) => [
+      row.sNo,
+      row.isActive ? row.name : `${row.name} (inactive)`,
+      ...row.dailyAttendance.map((d) => (d.attendanceValue > 0 ? d.attendanceValue : null)),
+      row.presentCount,
+      row.absentCount,
+    ]);
+    const monthName = MONTHS.find((m) => m.value === month)?.label ?? String(month);
+    return {
+      headers,
+      body,
+      title: `Supervisor Attendance — ${monthName} ${year}`,
+      filename: `supervisor-attendance-${year}-${String(month).padStart(2, '0')}`,
+    };
+  }, [rows, daysInMonth, month, year]);
 
   // Hold the render while the redirect for users without access kicks in
   if (authLoading || !canSeeSupervisors) {
@@ -313,7 +345,30 @@ export default function MonthlyAttendanceView() {
   }
 
   return (
-    <div className="animate-fade-in pb-10">
+    <div className="animate-fade-in pb-10 print-landscape print-full-width">
+
+      {/* Export controls — the register is the sheet people hand around */}
+      <div className="px-4 mb-3 flex flex-wrap items-center gap-2 no-print">
+        <button
+          type="button"
+          onClick={() => printPage()}
+          className="px-3 py-2 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white text-xs font-semibold rounded-xl shadow-sm shadow-teal-600/25 transition-colors flex items-center gap-1.5 min-h-[38px]"
+        >
+          🖨️ Print / Save as PDF
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            exportToExcel(exportSheet.title, exportSheet.headers, exportSheet.body, exportSheet.filename)
+          }
+          className="px-3 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 text-xs font-semibold rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center gap-1.5 min-h-[38px]"
+        >
+          📊 Excel
+        </button>
+        <span className="text-[10px] text-gray-400 dark:text-gray-500">
+          Absent counted over {daysElapsed} day{daysElapsed === 1 ? '' : 's'} so far
+        </span>
+      </div>
 
       {/* Month & Year Selectors */}
       <div className="px-4 mb-4 grid grid-cols-2 gap-3">
@@ -358,8 +413,10 @@ export default function MonthlyAttendanceView() {
           </div>
         ) : (
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-md overflow-hidden">
-            {/* Scrollable Wrapper — capped height so the header can pin to its top */}
-            <div className="overflow-auto max-h-[70vh]">
+            {/* Scrollable Wrapper — capped height so the header can pin to its top.
+                print-release drops the cap and the scrollbars so paper gets the
+                whole register instead of the visible window. */}
+            <div className="overflow-auto max-h-[70vh] print-release">
               <table className="w-full border-collapse text-left text-xs">
                 <thead>
                   <tr className="reg-head bg-gray-50 dark:bg-gray-800/50">
