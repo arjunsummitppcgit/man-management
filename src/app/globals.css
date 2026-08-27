@@ -274,6 +274,57 @@ input:focus, select:focus, textarea:focus {
   background-color: rgba(16, 185, 129, 0.15) !important;
 }
 
+/*
+ * Opaque tints for STICKY table header cells.
+ *
+ * A sticky <th> is painted over the rows sliding underneath it, so its
+ * background must be solid. The three overrides above deliberately make
+ * bg-teal-50 / bg-emerald-50 / bg-rose-50 translucent on dark surfaces, and
+ * they carry !important — so a cell written as `bg-teal-50 dark:bg-teal-950`
+ * ends up at 15% opacity in dark mode no matter what the dark: variant says,
+ * and the register numbers scroll straight through the Total column header.
+ *
+ * These classes carry the same colours at full opacity and are never
+ * rewritten. Use them instead of bg-*-50 on anything sticky.
+ */
+.sticky-th-teal {
+  background-color: #f0fdfa;
+}
+.dark .sticky-th-teal {
+  background-color: #042f2e;
+}
+
+.sticky-th-emerald {
+  background-color: #ecfdf5;
+}
+.dark .sticky-th-emerald {
+  background-color: #022c22;
+}
+
+.sticky-th-rose {
+  background-color: #fff1f2;
+}
+.dark .sticky-th-rose {
+  background-color: #4c0519;
+}
+
+/* Same trap on FROZEN LEFT COLUMNS in the reports, which want a plain dark
+ * surface behind the tint rather than a darker shade of it. */
+.sticky-col-teal {
+  background-color: #f0fdfa;
+}
+.sticky-col-amber {
+  background-color: #fffbeb;
+}
+.sticky-col-indigo {
+  background-color: #eef2ff;
+}
+.dark .sticky-col-teal,
+.dark .sticky-col-amber,
+.dark .sticky-col-indigo {
+  background-color: #111827;
+}
+
 .dark .bg-blue-50 {
   background-color: rgba(59, 130, 246, 0.15) !important;
 }

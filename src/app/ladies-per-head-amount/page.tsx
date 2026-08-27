@@ -528,7 +528,7 @@ export default function LadiesPerHeadAmountPage() {
                         {day.dayNum}
                       </th>
                     ))}
-                    <th className="px-3 py-3 font-bold text-teal-600 dark:text-teal-400 text-center uppercase tracking-wider min-w-[80px] bg-teal-50 dark:bg-teal-950 sticky top-0 z-20">
+                    <th className="px-3 py-3 font-bold text-teal-600 dark:text-teal-400 text-center uppercase tracking-wider min-w-[80px] sticky-th-teal sticky top-0 z-20">
                       Total
                     </th>
                   </tr>

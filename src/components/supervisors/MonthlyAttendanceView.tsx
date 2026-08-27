@@ -369,10 +369,10 @@ export default function MonthlyAttendanceView() {
                       </th>
                     ))}
                     {/* Summary Columns */}
-                    <th className="px-3 py-3 font-bold text-emerald-600 dark:text-emerald-400 text-center uppercase tracking-wider min-w-[65px] bg-emerald-50 dark:bg-emerald-950 border-r border-gray-100 dark:border-gray-800 sticky top-0 z-20">
+                    <th className="px-3 py-3 font-bold text-emerald-600 dark:text-emerald-400 text-center uppercase tracking-wider min-w-[65px] sticky-th-emerald border-r border-gray-100 dark:border-gray-800 sticky top-0 z-20">
                       Pres
                     </th>
-                    <th className="px-3 py-3 font-bold text-rose-600 dark:text-rose-400 text-center uppercase tracking-wider min-w-[65px] bg-rose-50 dark:bg-rose-950 sticky top-0 z-20">
+                    <th className="px-3 py-3 font-bold text-rose-600 dark:text-rose-400 text-center uppercase tracking-wider min-w-[65px] sticky-th-rose sticky top-0 z-20">
                       Abs
                     </th>
                   </tr>

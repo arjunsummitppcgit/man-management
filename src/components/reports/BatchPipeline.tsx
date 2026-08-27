@@ -148,7 +148,7 @@ export default function BatchPipeline() {
                     </tbody>
                     <tfoot>
                       <tr className="bg-teal-50 dark:bg-teal-900/30 border-t-2 border-teal-100 dark:border-teal-800">
-                        <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap sticky left-0 bg-teal-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#ccfbf1] dark:shadow-[1px_0_0_0_#0f766e]">TOTALS</td>
+                        <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap sticky left-0 sticky-col-teal z-10 shadow-[1px_0_0_0_#ccfbf1] dark:shadow-[1px_0_0_0_#0f766e]">TOTALS</td>
                         <td className="px-4 py-3 text-sm text-teal-800 whitespace-nowrap">{honHlBatch.length} entries</td>
                         <td className="px-4 py-3"></td>
                         <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">{honHlBatchTotals.hon.toFixed(3)}</td>
@@ -231,7 +231,7 @@ export default function BatchPipeline() {
                     </tbody>
                     <tfoot>
                       <tr className="bg-indigo-50 dark:bg-indigo-900/30 border-t-2 border-indigo-100 dark:border-indigo-800">
-                        <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap sticky left-0 bg-indigo-50 dark:bg-gray-900 z-10 shadow-[1px_0_0_0_#e0e7ff] dark:shadow-[1px_0_0_0_#3730a3]">TOTALS</td>
+                        <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap sticky left-0 sticky-col-indigo z-10 shadow-[1px_0_0_0_#e0e7ff] dark:shadow-[1px_0_0_0_#3730a3]">TOTALS</td>
                         <td className="px-4 py-3 text-sm text-indigo-800 dark:text-indigo-300 whitespace-nowrap">{hlVaBatch.length} entries</td>
                         <td className="px-4 py-3"></td>
                         <td className="px-4 py-3"></td>
