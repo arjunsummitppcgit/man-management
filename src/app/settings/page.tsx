@@ -13,6 +13,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppSettings, SETTING_NL_LADIES_SALARY_BASIC } from '@/hooks/useAppSettings';
 import UserManagementSection from '@/components/settings/UserManagementSection';
+import TicketsSection from '@/components/settings/TicketsSection';
 import { getTodayString } from '@/lib/utils';
 
 
@@ -471,6 +472,9 @@ export default function SettingsPage() {
             </div>
           </Link>
         )}
+
+        {/* Tickets — bugs and small enhancement requests raised for the developer */}
+        <TicketsSection />
 
         {/* Master control: logins, page rights and old-date windows (admin-only) */}
         {isAdmin && <UserManagementSection actorEmail={userEmail} />}

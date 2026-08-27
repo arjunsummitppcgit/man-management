@@ -480,3 +480,57 @@ export interface DailyPlanVsActualRow {
   plannedHl: number;
   actualHl: number;
 }
+
+// ─── Ticket Types (bug reports & enhancement requests) ───────────────────────
+// Migration 035. Two people use this: the company user raises and tests, the
+// developer fixes. New → Working → Testing → Done, with Testing → Working when
+// a fix doesn't hold up.
+
+export type TicketStatus = 'new' | 'working' | 'testing' | 'done';
+export type TicketPriority = 'urgent' | 'normal' | 'low';
+
+/** One line in the ticket thread — a written comment or a status change. */
+export interface TicketComment {
+  id: string;
+  ticket_id: string;
+  body: string;
+  kind: 'comment' | 'status';
+  from_status: TicketStatus | null;
+  to_status: TicketStatus | null;
+  author_email: string | null;
+  created_at: string;
+}
+
+export interface TicketAttachment {
+  id: string;
+  ticket_id: string;
+  file_name: string;
+  file_path: string;      // path inside the 'ticket-attachments' bucket
+  mime_type: string | null;
+  size_bytes: number | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
+export interface Ticket {
+  id: string;
+  ticket_number: number;  // shown as #001
+  title: string;
+  description: string;
+  priority: TicketPriority;
+  status: TicketStatus;
+  created_by: string | null;
+  updated_by: string | null;
+  closed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  comments?: TicketComment[];
+  attachments?: TicketAttachment[];
+}
+
+export interface TicketFormData {
+  title: string;
+  description: string;
+  priority: TicketPriority;
+}
