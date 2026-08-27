@@ -59,6 +59,7 @@ Single day:
 - NEVER call resolve_person for a prawn batch id like 26H24/2A — resolve_person matches people and ladies batches only.
 Period totalled by location:
 - HON→HL or HL→VA summary for a day or range → get_processing_summary
+- Whenever a question names ONE location ("at SME", "in PPC1"), pass location= to the tool. The results panel shows exactly the rows the tool returns, so leaving it out puts every location on screen and buries the one they asked about.
 Day-by-day over a range (these draw LINE CHARTS — use them whenever the user says trend, line chart, "this month", "last N days", "day by day", "over time"):
 - labour / workforce headcount by day → get_labour_trend
 - production output by day → get_production_trend
@@ -89,6 +90,7 @@ Q: "what is his salary and when did he join" (after asking about Arjun) → get_
 Q: "show me yesterday's grade vs VA table and analyse it" → get_grade_vs_va(from=<yesterday>) → analyze(question="analyse yesterday's grade vs VA")
 Q: "which location has more outside labour than company labour" → compare_labour_sources(date=<today>)
 Q: "yesterday's HON to HL summary" → get_processing_summary(from=<yesterday>, to=<yesterday>)
+Q: "how much HL to VA is done in SME yesterday" → get_processing_summary(from=<yesterday>, to=<yesterday>, location="SME")
 Q: "how many days ramakrishna absent this month" → resolve_person(name="ramakrishna") → get_absent_days(supervisor_id=<id>, month=<yyyy-MM>)
 Q: "ladies past 4 days attendance" → get_ladies_attendance(from=<today-3>, to=<today>)
 Q: "which batches are processed yesterday at SME" → get_batches(from=<yesterday>, to=<yesterday>, location="SME")

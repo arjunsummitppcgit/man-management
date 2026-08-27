@@ -59,6 +59,20 @@ function checkRange(ctx: ToolContext, from: string, to: string): string | null {
   return null;
 }
 
+/**
+ * Does this row's location match what the user asked for?
+ *
+ * Compared with letters and digits only, so "ppc 1", "PPC-1" and "PPC1" are
+ * the same place — people say the name, they don't copy it out of Settings.
+ * An empty `wanted` matches everything, which is what "all locations" means.
+ */
+function locationMatcher(wanted?: string): (name: string | null | undefined) => boolean {
+  const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const target = norm(wanted?.trim() || '');
+  if (!target) return () => true;
+  return (name) => norm(name ?? '') === target;
+}
+
 function adminOnly(ctx: ToolContext): string | null {
   if (!ctx.isAdmin) {
     return 'ADMIN_ONLY: this information is restricted to admin accounts.';
@@ -481,17 +495,18 @@ export function buildAssistantTools(ctx: ToolContext) {
   const getProcessingSummary = betaTool({
     name: 'get_processing_summary',
     description:
-      'Production summary per location for a date range from daily processing: HON→HL (de-heading) and HL→VA (value addition) completed kg plus work-in-process kg. Use for "HON to HL summary" / "HL to VA summary".',
+      'Production summary per location for a date range from daily processing: HON→HL (de-heading) and HL→VA (value addition) completed kg plus work-in-process kg. Use for "HON to HL summary" / "HL to VA summary". Pass `location` whenever the question names one place ("HL to VA at SME yesterday") so the panel shows that location alone; omit it to compare every location.',
     inputSchema: {
       type: 'object',
       properties: {
         from: { type: 'string', description: 'yyyy-MM-dd' },
         to: { type: 'string', description: 'yyyy-MM-dd; omit for a single day' },
+        location: { type: 'string', description: 'Optional: one location name, e.g. SME' },
       },
       required: ['from'],
       additionalProperties: false,
     } as const,
-    run: async ({ from, to }) => {
+    run: async ({ from, to, location }) => {
       ctx.toolsUsed.push('get_processing_summary');
       const end = to || from;
       const err = checkDate(ctx, from) || checkDate(ctx, end);
@@ -510,8 +525,9 @@ export function buildAssistantTools(ctx: ToolContext) {
         wip_hon_to_headless: number; wip_headless_to_va: number;
         processed_kg: number; location: { name: string } | null;
       };
+      const atLocation = locationMatcher(location);
       const byLoc = new Map<string, { honHl: number; hlVa: number; wipHonHl: number; wipHlVa: number }>();
-      for (const r of (data as unknown as Row[]) || []) {
+      for (const r of ((data as unknown as Row[]) || []).filter((r) => atLocation(r.location?.name))) {
         const loc = r.location?.name ?? '—';
         const cur = byLoc.get(loc) || { honHl: 0, hlVa: 0, wipHonHl: 0, wipHlVa: 0 };
         cur.honHl += Number(r.hon_to_headless) || 0;
@@ -520,8 +536,8 @@ export function buildAssistantTools(ctx: ToolContext) {
         cur.wipHlVa += Number(r.wip_headless_to_va) || 0;
         byLoc.set(loc, cur);
       }
-      const rows = [...byLoc.entries()].map(([location, v]) => ({
-        location,
+      const rows = [...byLoc.entries()].map(([name, v]) => ({
+        location: name,
         hon_to_hl: kg(v.honHl),
         hl_to_va: kg(v.hlVa),
         wip_hon_to_hl: kg(v.wipHonHl),
@@ -532,8 +548,8 @@ export function buildAssistantTools(ctx: ToolContext) {
 
       const result: ToolResult = {
         kind: 'table',
-        title: 'Processing output by location',
-        subtitle: `Completed kg per location over ${periodLabel(from, end)} (${daysPhrase(from, end)}). HON to HL is de-heading, HL to VA is value addition; the WIP columns are material still in process, not yet finished.`,
+        title: `Processing output${location ? ` — ${location}` : ' by location'}`,
+        subtitle: `Completed kg ${location ? `at ${location}` : 'per location'} over ${periodLabel(from, end)} (${daysPhrase(from, end)}). HON to HL is de-heading, HL to VA is value addition; the WIP columns are material still in process, not yet finished.`,
         kpis: [
           { label: 'HON → HL', value: tHonHl, unit: 'kg', tone: 'accent' },
           { label: 'HL → VA', value: tHlVa, unit: 'kg', tone: 'accent' },
@@ -556,7 +572,7 @@ export function buildAssistantTools(ctx: ToolContext) {
         },
       };
       ctx.collected.push(result);
-      return forModel(result, { from, to: end });
+      return forModel(result, { from, to: end, location: location ?? 'all' });
     },
   });
 
@@ -681,8 +697,7 @@ export function buildAssistantTools(ctx: ToolContext) {
       if (honHl.error) throw honHl.error;
       if (hlVa.error) throw hlVa.error;
 
-      const wanted = location?.trim().toLowerCase();
-      const atLocation = (name: string | undefined) => !wanted || (name ?? '').toLowerCase() === wanted;
+      const atLocation = locationMatcher(location);
 
       type HonRow = {
         work_date: string; batch_id: string; count_text: string; hon_kgs: number;
@@ -932,10 +947,8 @@ export function buildAssistantTools(ctx: ToolContext) {
         labour_kg_basic: number; labour_daily_wage: number; labour_count: number;
         location: { name: string } | null;
       };
-      const wanted = location?.trim().toLowerCase();
-      const raw = ((data as unknown as Row[]) || []).filter(
-        (r) => !wanted || (r.location?.name ?? '').toLowerCase() === wanted
-      );
+      const atLocation = locationMatcher(location);
+      const raw = ((data as unknown as Row[]) || []).filter((r) => atLocation(r.location?.name));
 
       const byDate = new Map<string, { company: number; non_local: number; kg_basic: number; daily_wage: number; total: number }>();
       for (const r of raw) {
@@ -1039,10 +1052,8 @@ export function buildAssistantTools(ctx: ToolContext) {
         work_date: string; hon_to_headless: number; headless_to_va: number;
         location: { name: string } | null;
       };
-      const wanted = location?.trim().toLowerCase();
-      const raw = ((data as unknown as Row[]) || []).filter(
-        (r) => !wanted || (r.location?.name ?? '').toLowerCase() === wanted
-      );
+      const atLocation = locationMatcher(location);
+      const raw = ((data as unknown as Row[]) || []).filter((r) => atLocation(r.location?.name));
 
       const byDate = new Map<string, { honHl: number; hlVa: number }>();
       for (const r of raw) {
