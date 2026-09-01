@@ -5,7 +5,9 @@ import PageHeader from '@/components/layout/PageHeader';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import EmptyState from '@/components/ui/EmptyState';
 import ProcessingCharts from '@/components/dashboard/ProcessingCharts';
+import DailyPlanSheet from '@/components/reports/DailyPlanSheet';
 import { useDashboard } from '@/hooks/useDashboard';
+import { useDailyPlan } from '@/hooks/useDailyPlan';
 import { useLocations } from '@/hooks/useLocations';
 import { todayIST } from '@/lib/auth/permissions';
 
@@ -41,6 +43,7 @@ export default function DashboardPage() {
 
   const { kpis, locationBreakdowns, processingTrend, loading, fetchDashboard } = useDashboard();
   const { locations, loading: locationsLoading } = useLocations();
+  const { honHl: planHonHl, hlVa: planHlVa, fetchPlan } = useDailyPlan();
 
   const today = new Date();
   const formattedDate = today.toLocaleDateString('en-IN', {
@@ -112,6 +115,29 @@ export default function DashboardPage() {
     fetchDashboard(selectedDate, selectedLocationId);
   }, [selectedDate, selectedLocationId, locationsLoading, fetchDashboard]);
 
+  // The plan is keyed on the date alone — one fetch covers every location, and
+  // the filter is applied to what came back rather than to the query.
+  useEffect(() => {
+    fetchPlan(selectedDate);
+  }, [selectedDate, fetchPlan]);
+
+  // Filtering by location name, not id: the sheet is built off the joined name,
+  // so both halves have to be narrowed the same way the pills read.
+  const planHonHlShown = useMemo(
+    () =>
+      selectedFilter === 'All'
+        ? planHonHl
+        : planHonHl.filter((e) => e.location?.name === selectedFilter),
+    [planHonHl, selectedFilter]
+  );
+  const planHlVaShown = useMemo(
+    () =>
+      selectedFilter === 'All'
+        ? planHlVa
+        : planHlVa.filter((e) => e.location?.name === selectedFilter),
+    [planHlVa, selectedFilter]
+  );
+
   // KPI derived values with null safety
   const progress = kpis
     ? kpis.monthlyTarget > 0
@@ -133,6 +159,21 @@ export default function DashboardPage() {
       return kpis.yesterdayDate;
     }
   }, [kpis?.yesterdayDate]);
+
+  // The day's plan, exactly as it reads on the plan sheet in Daily Entry — same
+  // component, so the dashboard can never drift from what was sent to the floor.
+  // Hidden entirely when nothing is planned rather than showing an empty card.
+  const planSection =
+    planHonHlShown.length > 0 || planHlVaShown.length > 0 ? (
+      <div className="px-4 mb-4">
+        <DailyPlanSheet
+          honHl={planHonHlShown}
+          hlVa={planHlVaShown}
+          date={selectedDate}
+          dateLabel={selectedDateFormatted}
+        />
+      </div>
+    ) : null;
 
   if (loading || locationsLoading) {
     return (
@@ -180,6 +221,8 @@ export default function DashboardPage() {
             className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
           />
         </div>
+        {planSection}
+
         <EmptyState
           icon="📊"
           title="No data available"
@@ -252,6 +295,9 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
+
+      {/* The generated plan for this date, as it goes out to the floor */}
+      {planSection}
 
       {/* Desktop analytics: today vs yesterday processing charts */}
       {showLiveAnalytics && (
