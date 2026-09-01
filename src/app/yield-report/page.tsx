@@ -14,10 +14,8 @@ import { formatVaQty, standardForHlVaEntry, lookupHlVaCountRange } from '@/lib/h
 import GradeVaReport from '@/components/reports/GradeVaReport';
 import LabourBreakdownReport from '@/components/reports/LabourBreakdownReport';
 import GradingDataReport from '@/components/reports/GradingDataReport';
-import PlanVsActualReport from '@/components/reports/PlanVsActualReport';
 import PrintReportsModal, { PrintSection } from '@/components/reports/PrintReportsModal';
 import { useGrading } from '@/hooks/useGrading';
-import { useDailyPlan } from '@/hooks/useDailyPlan';
 import { DEFAULT_NL_LADIES_SALARY_BASIC } from '@/hooks/useAppSettings';
 
 /** Each row carries the basic rate its day was saved under (migration 026). */
@@ -158,13 +156,6 @@ export default function YieldReportPage() {
   useEffect(() => {
     if (selectedDate) fetchGradeVaEntries(selectedDate);
   }, [selectedDate, fetchGradeVaEntries]);
-
-  // ── The day's plan, for the Plan vs Actual section ─────────────────────────
-  const { honHl: planHonHl, hlVa: planHlVa, fetchPlan } = useDailyPlan();
-
-  useEffect(() => {
-    if (selectedDate) fetchPlan(selectedDate);
-  }, [selectedDate, fetchPlan]);
 
   // ── Grading register data ──────────────────────────────────────────────────
   const { entries: gradingEntries, fetchEntries: fetchGradingEntries } = useGrading();
@@ -443,21 +434,6 @@ export default function YieldReportPage() {
               </table>
             </div>
           )}
-        </PrintSection>
-
-        {/* ═══════════════════════════════════════════════════════════════════
-            PLAN VS ACTUAL (selected date)
-            The plan is entered on Daily Entry → Daily Plan; the actuals are the
-            two registers' own inputs. Sits under the location summary because
-            it answers the next question that table raises: was that the plan?
-        ═══════════════════════════════════════════════════════════════════ */}
-        <PrintSection id="plan-vs-actual">
-          <PlanVsActualReport
-            planHonHl={planHonHl}
-            planHlVa={planHlVa}
-            yieldEntries={entries}
-            hlVaEntries={gradeVaEntries}
-          />
         </PrintSection>
 
         {/* ═══════════════════════════════════════════════════════════════════
