@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase/client';
 import { exportToPDF, exportToExcel } from '@/lib/export';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
+import { useTicketAlerts } from '@/hooks/useTicketAlerts';
 import { useAppSettings, SETTING_NL_LADIES_SALARY_BASIC } from '@/hooks/useAppSettings';
 import UserManagementSection from '@/components/settings/UserManagementSection';
 import { getTodayString } from '@/lib/utils';
@@ -30,6 +31,8 @@ export default function SettingsPage() {
   const router = useRouter();
   const { locations, addLocation } = useLocations();
   const { isAdmin, canView } = useAuth();
+  // Red on the card itself, so the dot in the nav leads somewhere obvious.
+  const { unseenCount: unseenTickets } = useTicketAlerts();
   // Supervisor Attendance is an admin report
   const reportTypes = isAdmin
     ? REPORT_TYPES
@@ -511,13 +514,25 @@ export default function SettingsPage() {
                 </svg>
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-semibold text-gray-700">Tickets</h3>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-sm font-semibold text-gray-700">Tickets</h3>
+                  {unseenTickets > 0 && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 flex-shrink-0" aria-hidden />
+                  )}
+                </div>
                 <p className="text-[10px] text-gray-400 mt-0.5">
-                  {ticketCounts.open > 0
-                    ? `${ticketCounts.open} open ticket${ticketCounts.open > 1 ? 's' : ''}`
-                    : 'Report a bug or ask for a small change'}
+                  {unseenTickets > 0
+                    ? `${unseenTickets} update${unseenTickets > 1 ? 's' : ''} since you last looked`
+                    : ticketCounts.open > 0
+                      ? `${ticketCounts.open} open ticket${ticketCounts.open > 1 ? 's' : ''}`
+                      : 'Report a bug or ask for a small change'}
                 </p>
               </div>
+              {unseenTickets > 0 && (
+                <span className="px-2 py-0.5 bg-rose-50 text-rose-600 text-[10px] font-semibold rounded-full flex-shrink-0">
+                  {unseenTickets} new
+                </span>
+              )}
               {ticketCounts.testing > 0 && (
                 <span className="px-2 py-0.5 bg-purple-50 text-purple-600 text-[10px] font-semibold rounded-full flex-shrink-0">
                   {ticketCounts.testing} to test

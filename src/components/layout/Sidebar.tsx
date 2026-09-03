@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { pageForPath } from '@/lib/auth/pages';
+import { useTicketAlerts } from '@/hooks/useTicketAlerts';
 import { supabase } from '@/lib/supabase/client';
 
 interface NavItem {
@@ -77,6 +78,9 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isSubUser, canView } = useAuth();
+  // Tickets are reached from Reports & Settings, so that is where the
+  // "something new happened" dot belongs.
+  const { unseenCount } = useTicketAlerts();
 
   // Driven by the user's actual page rights now, not a static adminOnly flag
   const visibleItems = NAV_ITEMS.filter((item) => {
@@ -139,7 +143,22 @@ export default function Sidebar() {
                 ))}
               </svg>
               <span className="truncate">{item.label}</span>
-              {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_rgba(252,211,77,0.9)]" aria-hidden />}
+              {item.path === '/settings' && unseenCount > 0 && (
+                <span
+                  className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center shadow-[0_0_10px_rgba(244,63,94,0.7)] animate-pulse"
+                  title={`${unseenCount} ticket${unseenCount > 1 ? 's' : ''} with new activity`}
+                >
+                  {unseenCount > 9 ? '9+' : unseenCount}
+                </span>
+              )}
+              {isActive && (
+                <span
+                  className={`w-1.5 h-1.5 rounded-full bg-amber-300 shadow-[0_0_8px_rgba(252,211,77,0.9)] ${
+                    item.path === '/settings' && unseenCount > 0 ? 'ml-1.5' : 'ml-auto'
+                  }`}
+                  aria-hidden
+                />
+              )}
             </Link>
           );
         })}

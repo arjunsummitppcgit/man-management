@@ -7,6 +7,8 @@ import { useToast } from '@/components/ui/Toast';
 import { usePermissionAlert } from '@/components/ui/PermissionAlert';
 import { useAuth } from '@/hooks/useAuth';
 import { TICKET_PRIORITIES, ticketRef, useTickets } from '@/hooks/useTickets';
+import { useTicketAlerts } from '@/hooks/useTicketAlerts';
+import { isNewerThan, newestActivity } from '@/lib/ticketActivity';
 import NewTicketSheet from '@/components/tickets/NewTicketSheet';
 import TicketDetailSheet from '@/components/tickets/TicketDetailSheet';
 import {
@@ -58,6 +60,13 @@ export default function TicketsPage() {
     getAttachmentUrl,
   } = useTickets();
 
+  const { seenAt, markSeen } = useTicketAlerts();
+  // Captured at mount, before the visit is recorded below. The nav badge
+  // clears as soon as the page opens, but the rows go on flagging what changed
+  // since the PREVIOUS visit — otherwise you would never find out which ticket
+  // the badge was about.
+  const [seenOnOpen] = useState(() => seenAt);
+
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('open');
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | 'all'>('all');
@@ -67,6 +76,15 @@ export default function TicketsPage() {
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
+
+  // Opening the page is what "seen" means. Marked against the newest activity
+  // actually on screen rather than the clock, so anything that lands a moment
+  // later still raises the badge. markSeen never moves the marker backwards,
+  // so re-running this is free.
+  useEffect(() => {
+    if (loading) return;
+    markSeen(newestActivity(tickets));
+  }, [loading, tickets, markSeen]);
 
   const selected = tickets.find((t) => t.id === selectedId) || null;
 
@@ -225,6 +243,7 @@ export default function TicketsPage() {
                 <TicketListItem
                   key={ticket.id}
                   ticket={ticket}
+                  isNew={isNewerThan(ticket.updated_at, seenOnOpen)}
                   onClick={() => setSelectedId(ticket.id)}
                 />
               ))}
@@ -250,6 +269,7 @@ export default function TicketsPage() {
                     <TicketRow
                       key={ticket.id}
                       ticket={ticket}
+                      isNew={isNewerThan(ticket.updated_at, seenOnOpen)}
                       onClick={() => setSelectedId(ticket.id)}
                     />
                   ))}
@@ -288,6 +308,18 @@ export default function TicketsPage() {
   );
 }
 
+/** A red dot on the tickets that moved since this user's previous visit. */
+function NewDot() {
+  return (
+    <span
+      className="w-2 h-2 rounded-full bg-rose-500 flex-shrink-0"
+      title="New activity since you last opened Tickets"
+      role="img"
+      aria-label="New activity"
+    />
+  );
+}
+
 /** '2 comments · 1 file' — only rendered when there is something to say. */
 function ticketMeta(ticket: Ticket): string {
   const comments = (ticket.comments || []).filter((c) => c.kind === 'comment').length;
@@ -300,7 +332,15 @@ function ticketMeta(ticket: Ticket): string {
     .join(' · ');
 }
 
-function TicketListItem({ ticket, onClick }: { ticket: Ticket; onClick: () => void }) {
+function TicketListItem({
+  ticket,
+  isNew,
+  onClick,
+}: {
+  ticket: Ticket;
+  isNew: boolean;
+  onClick: () => void;
+}) {
   const meta = ticketMeta(ticket);
   return (
     <li>
@@ -311,11 +351,20 @@ function TicketListItem({ ticket, onClick }: { ticket: Ticket; onClick: () => vo
           ticket.status === 'done' ? 'opacity-60' : ''
         }`}
       >
-        <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 font-mono pt-0.5 flex-shrink-0">
-          {ticketRef(ticket)}
+        <span className="flex items-center gap-1.5 pt-0.5 flex-shrink-0">
+          {isNew && <NewDot />}
+          <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 font-mono">
+            {ticketRef(ticket)}
+          </span>
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-gray-700 dark:text-gray-300 truncate">
+          <span
+            className={`block text-sm truncate ${
+              isNew
+                ? 'font-bold text-gray-900 dark:text-gray-100'
+                : 'font-semibold text-gray-700 dark:text-gray-300'
+            }`}
+          >
             {ticket.title}
           </span>
           <span className="flex items-center flex-wrap gap-1.5 mt-1.5">
@@ -332,7 +381,15 @@ function TicketListItem({ ticket, onClick }: { ticket: Ticket; onClick: () => vo
   );
 }
 
-function TicketRow({ ticket, onClick }: { ticket: Ticket; onClick: () => void }) {
+function TicketRow({
+  ticket,
+  isNew,
+  onClick,
+}: {
+  ticket: Ticket;
+  isNew: boolean;
+  onClick: () => void;
+}) {
   const meta = ticketMeta(ticket);
 
   return (
@@ -343,12 +400,21 @@ function TicketRow({ ticket, onClick }: { ticket: Ticket; onClick: () => void })
       }`}
     >
       <td className="px-2 py-3 align-top">
-        <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap">
-          {ticketRef(ticket)}
+        <span className="flex items-center gap-1.5">
+          {isNew && <NewDot />}
+          <span className="text-[11px] font-bold text-gray-400 dark:text-gray-500 font-mono whitespace-nowrap">
+            {ticketRef(ticket)}
+          </span>
         </span>
       </td>
       <td className="px-2 py-3 align-top max-w-[260px] lg:max-w-[620px]">
-        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">
+        <p
+          className={`text-xs truncate ${
+            isNew
+              ? 'font-bold text-gray-900 dark:text-gray-100'
+              : 'font-semibold text-gray-700 dark:text-gray-300'
+          }`}
+        >
           {ticket.title}
         </p>
         {meta && (

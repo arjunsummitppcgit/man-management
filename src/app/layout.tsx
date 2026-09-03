@@ -5,6 +5,7 @@ import AppShell from '@/components/layout/AppShell';
 import { ToastProvider } from '@/components/ui/Toast';
 import { PermissionAlertProvider } from '@/components/ui/PermissionAlert';
 import { AuthProvider } from '@/hooks/useAuth';
+import { TicketAlertsProvider } from '@/hooks/useTicketAlerts';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -69,7 +70,11 @@ export default function RootLayout({
             {/* Sits inside AuthProvider: the popup explains a refused save using
                 the same rights the rest of the app reads. */}
             <PermissionAlertProvider>
-              <AppShell>{children}</AppShell>
+              {/* One ticket-activity check for the whole app — the nav badges
+                  and the Tickets page all read the same answer. */}
+              <TicketAlertsProvider>
+                <AppShell>{children}</AppShell>
+              </TicketAlertsProvider>
             </PermissionAlertProvider>
           </AuthProvider>
         </ToastProvider>

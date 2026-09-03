@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { pageForPath } from '@/lib/auth/pages';
+import { useTicketAlerts } from '@/hooks/useTicketAlerts';
 
 interface TabItem {
   label: string;
@@ -90,6 +91,8 @@ const tabs: TabItem[] = [
 export default function BottomNav() {
   const pathname = usePathname();
   const { canView } = useAuth();
+  // Same dot as the desktop sidebar: Tickets live under More.
+  const { unseenCount } = useTicketAlerts();
 
   // Don't show nav on login page
   if (pathname === '/login') return null;
@@ -113,7 +116,17 @@ export default function BottomNav() {
                 isActive ? 'text-teal-600' : 'text-gray-400'
               }`}
             >
-              {tab.icon(isActive)}
+              <span className="relative">
+                {tab.icon(isActive)}
+                {tab.path === '/settings' && unseenCount > 0 && (
+                  <span
+                    className="absolute -top-1 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-gray-900"
+                    aria-label={`${unseenCount} ticket${unseenCount > 1 ? 's' : ''} with new activity`}
+                  >
+                    {unseenCount > 9 ? '9+' : unseenCount}
+                  </span>
+                )}
+              </span>
               <span className={`text-[10px] font-medium mt-0.5 ${isActive ? 'text-teal-600' : 'text-gray-400'}`}>
                 {tab.label}
               </span>
