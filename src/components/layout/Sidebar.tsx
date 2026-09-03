@@ -87,7 +87,10 @@ export default function Sidebar() {
   const displayName = email ? email.split('@')[0] : 'User';
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    // 'local' signs this browser out and nothing else. supabase-js defaults to
+    // 'global', which revokes every refresh token on the account — signing out
+    // on the desktop would silently log the same user's phone out too.
+    await supabase.auth.signOut({ scope: 'local' });
     router.push('/login');
   };
 

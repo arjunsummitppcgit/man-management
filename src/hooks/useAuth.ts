@@ -84,7 +84,7 @@ function useAuthState(): AuthState {
       // supabase-js re-emits SIGNED_IN every time the tab regains visibility
       // (GoTrueClient#_recoverAndRefresh, wired to visibilitychange) and again
       // over its BroadcastChannel when another tab moves. The session is
-      // re-read from localStorage, so `next` is a fresh object with identical
+      // re-read from the session cookie, so `next` is a fresh object with identical
       // contents. Storing it would change the identity of `user`, re-run the
       // rights effect below, and blank the page mid-typing. Only a genuine
       // change of account is worth new state.
