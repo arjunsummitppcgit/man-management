@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useSyncExternalStore } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import { format, parseISO } from 'date-fns';
-import { exportToPDF, exportToExcel, type ExportCell } from '@/lib/export';
+import { exportToPDF, exportToExcel, exportNodeToPDF, type ExportCell } from '@/lib/export';
 import type { Location } from '@/types';
 
 // ─── Formatting ──────────────────────────────────────────────────────────────
@@ -184,6 +184,7 @@ export function ExportButtons({
   excelRows,
   excelNumberFormat,
   pdfOrientation,
+  captureRef,
 }: {
   title: string;
   headers: string[];
@@ -200,19 +201,50 @@ export function ExportButtons({
   excelNumberFormat?: string;
   /** Wide tables ask for landscape so the columns stay legible. */
   pdfOrientation?: 'portrait' | 'landscape';
+  /**
+   * The element to photograph for the PDF, for a report that is read as a
+   * laid-out sheet rather than a table — the Daily Plan. Given one, the PDF is
+   * that card exactly as it stands on screen; without one it is the usual
+   * rebuilt table. Excel is unaffected either way: a spreadsheet is wanted for
+   * its numbers, not its looks.
+   */
+  captureRef?: React.RefObject<HTMLElement | null>;
 }) {
   const disabled = rows.length === 0;
+  // Photographing the card takes a beat on a phone, and a button that does
+  // nothing visible for a second gets pressed again.
+  const [capturing, setCapturing] = useState(false);
+
+  const handlePdf = async () => {
+    const node = captureRef?.current;
+    if (!node) {
+      exportToPDF(title, headers, rows, filename, { orientation: pdfOrientation });
+      return;
+    }
+    setCapturing(true);
+    try {
+      await exportNodeToPDF(node, filename);
+    } catch (err) {
+      // Nothing to recover to — the rebuilt table carries the same figures, so
+      // fall back to it rather than leaving the press with no file.
+      console.error('Could not capture the page for PDF, exporting the table instead', err);
+      exportToPDF(title, headers, rows, filename, { orientation: pdfOrientation });
+    } finally {
+      setCapturing(false);
+    }
+  };
+
   return (
     <div className="flex items-center gap-2">
       <button
-        onClick={() => exportToPDF(title, headers, rows, filename, { orientation: pdfOrientation })}
-        disabled={disabled}
+        onClick={handlePdf}
+        disabled={disabled || capturing}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-rose-50 text-rose-600 hover:bg-rose-100 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95"
       >
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
         </svg>
-        PDF
+        {capturing ? 'Saving…' : 'PDF'}
       </button>
       <button
         onClick={() =>

@@ -81,6 +81,63 @@ export function exportToPDF(
 }
 
 /**
+ * Export a piece of the page itself as a PDF — the rendered card, exactly as it
+ * looks on screen, rather than a table rebuilt from the same numbers.
+ *
+ * Used by the Daily Plan, which is read as a laid-out sheet (totals tile,
+ * a block per location, teal subtotal rows) and not as a spreadsheet. A rebuilt
+ * table is a different document that happens to hold the same figures; this is
+ * the document people already know from the screen.
+ *
+ * Whatever theme is on screen is what lands in the file — press it in dark mode
+ * and the PDF is dark.
+ */
+export async function exportNodeToPDF(
+  node: HTMLElement,
+  filename: string
+): Promise<void> {
+  // Loaded on demand: it is a heavy library, and nothing on first paint needs it.
+  //
+  // html2canvas-pro rather than the html2canvas jsPDF carries: Tailwind v4 emits
+  // its palette as oklch(), which html2canvas 1.x refuses to parse ("unsupported
+  // color function"), and the fork added oklch/lab support.
+  const { default: html2canvas } = await import('html2canvas-pro');
+
+  const canvas = await html2canvas(node, {
+    // Retina-ish, so the text in the PDF is sharp rather than a blown-up
+    // screenshot of a phone.
+    scale: Math.max(2, window.devicePixelRatio || 1),
+    // The card's own corners are rounded, so the page shows through them. Take
+    // the page's colour rather than html2canvas's default white, which would
+    // put four white notches on a dark sheet.
+    backgroundColor: getComputedStyle(document.body).backgroundColor || null,
+    useCORS: true,
+    logging: false,
+    // The share row is chrome, not content: a PDF containing a PDF button is
+    // a puzzle for whoever opens it.
+    ignoreElements: (el) => el instanceof HTMLElement && el.dataset.exportHide === 'true',
+  });
+
+  const width = 210; // A4 portrait, mm
+  const height = (canvas.height / canvas.width) * width;
+
+  // A plan that fits goes on A4, so it prints on ordinary paper. A long one
+  // becomes a single tall page instead: slicing it into A4 sheets cuts a batch
+  // row in half across the break, and a batch row cut in half is a figure
+  // someone has to guess at.
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: height <= 297 ? 'a4' : [width, height],
+  });
+
+  doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, width, height, undefined, 'FAST');
+
+  const safeName = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
+  doc.save(safeName);
+}
+
+/**
  * Export data as an Excel (.xlsx) file.
  * The file downloads automatically in the browser.
  */

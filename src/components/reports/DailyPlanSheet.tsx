@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { ExportButtons } from '@/components/analytics/shared';
 import { buildPlanSheet, planAsText, kg, type PlanSheet } from '@/lib/dailyPlan';
 import type { ExportCell } from '@/lib/export';
@@ -74,6 +74,8 @@ interface DailyPlanSheetProps {
 export default function DailyPlanSheet({ honHl, hlVa, dateLabel, date }: DailyPlanSheetProps) {
   const sheet = useMemo(() => buildPlanSheet(honHl, hlVa), [honHl, hlVa]);
   const [copied, setCopied] = useState(false);
+  // What the PDF is a photograph of: the sheet as it stands on screen.
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   const exportRows = useMemo(() => buildRows(sheet, false), [sheet]);
   const excelRows = useMemo(() => buildRows(sheet, true), [sheet]);
@@ -99,7 +101,7 @@ export default function DailyPlanSheet({ honHl, hlVa, dateLabel, date }: DailyPl
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" ref={sheetRef}>
       {/* Day totals */}
       <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-2xl p-4 border border-indigo-200">
         <div className="flex items-center gap-2 mb-3">
@@ -128,8 +130,9 @@ export default function DailyPlanSheet({ honHl, hlVa, dateLabel, date }: DailyPl
         </div>
       </div>
 
-      {/* Share row */}
-      <div className="flex items-center justify-between gap-2">
+      {/* Share row. `data-export-hide` keeps it out of the PDF: the buttons are
+          how you ask for the file, not part of the document you asked for. */}
+      <div className="flex items-center justify-between gap-2" data-export-hide="true">
         <button
           type="button"
           onClick={handleCopy}
@@ -147,6 +150,7 @@ export default function DailyPlanSheet({ honHl, hlVa, dateLabel, date }: DailyPl
           excelRows={excelRows}
           excelNumberFormat="##,##,##0.000"
           filename={`daily-plan-${date}`}
+          captureRef={sheetRef}
         />
       </div>
 
