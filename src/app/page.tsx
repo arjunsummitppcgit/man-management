@@ -162,16 +162,21 @@ export default function DashboardPage() {
 
   // The day's plan, exactly as it reads on the plan sheet in Daily Entry — same
   // component, so the dashboard can never drift from what was sent to the floor.
-  // Hidden entirely when nothing is planned rather than showing an empty card.
+  // It sits in one card rather than loose on the page so the day's plan reads as
+  // a single panel among the KPI cards, the way it does inside the Daily Entry
+  // sheet. Hidden entirely when nothing is planned rather than showing an empty
+  // card.
   const planSection =
     planHonHlShown.length > 0 || planHlVaShown.length > 0 ? (
       <div className="px-4 mb-4">
-        <DailyPlanSheet
-          honHl={planHonHlShown}
-          hlVa={planHlVaShown}
-          date={selectedDate}
-          dateLabel={selectedDateFormatted}
-        />
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <DailyPlanSheet
+            honHl={planHonHlShown}
+            hlVa={planHlVaShown}
+            date={selectedDate}
+            dateLabel={selectedDateFormatted}
+          />
+        </div>
       </div>
     ) : null;
 

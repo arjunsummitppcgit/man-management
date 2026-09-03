@@ -5,6 +5,7 @@ import type {
   YieldEntry,
   HlVaEntry,
 } from '@/types';
+import { inHouseKey } from './headWaste';
 
 /** kgs, three decimals, the register's own precision. */
 export const kg = (n: number): string => n.toFixed(3);
@@ -15,6 +16,26 @@ export const signed = (n: number): string => `${n > 0 ? '+' : ''}${n.toFixed(3)}
 /** Where a location's name comes from, whichever side of the plan it is on. */
 const nameOf = (row: { location?: { name: string } | null }): string =>
   row.location?.name || 'Unknown';
+
+/**
+ * The order the floor reads the plan in: our own centres first — PPC 1, SME,
+ * PPC 2, the order the day is worked through them — then the hired locations
+ * alphabetically. Plain alphabetical sorting buries PPC 1 under whichever hired
+ * location happens to start with an earlier letter, which is not how the sheet
+ * is read out.
+ *
+ * Ranking goes through `inHouseKey`, so a rename or a differently spaced
+ * spelling ('PPC1' vs 'PPC 1') still lands in its own slot.
+ */
+const IN_HOUSE_PLAN_ORDER = ['ppc1', 'sme', 'ppc2'];
+
+export function comparePlanLocations(a: string, b: string): number {
+  const rank = (name: string): number => {
+    const idx = IN_HOUSE_PLAN_ORDER.indexOf(inHouseKey(name) ?? '');
+    return idx === -1 ? IN_HOUSE_PLAN_ORDER.length : idx;
+  };
+  return rank(a) - rank(b) || a.localeCompare(b);
+}
 
 // ─── The plan sheet ──────────────────────────────────────────────────────────
 
@@ -82,7 +103,7 @@ export function buildPlanSheet(
   });
 
   const locations = Array.from(byLocation.values()).sort((a, b) =>
-    a.location.localeCompare(b.location)
+    comparePlanLocations(a.location, b.location)
   );
 
   const totals = locations.reduce(
@@ -142,7 +163,7 @@ export function buildPlanVsActual(
   });
 
   const rows = Array.from(byLocation.values()).sort((a, b) =>
-    a.location.localeCompare(b.location)
+    comparePlanLocations(a.location, b.location)
   );
 
   const totals = rows.reduce(
