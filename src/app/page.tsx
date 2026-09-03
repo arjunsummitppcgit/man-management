@@ -164,12 +164,13 @@ export default function DashboardPage() {
   // component, so the dashboard can never drift from what was sent to the floor.
   // It sits in one card rather than loose on the page so the day's plan reads as
   // a single panel among the KPI cards, the way it does inside the Daily Entry
-  // sheet. Hidden entirely when nothing is planned rather than showing an empty
-  // card.
+  // sheet. `max-w-lg` is that sheet's own width: stretched across a desktop the
+  // batch tables pull their figures a foot apart and stop reading as a plan.
+  // Hidden entirely when nothing is planned rather than showing an empty card.
   const planSection =
     planHonHlShown.length > 0 || planHlVaShown.length > 0 ? (
       <div className="px-4 mb-4">
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 max-w-lg">
           <DailyPlanSheet
             honHl={planHonHlShown}
             hlVa={planHlVaShown}
@@ -226,13 +227,13 @@ export default function DashboardPage() {
             className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-700 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
           />
         </div>
-        {planSection}
-
         <EmptyState
           icon="📊"
           title="No data available"
           description="No processing data found for the selected date. Try choosing a different date or add entries from the Daily Entry page."
         />
+
+        {planSection}
       </div>
     );
   }
@@ -300,9 +301,6 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
-
-      {/* The generated plan for this date, as it goes out to the floor */}
-      {planSection}
 
       {/* Desktop analytics: today vs yesterday processing charts */}
       {showLiveAnalytics && (
@@ -810,6 +808,11 @@ export default function DashboardPage() {
         </div>
 
       </div>
+
+      {/* The generated plan for this date, as it goes out to the floor. Last on
+          the page: the dashboard answers "what happened" first, and the plan is
+          a reference you scroll down to when you want it. */}
+      {planSection}
 
     </div>
   );
