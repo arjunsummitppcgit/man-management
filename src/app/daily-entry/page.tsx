@@ -13,7 +13,7 @@ import { useSanitization } from '@/hooks/useSanitization';
 import { useProcessing } from '@/hooks/useProcessing';
 import { useSupervisors } from '@/hooks/useSupervisors';
 import { useAuth } from '@/hooks/useAuth';
-import { todayIST, yesterdayIST } from '@/lib/auth/permissions';
+import { todayIST, tomorrowIST, yesterdayIST } from '@/lib/auth/permissions';
 import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useAppSettings } from '@/hooks/useAppSettings';
@@ -239,10 +239,15 @@ export default function DailyEntryPage() {
   const [saving, setSaving] = useState(false);
   const [isConfirmSaveModalOpen, setIsConfirmSaveModalOpen] = useState(false);
 
+  // The plan is the one thing written before the day it covers, so tomorrow is
+  // a working date on that tab and nowhere else. Mirrors can_plan_on()
+  // (migration 037); every other tab stays on can_edit_on().
+  const isPlanTab = activeTab === 'daily_plan';
+
   // Any date may be OPENED (that is a read); whether it can be SAVED depends on
   // the user's edit window. Mirrors can_edit_on() in migration 027 — RLS rejects
   // the write anyway, this just says so before the round-trip.
-  const editCheck = checkEditDate('daily-entry', selectedDate);
+  const editCheck = checkEditDate('daily-entry', selectedDate, { allowTomorrow: isPlanTab });
 
 
   // Hooks
@@ -769,7 +774,7 @@ export default function DailyEntryPage() {
     if (!selectedLocation) return;
     // A popup, not a toast: someone who cannot save has to be stopped and told
     // why, not shown a message that fades while they keep entering the day.
-    if (!requireEditDate('daily-entry', selectedDate)) return;
+    if (!requireEditDate('daily-entry', selectedDate, { allowTomorrow: isPlanTab })) return;
     setIsConfirmSaveModalOpen(true);
   };
 
@@ -1011,11 +1016,20 @@ export default function DailyEntryPage() {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-lg">&#128197;</span>
                     <h3 className="text-sm font-semibold text-indigo-800">PPC Plan</h3>
+                    {/* Planning ahead is normal here but abnormal everywhere else on
+                        the page — say which day is being planned so a date left on
+                        tomorrow is never a surprise. */}
+                    {selectedDate === tomorrowIST() && (
+                      <span className="ml-auto px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-bold">
+                        For tomorrow
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-indigo-700">
                     Share the day&apos;s harvest out before processing starts &mdash; which location de-heads
                     which batch, and how much HL each location takes for VA. One plan covers{' '}
-                    <strong>every location</strong>, so each row names its own.
+                    <strong>every location</strong>, so each row names its own. Tomorrow&apos;s date can be
+                    picked here, so the plan can go out the night before.
                   </p>
                 </div>
 

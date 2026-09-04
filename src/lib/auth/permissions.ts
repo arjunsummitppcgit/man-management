@@ -48,6 +48,12 @@ export function yesterdayIST(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
 }
 
+export function tomorrowIST(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
+}
+
 /** A window only counts while it is unrevoked and its active_until hasn't passed. */
 export function isWindowOpen(w: EditWindow, today = todayIST()): boolean {
   return !w.revoked_at && w.active_until >= today;
@@ -62,6 +68,10 @@ export interface EditCheck {
 /**
  * Can this user write `date` on `pageKey`?
  * Mirrors can_edit_on() in migration 027.
+ *
+ * `allowTomorrow` is the PPC Plan's exception: a plan is written *before* the
+ * day it covers, so the day after today is a normal working date there — and
+ * only there. Mirrors can_plan_on() in migration 037.
  */
 export function checkEdit(params: {
   isAdmin: boolean;
@@ -70,15 +80,24 @@ export function checkEdit(params: {
   date: string;
   windows: EditWindow[];
   today?: string;
+  allowTomorrow?: boolean;
 }): EditCheck {
-  const { isAdmin, canModify, pageKey, date, windows } = params;
+  const { isAdmin, canModify, pageKey, date, windows, allowTomorrow } = params;
   const today = params.today ?? todayIST();
 
   if (isAdmin) return { allowed: true };
   if (!canModify) return { allowed: false, reason: 'You have view-only access to this page.' };
   if (!date) return { allowed: false, reason: 'No date selected.' };
 
-  if (date > today) return { allowed: false, reason: 'Future dates cannot be entered.' };
+  if (allowTomorrow && date === tomorrowIST()) return { allowed: true };
+  if (date > today) {
+    return {
+      allowed: false,
+      reason: allowTomorrow
+        ? 'A plan can be made for tomorrow at the furthest.'
+        : 'Future dates cannot be entered.',
+    };
+  }
   if (date >= yesterdayIST()) return { allowed: true };
 
   const open = windows.find(

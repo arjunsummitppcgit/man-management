@@ -39,8 +39,11 @@ interface AuthState {
   windows: EditWindow[];
   canView: (pageKey: string) => boolean;
   canModify: (pageKey: string) => boolean;
-  /** Can this user write this work_date on this page, and if not, why not. */
-  checkEditDate: (pageKey: string, date: string) => EditCheck;
+  /**
+   * Can this user write this work_date on this page, and if not, why not.
+   * `allowTomorrow` is the PPC Plan's exception — see checkEdit().
+   */
+  checkEditDate: (pageKey: string, date: string, opts?: { allowTomorrow?: boolean }) => EditCheck;
   loading: boolean;
   refresh: () => void;
 }
@@ -169,8 +172,15 @@ function useAuthState(): AuthState {
   );
 
   const checkEditDate = useCallback(
-    (pageKey: string, date: string) =>
-      checkEdit({ isAdmin, canModify: canModify(pageKey), pageKey, date, windows }),
+    (pageKey: string, date: string, opts?: { allowTomorrow?: boolean }) =>
+      checkEdit({
+        isAdmin,
+        canModify: canModify(pageKey),
+        pageKey,
+        date,
+        windows,
+        allowTomorrow: opts?.allowTomorrow,
+      }),
     [isAdmin, canModify, windows]
   );
 

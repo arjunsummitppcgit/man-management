@@ -40,8 +40,13 @@ interface PermissionAlertApi {
    * Dated writes: may this user write this work_date? Popup + false if not.
    * Pass several page keys when either right unlocks the row (supervisor
    * assignments are written from both Daily Entry and Supervisors).
+   * `allowTomorrow` is the PPC Plan's exception — see checkEdit().
    */
-  requireEditDate: (pageKey: string | string[], date: string) => boolean;
+  requireEditDate: (
+    pageKey: string | string[],
+    date: string,
+    opts?: { allowTomorrow?: boolean }
+  ) => boolean;
   /** Admin-only settings (locations, batches, app settings). */
   requireAdmin: (what?: string) => boolean;
   /**
@@ -80,9 +85,9 @@ export function PermissionAlertProvider({ children }: { children: React.ReactNod
   );
 
   const requireEditDate = useCallback(
-    (pageKey: string | string[], date: string) => {
+    (pageKey: string | string[], date: string, opts?: { allowTomorrow?: boolean }) => {
       const keys = Array.isArray(pageKey) ? pageKey : [pageKey];
-      if (keys.some((key) => checkEditDate(key, date).allowed)) return true;
+      if (keys.some((key) => checkEditDate(key, date, opts).allowed)) return true;
 
       // No Modify right at all is a different problem from Modify on a date that
       // has closed — say which one it is.
@@ -91,7 +96,7 @@ export function PermissionAlertProvider({ children }: { children: React.ReactNod
 
       showPermissionAlert({
         title: 'This date is locked',
-        message: checkEditDate(modifiable, date).reason ?? DENIED_MESSAGE,
+        message: checkEditDate(modifiable, date, opts).reason ?? DENIED_MESSAGE,
         // No window can unlock a future date, so don't send them to an admin for one.
         hint:
           date > todayIST()
