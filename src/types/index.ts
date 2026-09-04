@@ -424,7 +424,7 @@ export interface MaintenanceTaskFormData {
   next_followup_on: string;
 }
 
-// ─── Daily Plan Types ────────────────────────────────────────────────────────
+// ─── PPC Plan Types ────────────────────────────────────────────────────────
 // What the day is *meant* to look like, decided when the harvest batches land:
 // which location de-heads which batch, and how much HL each location feeds into
 // VA. Both quantities are stage inputs (HON in, HL in), so they line up with

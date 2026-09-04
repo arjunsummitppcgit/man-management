@@ -203,7 +203,7 @@ export function ExportButtons({
   pdfOrientation?: 'portrait' | 'landscape';
   /**
    * The element to photograph for the PDF, for a report that is read as a
-   * laid-out sheet rather than a table — the Daily Plan. Given one, the PDF is
+   * laid-out sheet rather than a table — the PPC Plan. Given one, the PDF is
    * that card exactly as it stands on screen; without one it is the usual
    * rebuilt table. Excel is unaffected either way: a spreadsheet is wanted for
    * its numbers, not its looks.

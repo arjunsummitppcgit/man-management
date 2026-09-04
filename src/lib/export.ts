@@ -84,7 +84,7 @@ export function exportToPDF(
  * Export a piece of the page itself as a PDF — the rendered card, exactly as it
  * looks on screen, rather than a table rebuilt from the same numbers.
  *
- * Used by the Daily Plan, which is read as a laid-out sheet (totals tile,
+ * Used by the PPC Plan, which is read as a laid-out sheet (totals tile,
  * a block per location, teal subtotal rows) and not as a spreadsheet. A rebuilt
  * table is a different document that happens to hold the same figures; this is
  * the document people already know from the screen.

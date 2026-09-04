@@ -107,7 +107,7 @@ export default function DailyPlanSheet({ honHl, hlVa, dateLabel, date }: DailyPl
         <div className="flex items-center gap-2 mb-3">
           <span className="text-lg">🗓️</span>
           <div>
-            <h3 className="text-sm font-bold text-indigo-800">Daily Plan</h3>
+            <h3 className="text-sm font-bold text-indigo-800">PPC Plan</h3>
             <p className="text-[11px] text-indigo-600">{dateLabel}</p>
           </div>
         </div>
@@ -144,12 +144,12 @@ export default function DailyPlanSheet({ honHl, hlVa, dateLabel, date }: DailyPl
           {copied ? 'Copied!' : 'Copy for WhatsApp'}
         </button>
         <ExportButtons
-          title={`Daily Plan — ${dateLabel}`}
+          title={`PPC Plan — ${dateLabel}`}
           headers={HEADERS}
           rows={exportRows}
           excelRows={excelRows}
           excelNumberFormat="##,##,##0.000"
-          filename={`daily-plan-${date}`}
+          filename={`ppc-plan-${date}`}
           captureRef={sheetRef}
         />
       </div>

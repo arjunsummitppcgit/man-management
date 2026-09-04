@@ -191,7 +191,7 @@ export function variance(planned: number, actual: number): number | null {
 
 /** The plan as a message — what actually gets sent to each PPC. */
 export function planAsText(sheet: PlanSheet, dateLabel: string): string {
-  const lines: string[] = [`*Daily Plan — ${dateLabel}*`, ''];
+  const lines: string[] = [`*PPC Plan — ${dateLabel}*`, ''];
 
   sheet.locations.forEach((loc) => {
     lines.push(`*${loc.location}*`);

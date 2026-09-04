@@ -38,7 +38,7 @@ export function useDailyPlan() {
       setHonHl(honRes.data || []);
       setHlVa(vaRes.data || []);
     } catch (error) {
-      console.error('Error fetching daily plan:', error);
+      console.error('Error fetching PPC plan:', error);
       setHonHl([]);
       setHlVa([]);
     } finally {
@@ -105,7 +105,7 @@ export function useDailyPlan() {
 
         await fetchPlan(date);
       } catch (error) {
-        console.error('Error saving daily plan:', error);
+        console.error('Error saving PPC plan:', error);
         throw error;
       }
     },

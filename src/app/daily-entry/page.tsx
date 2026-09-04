@@ -39,10 +39,10 @@ import type {
 } from '@/types';
 
 // ─── Tabs ────────────────────────────────────────────────────────────────────
-// Daily Plan leads: on a harvest day it is filled in first, before anyone has a
+// The PPC Plan leads: on a harvest day it is filled in first, before anyone has a
 // figure to record anywhere else.
 const TABS: { key: TabType; label: string }[] = [
-  { key: 'daily_plan', label: 'Daily Plan' },
+  { key: 'daily_plan', label: 'PPC Plan' },
   { key: 'workforce', label: 'Workforce' },
   { key: 'sanitization', label: 'Sanitization' },
   { key: 'processing', label: 'Processing' },
@@ -421,7 +421,7 @@ export default function DailyEntryPage() {
   );
   const [gradingRows, setGradingRows] = useState<GradingFormRow[]>(emptyGradingRows);
 
-  // Daily Plan form state — the day's allocation, decided when the harvest
+  // PPC Plan form state — the day's allocation, decided when the harvest
   // batches land. Both halves are keyed on the date, not the location selector:
   // a plan that could only name one PPC at a time wouldn't be a plan.
   const emptyPlanHonRow = useCallback((): DailyPlanHonHlFormRow => ({
@@ -1003,14 +1003,14 @@ export default function DailyEntryPage() {
           <LoadingSpinner />
         ) : (
           <>
-            {/* --- Daily Plan Tab ----------------------------------------- */}
+            {/* --- PPC Plan Tab ----------------------------------------- */}
             {activeTab === 'daily_plan' && (
               <div className="animate-fade-in space-y-4">
                 {/* What this tab is for */}
                 <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-2xl p-4 border border-indigo-200">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-lg">&#128197;</span>
-                    <h3 className="text-sm font-semibold text-indigo-800">Daily Plan</h3>
+                    <h3 className="text-sm font-semibold text-indigo-800">PPC Plan</h3>
                   </div>
                   <p className="text-xs text-indigo-700">
                     Share the day&apos;s harvest out before processing starts &mdash; which location de-heads
@@ -2682,7 +2682,7 @@ export default function DailyEntryPage() {
       <Modal
         isOpen={planSheetOpen}
         onClose={() => setPlanSheetOpen(false)}
-        title="Daily Plan"
+        title="PPC Plan"
       >
         <DailyPlanSheet
           honHl={planHonHl}
