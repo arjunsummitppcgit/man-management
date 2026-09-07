@@ -33,6 +33,7 @@ import {
 } from './shared';
 import type { BatchCompany } from './shared';
 import GradeVaSection from './GradeVaSection';
+import MultiPicker from './MultiPicker';
 
 /** Batch ids and prawn counts read as numbers where they can: 46 before 100. */
 const byText = (a: string, b: string) =>
@@ -186,7 +187,9 @@ export default function ProcessingSection({
   // kgs and its own yield.
   const [company, setCompany] = useState<'all' | BatchCompany>('all');
   const [batchFilter, setBatchFilter] = useState('all');
-  const [countFilter, setCountFilter] = useState('all');
+  // Counts are the one column people compare across rather than drill into, so
+  // this filter takes several at once. Empty means every count.
+  const [countFilters, setCountFilters] = useState<string[]>([]);
   const [locFilter, setLocFilter] = useState('all');
 
   const locationName = useMemo(() => {
@@ -246,9 +249,9 @@ export default function ProcessingSection({
     () => (r: StageRow, skip?: 'batch' | 'count' | 'loc') =>
       (company === 'all' || batchCompany(r.batch_id) === company) &&
       (skip === 'batch' || batchFilter === 'all' || r.batch_id === batchFilter) &&
-      (skip === 'count' || countFilter === 'all' || r.count_text === countFilter) &&
+      (skip === 'count' || countFilters.length === 0 || countFilters.includes(r.count_text)) &&
       (skip === 'loc' || locFilter === 'all' || r.location_id === locFilter),
-    [company, batchFilter, countFilter, locFilter]
+    [company, batchFilter, countFilters, locFilter]
   );
 
   const batchOptions = useMemo(() => {
@@ -263,11 +266,11 @@ export default function ProcessingSection({
 
   const countOptions = useMemo(() => {
     const counts = new Set(sourceRows.filter((r) => matches(r, 'count')).map((r) => r.count_text));
-    if (countFilter !== 'all') counts.add(countFilter);
+    for (const c of countFilters) counts.add(c);
     return Array.from(counts)
       .sort(byText)
       .map((c) => ({ value: c, label: c || '—' }));
-  }, [sourceRows, matches, countFilter]);
+  }, [sourceRows, matches, countFilters]);
 
   const locOptions = useMemo(() => {
     const ids = new Set(sourceRows.filter((r) => matches(r, 'loc')).map((r) => r.location_id));
@@ -355,15 +358,25 @@ export default function ProcessingSection({
     const parts: string[] = [];
     if (company !== 'all') parts.push(company);
     if (batchFilter !== 'all') parts.push(`Batch ${batchFilter}`);
-    if (countFilter !== 'all') parts.push(`Count ${countFilter || '—'}`);
+    // A handful of counts are worth naming on the sheet; a long list would push
+    // the batch and location out of a PDF header line, so it gets a count.
+    if (countFilters.length > 0) {
+      // Ticked in whatever order they were clicked; read back in register order.
+      const named = [...countFilters].sort(byText).map((c) => c || '—');
+      parts.push(
+        named.length <= 4
+          ? `Count ${named.join(', ')}`
+          : `${named.length} counts (${named.slice(0, 3).join(', ')}…)`
+      );
+    }
     if (locFilter !== 'all') parts.push(locationName(locFilter) || 'Unassigned');
     return parts.length > 0 ? ` — ${parts.join(' · ')}` : '';
-  }, [company, batchFilter, countFilter, locFilter, locationName]);
+  }, [company, batchFilter, countFilters, locFilter, locationName]);
 
   const clearFilters = () => {
     setCompany('all');
     setBatchFilter('all');
-    setCountFilter('all');
+    setCountFilters([]);
     setLocFilter('all');
   };
 
@@ -448,13 +461,13 @@ export default function ProcessingSection({
             options={batchOptions}
             onChange={setBatchFilter}
           />
-          <Picker
+          <MultiPicker
             id={`count-${mode}`}
             label="Count"
-            value={countFilter}
             allLabel="All counts"
             options={countOptions}
-            onChange={setCountFilter}
+            selected={countFilters}
+            onChange={setCountFilters}
           />
           <Picker
             id={`location-${mode}`}
