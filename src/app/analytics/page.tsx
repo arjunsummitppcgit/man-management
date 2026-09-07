@@ -269,8 +269,12 @@ export default function AnalyticsPage() {
                   onRefresh={() => fetchAnalytics(fromDate, toDate)}
                 />
               )}
-              {active === 'hon-hl' && <ProcessingSection mode="hon_hl" {...sectionProps} />}
-              {active === 'hl-va' && <ProcessingSection mode="hl_va" {...sectionProps} />}
+              {active === 'hon-hl' && (
+                <ProcessingSection mode="hon_hl" {...sectionProps} fromDate={fromDate} toDate={toDate} />
+              )}
+              {active === 'hl-va' && (
+                <ProcessingSection mode="hl_va" {...sectionProps} fromDate={fromDate} toDate={toDate} />
+              )}
               {active === 'labour' && <LabourSection {...sectionProps} />}
               {active === 'per-head' && <PerHeadSection {...sectionProps} />}
               {active === 'workforce' && <WorkforceSection {...sectionProps} />}

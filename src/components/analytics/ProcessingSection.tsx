@@ -32,6 +32,7 @@ import {
   SERIES_COLORS,
 } from './shared';
 import type { BatchCompany } from './shared';
+import GradeVaSection from './GradeVaSection';
 
 /** Batch ids and prawn counts read as numbers where they can: 46 before 100. */
 const byText = (a: string, b: string) =>
@@ -93,6 +94,8 @@ export default function ProcessingSection({
   locationFilter,
   isDark,
   rangeLabel,
+  fromDate,
+  toDate,
 }: {
   mode: 'hon_hl' | 'hl_va';
   data: AnalyticsData;
@@ -100,6 +103,9 @@ export default function ProcessingSection({
   locationFilter: string | null;
   isDark: boolean;
   rangeLabel: string;
+  /** The raw range behind `rangeLabel` — the Grade Vs VA export names its file with it. */
+  fromDate: string;
+  toDate: string;
 }) {
   const theme = chartTheme(isDark);
   const isHonHl = mode === 'hon_hl';
@@ -219,6 +225,17 @@ export default function ProcessingSection({
       (r) => (!locationFilter || r.location_id === locationFilter) && (r.inKg > 0 || r.outKg > 0)
     );
   }, [data.yieldBatches, data.hlVa, isHonHl, locationFilter]);
+
+  /**
+   * The same range of HL→VA lines for the Grade Vs VA sheet at the foot of the
+   * section. Kept separate from `sourceRows` because that one is normalised to
+   * in/out kgs across both stages and drops the grade and variety the sheet is
+   * built out of.
+   */
+  const gradeVaEntries = useMemo(
+    () => data.hlVa.filter((r) => !locationFilter || r.location_id === locationFilter),
+    [data.hlVa, locationFilter]
+  );
 
   /**
    * The four dropdowns cascade: each one's options are what survives *the
@@ -471,6 +488,21 @@ export default function ProcessingSection({
           emptyMessage="No batches match these filters"
         />
       </ChartCard>
+
+      {/* ─── Grade Vs VA: the register's grade × variety sheet over the range ──
+          Only HL→VA carries grades and varieties — the HON→HL register has
+          neither, so there is nothing to lay out for that stage. It reads the
+          page's range and location, not the detail table's dropdowns above,
+          which narrow that table alone. */}
+      {!isHonHl && (
+        <GradeVaSection
+          entries={gradeVaEntries}
+          rangeLabel={rangeLabel}
+          fromDate={fromDate}
+          toDate={toDate}
+          locationLabel={locationFilter ? locationName(locationFilter) || undefined : undefined}
+        />
+      )}
     </div>
   );
 }
