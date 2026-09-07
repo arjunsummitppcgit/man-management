@@ -185,6 +185,7 @@ export function ExportButtons({
   excelNumberFormat,
   pdfOrientation,
   captureRef,
+  onPdf,
 }: {
   title: string;
   headers: string[];
@@ -209,6 +210,14 @@ export function ExportButtons({
    * its numbers, not its looks.
    */
   captureRef?: React.RefObject<HTMLElement | null>;
+  /**
+   * Builds the PDF itself, for a report that has a paper layout of its own
+   * rather than a rebuilt table — the Grade Vs VA statement, whose nine columns
+   * autoTable can only fit by wrapping figures in half. Excel is untouched: a
+   * spreadsheet is wanted for its numbers, not its looks. If it throws, the
+   * rebuilt table still goes out, so the press is never left with no file.
+   */
+  onPdf?: () => Promise<void> | void;
 }) {
   const disabled = rows.length === 0;
   // Photographing the card takes a beat on a phone, and a button that does
@@ -217,13 +226,14 @@ export function ExportButtons({
 
   const handlePdf = async () => {
     const node = captureRef?.current;
-    if (!node) {
+    if (!onPdf && !node) {
       exportToPDF(title, headers, rows, filename, { orientation: pdfOrientation });
       return;
     }
     setCapturing(true);
     try {
-      await exportNodeToPDF(node, filename);
+      if (onPdf) await onPdf();
+      else await exportNodeToPDF(node!, filename);
     } catch (err) {
       // Nothing to recover to — the rebuilt table carries the same figures, so
       // fall back to it rather than leaving the press with no file.

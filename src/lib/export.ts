@@ -94,7 +94,16 @@ export function exportToPDF(
  */
 export async function exportNodeToPDF(
   node: HTMLElement,
-  filename: string
+  filename: string,
+  options?: {
+    /**
+     * Paper colour behind the capture. Defaults to the page's own background,
+     * so a card photographed in dark mode lands on a dark sheet. A layout built
+     * for paper passes white instead — it is not showing the page through its
+     * corners, it *is* the page.
+     */
+    background?: string;
+  }
 ): Promise<void> {
   // Loaded on demand: it is a heavy library, and nothing on first paint needs it.
   //
@@ -110,7 +119,7 @@ export async function exportNodeToPDF(
     // The card's own corners are rounded, so the page shows through them. Take
     // the page's colour rather than html2canvas's default white, which would
     // put four white notches on a dark sheet.
-    backgroundColor: getComputedStyle(document.body).backgroundColor || null,
+    backgroundColor: options?.background || getComputedStyle(document.body).backgroundColor || null,
     useCORS: true,
     logging: false,
     // The share row is chrome, not content: a PDF containing a PDF button is
@@ -135,6 +144,53 @@ export async function exportNodeToPDF(
 
   const safeName = filename.endsWith('.pdf') ? filename : `${filename}.pdf`;
   doc.save(safeName);
+}
+
+/** A4 at 96dpi. Paper layouts are written against the width they print at. */
+const A4_WIDTH_PX = 794;
+
+/**
+ * Render a self-contained block of HTML as a PDF — a layout written for paper
+ * rather than a photograph of something on screen.
+ *
+ * autoTable can only build one shape of table, and a nine-column statement is
+ * where that shape gives out: it splits a column rather than a cell, so
+ * "21,698.000" comes out as "21,698.00" over "0" and the sheet stops being
+ * readable. A layout of our own sets its own column widths and simply refuses
+ * to wrap a figure.
+ *
+ * The markup is mounted off-screen, photographed, and removed. It must carry
+ * its own styling — it is rendered inside the app, so it uses class names of
+ * its own and inherits nothing it has not asked for.
+ */
+export async function exportStyledHtmlToPDF(html: string, filename: string): Promise<void> {
+  const host = document.createElement('div');
+  host.setAttribute('aria-hidden', 'true');
+  host.style.cssText = [
+    'position:fixed',
+    'left:-10000px',
+    'top:0',
+    `width:${A4_WIDTH_PX}px`,
+    'background:#ffffff',
+    'pointer-events:none',
+    'z-index:-1',
+  ].join(';');
+  host.innerHTML = html;
+  document.body.appendChild(host);
+  try {
+    await exportNodeToPDF(host, filename, { background: '#ffffff' });
+  } finally {
+    host.remove();
+  }
+}
+
+/** Text going into that markup — labels are user-entered and reach it as data. */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 /**

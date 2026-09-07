@@ -5,7 +5,8 @@ import GradeVaReport from '@/components/reports/GradeVaReport';
 import { ExportButtons } from './shared';
 import { buildGradeVaMatrix, REPORT_VARIETIES, type GradeVaEntry } from '@/lib/gradeVa';
 import { formatVaQty } from '@/lib/hlVa';
-import type { ExportCell } from '@/lib/export';
+import { gradeVaSheetHtml } from '@/lib/gradeVaPdf';
+import { exportStyledHtmlToPDF, type ExportCell } from '@/lib/export';
 
 /** Indian grouping, three decimals — the register's own precision. */
 const EXCEL_NUMBER_FORMAT = '##,##,##0.000';
@@ -86,6 +87,15 @@ export default function GradeVaSection({
           excelRows={excelRows}
           excelNumberFormat={EXCEL_NUMBER_FORMAT}
           filename={filename}
+          // Nine columns is where the generic table exporter gives out — it
+          // wraps a figure rather than a column. This one gets a paper layout
+          // of its own instead, in the house style of the printed summaries.
+          onPdf={() =>
+            exportStyledHtmlToPDF(
+              gradeVaSheetHtml({ entries, rangeLabel, locationLabel }),
+              filename
+            )
+          }
         />
       }
     />
