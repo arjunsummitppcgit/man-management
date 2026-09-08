@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useSyncExternalStore } from 'react';
+import React, { useRef, useState, useSyncExternalStore } from 'react';
 import { format, parseISO } from 'date-fns';
 import { exportToPDF, exportToExcel, exportNodeToPDF, type ExportCell } from '@/lib/export';
 import type { Location } from '@/types';
@@ -276,17 +276,79 @@ export function ExportButtons({
 
 // ─── Generic data table ──────────────────────────────────────────────────────
 
+/** Rows to a page the pager offers; 0 is "All rows". */
+const PAGE_SIZES = [25, 50, 100, 250, 0];
+
+/**
+ * The page numbers to draw, elided either side of the current one so the strip
+ * stays about the same width whether the table runs to 4 pages or 40. `null`
+ * is a gap.
+ */
+function pageWindow(page: number, count: number): (number | null)[] {
+  if (count <= 7) return Array.from({ length: count }, (_, i) => i + 1);
+  const from = Math.max(2, page - 1);
+  const to = Math.min(count - 1, page + 1);
+  const out: (number | null)[] = [1];
+  if (from > 2) out.push(null);
+  for (let n = from; n <= to; n++) out.push(n);
+  if (to < count - 1) out.push(null);
+  out.push(count);
+  return out;
+}
+
 export function AnalyticsTable({
   headers,
   rows,
   footer,
   emptyMessage = 'No data for the selected period',
+  pageSize,
 }: {
   headers: string[];
   rows: (string | number)[][];
   footer?: (string | number)[];
   emptyMessage?: string;
+  /**
+   * Turns the pager on, with this many rows to a page. For the tables that can
+   * run to hundreds of lines — a batch register over a month — where every
+   * other thing on the page otherwise sits below a scroll no one finishes.
+   *
+   * The footer stays the total of *all* the rows, not the page's: the sheet is
+   * still one report, and the count beside the pager says how much of it is on
+   * screen.
+   *
+   * `rows` has to be a stable reference (a useMemo). A fresh array on every
+   * render reads as a new result and would send the pager back to page 1.
+   */
+  pageSize?: number;
 }) {
+  const [size, setSize] = useState(pageSize ?? 0);
+  /**
+   * The page, held against the rows it was picked for. A new filter or date
+   * range is a new result and page 7 of the old one means nothing in it, so
+   * anything but those rows reads as page 1 — no effect to run late, and no
+   * frame of the wrong slice before it corrects.
+   */
+  const [pinned, setPinned] = useState<{ rows: unknown; page: number }>({ rows, page: 1 });
+  const topRef = useRef<HTMLDivElement>(null);
+
+  // Below a page's worth there is nothing to page through, and the controls
+  // would just be more to read past.
+  const canPage = pageSize !== undefined && rows.length > PAGE_SIZES[0];
+  const sliced = canPage && size > 0 && rows.length > size;
+  const pageCount = sliced ? Math.ceil(rows.length / size) : 1;
+  const page = Math.min(pinned.rows === rows ? pinned.page : 1, pageCount);
+  const start = sliced ? (page - 1) * size : 0;
+  const visible = sliced ? rows.slice(start, start + size) : rows;
+
+  const goTo = (next: number) => {
+    const clamped = Math.max(1, Math.min(next, pageCount));
+    if (clamped === page) return;
+    setPinned({ rows, page: clamped });
+    // Paging from the foot of a long table would otherwise leave you at the
+    // foot of the next one, reading its last rows first.
+    topRef.current?.scrollIntoView({ block: 'start' });
+  };
+
   if (rows.length === 0) {
     return (
       <div className="flex items-center justify-center py-10 bg-gray-50 rounded-xl">
@@ -294,56 +356,124 @@ export function AnalyticsTable({
       </div>
     );
   }
+
+  const navBtn =
+    'px-2 py-1 rounded-lg text-[11px] font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:pointer-events-none';
+
   return (
-    <div className="overflow-x-auto -mx-4 lg:mx-0 px-4 lg:px-0">
-      <table className="w-full text-xs min-w-[560px]">
-        <thead>
-          <tr>
-            {headers.map((h, i) => (
-              <th
-                key={h}
-                className={`bg-gray-50 px-3 py-2 font-bold text-gray-500 uppercase tracking-wider text-[10px] whitespace-nowrap ${
-                  i === 0 ? 'text-left rounded-l-lg' : 'text-center'
-                } ${i === headers.length - 1 ? 'rounded-r-lg' : ''}`}
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {rows.map((row, ri) => (
-            <tr key={ri} className="hover:bg-teal-50/40 transition-colors">
-              {row.map((cell, ci) => (
-                <td
-                  key={ci}
-                  className={`px-3 py-2.5 whitespace-nowrap ${
-                    ci === 0 ? 'text-left font-semibold text-gray-900' : 'text-center text-gray-600 font-medium'
-                  }`}
-                >
-                  {cell === 0 || cell === '0' ? <span className="text-gray-300">—</span> : cell}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-        {footer && (
-          <tfoot>
+    <div ref={topRef} className="scroll-mt-4">
+      <div className="overflow-x-auto -mx-4 lg:mx-0 px-4 lg:px-0">
+        <table className="w-full text-xs min-w-[560px]">
+          <thead>
             <tr>
-              {footer.map((cell, ci) => (
-                <td
-                  key={ci}
-                  className={`bg-teal-50 px-3 py-2.5 font-bold text-teal-800 whitespace-nowrap ${
-                    ci === 0 ? 'text-left rounded-l-lg' : 'text-center'
-                  } ${ci === footer.length - 1 ? 'rounded-r-lg' : ''}`}
+              {headers.map((h, i) => (
+                <th
+                  key={h}
+                  className={`bg-gray-50 px-3 py-2 font-bold text-gray-500 uppercase tracking-wider text-[10px] whitespace-nowrap ${
+                    i === 0 ? 'text-left rounded-l-lg' : 'text-center'
+                  } ${i === headers.length - 1 ? 'rounded-r-lg' : ''}`}
                 >
-                  {cell}
-                </td>
+                  {h}
+                </th>
               ))}
             </tr>
-          </tfoot>
-        )}
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {visible.map((row, ri) => (
+              <tr key={start + ri} className="hover:bg-teal-50/40 transition-colors">
+                {row.map((cell, ci) => (
+                  <td
+                    key={ci}
+                    className={`px-3 py-2.5 whitespace-nowrap ${
+                      ci === 0 ? 'text-left font-semibold text-gray-900' : 'text-center text-gray-600 font-medium'
+                    }`}
+                  >
+                    {cell === 0 || cell === '0' ? <span className="text-gray-300">—</span> : cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+          {footer && (
+            <tfoot>
+              <tr>
+                {footer.map((cell, ci) => (
+                  <td
+                    key={ci}
+                    className={`bg-teal-50 px-3 py-2.5 font-bold text-teal-800 whitespace-nowrap ${
+                      ci === 0 ? 'text-left rounded-l-lg' : 'text-center'
+                    } ${ci === footer.length - 1 ? 'rounded-r-lg' : ''}`}
+                  >
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+
+      {canPage && (
+        <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
+          <div className="flex items-center gap-2">
+            <p className="text-[11px] font-semibold text-gray-500">
+              Showing {fmtInt(start + 1)}–{fmtInt(start + visible.length)} of {fmtInt(rows.length)} rows
+            </p>
+            <select
+              value={size}
+              aria-label="Rows per page"
+              onChange={(e) => {
+                setSize(Number(e.target.value));
+                setPinned({ rows, page: 1 });
+              }}
+              className="px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-[11px] font-semibold text-gray-700 dark:text-gray-200"
+            >
+              {PAGE_SIZES.map((n) => (
+                <option key={n} value={n}>
+                  {n === 0 ? 'All rows' : `${n} / page`}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {sliced && (
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => goTo(page - 1)} disabled={page === 1} className={navBtn}>
+                ‹ Prev
+              </button>
+              {pageWindow(page, pageCount).map((n, i) =>
+                n === null ? (
+                  <span key={`gap-${i}`} className="px-1 text-[11px] font-bold text-gray-400">
+                    …
+                  </span>
+                ) : (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => goTo(n)}
+                    aria-current={n === page ? 'page' : undefined}
+                    className={`min-w-[26px] px-1.5 py-1 rounded-lg text-[11px] font-bold ${
+                      n === page
+                        ? 'bg-teal-600 text-white'
+                        : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                )
+              )}
+              <button
+                type="button"
+                onClick={() => goTo(page + 1)}
+                disabled={page === pageCount}
+                className={navBtn}
+              >
+                Next ›
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

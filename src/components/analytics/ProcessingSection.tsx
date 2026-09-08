@@ -566,6 +566,9 @@ export default function ProcessingSection({
           rows={tableRows}
           footer={footer}
           emptyMessage="No batches match these filters"
+          // A month of registers is several hundred lines — the one table on
+          // this page long enough to bury everything under it.
+          pageSize={50}
         />
       </ChartCard>
 
