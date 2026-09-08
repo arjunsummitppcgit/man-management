@@ -32,6 +32,7 @@ import {
   SERIES_COLORS,
 } from './shared';
 import type { BatchCompany } from './shared';
+import { normaliseVariety } from '@/lib/hlVa';
 import GradeVaSection from './GradeVaSection';
 import MultiPicker from './MultiPicker';
 
@@ -46,6 +47,8 @@ interface StageRow {
   location_id: string;
   batch_id: string;
   count_text: string;
+  /** Always '' for HON→HL — that register has no variety to carry. */
+  variety: string;
   inKg: number;
   outKg: number;
 }
@@ -181,10 +184,11 @@ export default function ProcessingSection({
   // HL (or VA) column. Dates entered before the registers existed still carry
   // their hand-typed figure and can differ.
   //
-  // A register line is per date + location + batch + count, and the table keeps
-  // that grain rather than collapsing a batch's counts and locations into
-  // comma-joined cells — every row is one count at one location, with its own
-  // kgs and its own yield.
+  // A register line is per date + location + batch + count (+ variety and grade
+  // on HL→VA), and the table keeps that grain rather than collapsing a batch's
+  // counts and locations into comma-joined cells — every row is one count at one
+  // location, with its own kgs and its own yield. HL→VA carries the variety too,
+  // so a count split across PD and PDTO reads as two lines there.
   const [company, setCompany] = useState<'all' | BatchCompany>('all');
   const [batchFilter, setBatchFilter] = useState('all');
   // Counts are the one column people compare across rather than drill into, so
@@ -211,6 +215,7 @@ export default function ProcessingSection({
           // '80 ' and '80' on two rows and two lines of the dropdown.
           batch_id: r.batch_id.trim(),
           count_text: (r.count_text || '').trim(),
+          variety: '',
           inKg: r.hon_kgs || 0,
           outKg: r.hl_kgs || 0,
         }))
@@ -219,6 +224,9 @@ export default function ProcessingSection({
           location_id: r.location_id || '',
           batch_id: r.batch_id.trim(),
           count_text: (r.count_text || '').trim(),
+          // Normalised so the 38 rows still spelled 'BTFLY' sit on the BTFY
+          // line rather than opening a column of their own.
+          variety: normaliseVariety(r.variety),
           inKg: r.hl_kgs || 0,
           outKg: r.va_kgs || 0,
         }));
@@ -287,13 +295,15 @@ export default function ProcessingSection({
       'Date',
       'Batch ID',
       'Count',
+      // HON→HL has no variety, so that stage keeps its eight columns.
+      ...(isHonHl ? [] : ['Variety']),
       'Company',
       'Location',
       `${inLabel} (Kgs)`,
       `${outLabel} (Kgs)`,
       'Yield %',
     ],
-    [inLabel, outLabel]
+    [inLabel, outLabel, isHonHl]
   );
 
   const tableRows = useMemo(() => {
@@ -303,27 +313,29 @@ export default function ProcessingSection({
         date: string;
         batchId: string;
         count: string;
+        variety: string;
         locId: string;
         inKg: number;
         outKg: number;
       }
     >();
     for (const r of batchRows) {
-      const key = `${r.work_date}|${r.batch_id}|${r.count_text}|${r.location_id}`;
+      const key = `${r.work_date}|${r.batch_id}|${r.count_text}|${r.variety}|${r.location_id}`;
       let g = groups.get(key);
       if (!g) {
         g = {
           date: r.work_date,
           batchId: r.batch_id,
           count: r.count_text,
+          variety: r.variety,
           locId: r.location_id,
           inKg: 0,
           outKg: 0,
         };
         groups.set(key, g);
       }
-      // Still a sum, not a copy: HL→VA splits one count further by variety and
-      // grade, and those belong on the same line.
+      // Still a sum, not a copy: HL→VA splits one count and variety further by
+      // grade, and those grades belong on the same line.
       g.inKg += r.inKg;
       g.outKg += r.outKg;
     }
@@ -333,25 +345,28 @@ export default function ProcessingSection({
           a.date.localeCompare(b.date) ||
           byText(a.batchId, b.batchId) ||
           byText(a.count, b.count) ||
+          byText(a.variety, b.variety) ||
           byText(locationName(a.locId), locationName(b.locId))
       )
       .map((g) => [
         fmtDay(g.date),
         g.batchId,
         g.count || '—',
+        ...(isHonHl ? [] : [g.variety || '—']),
         batchCompany(g.batchId),
         locationName(g.locId) || '—',
         fmt(g.inKg),
         fmt(g.outKg),
         yieldPct(g.inKg, g.outKg),
       ]);
-  }, [batchRows, locationName]);
+  }, [batchRows, locationName, isHonHl]);
 
   const footer = useMemo(() => {
     const grandIn = batchRows.reduce((s, r) => s + r.inKg, 0);
     const grandOut = batchRows.reduce((s, r) => s + r.outKg, 0);
-    return ['Total', '', '', '', '', fmt(grandIn), fmt(grandOut), yieldPct(grandIn, grandOut)];
-  }, [batchRows]);
+    const blanks = isHonHl ? ['', '', '', ''] : ['', '', '', '', ''];
+    return ['Total', ...blanks, fmt(grandIn), fmt(grandOut), yieldPct(grandIn, grandOut)];
+  }, [batchRows, isHonHl]);
 
   /** What the dropdowns are narrowed to, for the PDF/Excel header line. */
   const filterNote = useMemo(() => {
@@ -440,7 +455,10 @@ export default function ProcessingSection({
         </ChartCard>
       </div>
 
-      <ChartCard title={`${title} Detail`} subtitle="one row per count per location · from the grader batch register">
+      <ChartCard
+        title={`${title} Detail`}
+        subtitle={`one row per count${isHonHl ? '' : ' per variety'} per location · from the grader batch register`}
+      >
         <div className="flex flex-wrap items-end gap-2 mb-3">
           <Picker
             id={`company-${mode}`}
@@ -491,6 +509,9 @@ export default function ProcessingSection({
               headers={tableHeaders}
               rows={[...tableRows, footer]}
               filename={`${slug}-report`}
+              // Nine columns with the variety in — portrait squeezes the batch
+              // ids and the kg figures into two lines apiece.
+              pdfOrientation={isHonHl ? undefined : 'landscape'}
             />
           </div>
         </div>
