@@ -32,13 +32,24 @@ import {
   SERIES_COLORS,
 } from './shared';
 import type { BatchCompany } from './shared';
-import { normaliseVariety } from '@/lib/hlVa';
+import { normaliseVariety, VA_VARIETIES } from '@/lib/hlVa';
 import GradeVaSection from './GradeVaSection';
 import MultiPicker from './MultiPicker';
 
 /** Batch ids and prawn counts read as numbers where they can: 46 before 100. */
 const byText = (a: string, b: string) =>
   a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+
+/**
+ * Varieties read back in the order the register's own chips offer them, so the
+ * dropdown matches the screen the graders type on. Anything the chart no longer
+ * names — an old spelling normalisation missed — falls in after them.
+ */
+const varietyRank = (v: string) => {
+  const i = (VA_VARIETIES as readonly string[]).indexOf(v);
+  return i === -1 ? VA_VARIETIES.length : i;
+};
+const byVariety = (a: string, b: string) => varietyRank(a) - varietyRank(b) || byText(a, b);
 
 /** One line of a grader's register, normalised across the two stages. */
 interface StageRow {
@@ -194,6 +205,8 @@ export default function ProcessingSection({
   // Counts are the one column people compare across rather than drill into, so
   // this filter takes several at once. Empty means every count.
   const [countFilters, setCountFilters] = useState<string[]>([]);
+  // HL→VA only: HON→HL never renders this picker, so it stays on 'all' there.
+  const [varietyFilter, setVarietyFilter] = useState('all');
   const [locFilter, setLocFilter] = useState('all');
 
   const locationName = useMemo(() => {
@@ -249,17 +262,18 @@ export default function ProcessingSection({
   );
 
   /**
-   * The four dropdowns cascade: each one's options are what survives *the
-   * other* three, so picking a batch narrows the count and location lists to
-   * what that batch actually has and no combination lands on an empty table.
+   * The dropdowns cascade: each one's options are what survives *the others*,
+   * so picking a batch narrows the count, variety and location lists to what
+   * that batch actually has and no combination lands on an empty table.
    */
   const matches = useMemo(
-    () => (r: StageRow, skip?: 'batch' | 'count' | 'loc') =>
+    () => (r: StageRow, skip?: 'batch' | 'count' | 'variety' | 'loc') =>
       (company === 'all' || batchCompany(r.batch_id) === company) &&
       (skip === 'batch' || batchFilter === 'all' || r.batch_id === batchFilter) &&
       (skip === 'count' || countFilters.length === 0 || countFilters.includes(r.count_text)) &&
+      (skip === 'variety' || varietyFilter === 'all' || r.variety === varietyFilter) &&
       (skip === 'loc' || locFilter === 'all' || r.location_id === locFilter),
-    [company, batchFilter, countFilters, locFilter]
+    [company, batchFilter, countFilters, varietyFilter, locFilter]
   );
 
   const batchOptions = useMemo(() => {
@@ -279,6 +293,16 @@ export default function ProcessingSection({
       .sort(byText)
       .map((c) => ({ value: c, label: c || '—' }));
   }, [sourceRows, matches, countFilters]);
+
+  const varietyOptions = useMemo(() => {
+    const varieties = new Set(
+      sourceRows.filter((r) => matches(r, 'variety')).map((r) => r.variety)
+    );
+    if (varietyFilter !== 'all') varieties.add(varietyFilter);
+    return Array.from(varieties)
+      .sort(byVariety)
+      .map((v) => ({ value: v, label: v || '—' }));
+  }, [sourceRows, matches, varietyFilter]);
 
   const locOptions = useMemo(() => {
     const ids = new Set(sourceRows.filter((r) => matches(r, 'loc')).map((r) => r.location_id));
@@ -384,14 +408,16 @@ export default function ProcessingSection({
           : `${named.length} counts (${named.slice(0, 3).join(', ')}…)`
       );
     }
+    if (varietyFilter !== 'all') parts.push(varietyFilter || '—');
     if (locFilter !== 'all') parts.push(locationName(locFilter) || 'Unassigned');
     return parts.length > 0 ? ` — ${parts.join(' · ')}` : '';
-  }, [company, batchFilter, countFilters, locFilter, locationName]);
+  }, [company, batchFilter, countFilters, varietyFilter, locFilter, locationName]);
 
   const clearFilters = () => {
     setCompany('all');
     setBatchFilter('all');
     setCountFilters([]);
+    setVarietyFilter('all');
     setLocFilter('all');
   };
 
@@ -487,6 +513,16 @@ export default function ProcessingSection({
             selected={countFilters}
             onChange={setCountFilters}
           />
+          {!isHonHl && (
+            <Picker
+              id={`variety-${mode}`}
+              label="Variety"
+              value={varietyFilter}
+              allLabel="All varieties"
+              options={varietyOptions}
+              onChange={setVarietyFilter}
+            />
+          )}
           <Picker
             id={`location-${mode}`}
             label="Location"
