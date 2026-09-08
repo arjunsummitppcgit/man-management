@@ -207,7 +207,10 @@ export default function ProcessingSection({
   const [countFilters, setCountFilters] = useState<string[]>([]);
   // HL→VA only: HON→HL never renders this picker, so it stays on 'all' there.
   const [varietyFilter, setVarietyFilter] = useState('all');
-  const [locFilter, setLocFilter] = useState('all');
+  // Locations compare the same way counts do — "how did PPC 2 and PLK do on
+  // this batch" — so this filter takes several at once as well. Empty means
+  // every location.
+  const [locFilters, setLocFilters] = useState<string[]>([]);
 
   const locationName = useMemo(() => {
     const byId = new Map(locations.map((l) => [l.id, l.name]));
@@ -272,8 +275,8 @@ export default function ProcessingSection({
       (skip === 'batch' || batchFilter === 'all' || r.batch_id === batchFilter) &&
       (skip === 'count' || countFilters.length === 0 || countFilters.includes(r.count_text)) &&
       (skip === 'variety' || varietyFilter === 'all' || r.variety === varietyFilter) &&
-      (skip === 'loc' || locFilter === 'all' || r.location_id === locFilter),
-    [company, batchFilter, countFilters, varietyFilter, locFilter]
+      (skip === 'loc' || locFilters.length === 0 || locFilters.includes(r.location_id)),
+    [company, batchFilter, countFilters, varietyFilter, locFilters]
   );
 
   const batchOptions = useMemo(() => {
@@ -306,11 +309,11 @@ export default function ProcessingSection({
 
   const locOptions = useMemo(() => {
     const ids = new Set(sourceRows.filter((r) => matches(r, 'loc')).map((r) => r.location_id));
-    if (locFilter !== 'all') ids.add(locFilter);
+    for (const id of locFilters) ids.add(id);
     return Array.from(ids)
       .map((id) => ({ value: id, label: locationName(id) || 'Unassigned' }))
       .sort((a, b) => byText(a.label, b.label));
-  }, [sourceRows, matches, locFilter, locationName]);
+  }, [sourceRows, matches, locFilters, locationName]);
 
   const batchRows = useMemo(() => sourceRows.filter((r) => matches(r)), [sourceRows, matches]);
 
@@ -409,16 +412,23 @@ export default function ProcessingSection({
       );
     }
     if (varietyFilter !== 'all') parts.push(varietyFilter || '—');
-    if (locFilter !== 'all') parts.push(locationName(locFilter) || 'Unassigned');
+    if (locFilters.length > 0) {
+      const named = locFilters.map((id) => locationName(id) || 'Unassigned').sort(byText);
+      parts.push(
+        named.length <= 4
+          ? named.join(', ')
+          : `${named.length} locations (${named.slice(0, 3).join(', ')}…)`
+      );
+    }
     return parts.length > 0 ? ` — ${parts.join(' · ')}` : '';
-  }, [company, batchFilter, countFilters, varietyFilter, locFilter, locationName]);
+  }, [company, batchFilter, countFilters, varietyFilter, locFilters, locationName]);
 
   const clearFilters = () => {
     setCompany('all');
     setBatchFilter('all');
     setCountFilters([]);
     setVarietyFilter('all');
-    setLocFilter('all');
+    setLocFilters([]);
   };
 
   const slug = isHonHl ? 'hon-to-hl' : 'hl-to-va';
@@ -523,13 +533,13 @@ export default function ProcessingSection({
               onChange={setVarietyFilter}
             />
           )}
-          <Picker
+          <MultiPicker
             id={`location-${mode}`}
             label="Location"
-            value={locFilter}
             allLabel="All locations"
             options={locOptions}
-            onChange={setLocFilter}
+            selected={locFilters}
+            onChange={setLocFilters}
           />
           {filterNote && (
             <button

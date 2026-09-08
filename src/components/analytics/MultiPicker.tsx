@@ -9,10 +9,10 @@ const POPOVER_WIDTH = 224;
  * A dropdown that takes more than one answer, shaped like the single-select
  * `Picker` beside it so the filter bar still reads as one row of controls.
  *
- * Counts are the one filter people compare across rather than drill into — "how
- * did 26/30 and 31/40 do this week" is a normal question and a single-select
- * can't ask it. An empty selection means every count, the same as the old
- * "All counts" option did.
+ * Counts and locations are the filters people compare across rather than drill
+ * into — "how did 26/30 and 31/40 do this week", "PPC 2 against PLK on this
+ * batch" — and a single-select can't ask either question. An empty selection
+ * means all of them, the same as the old "All …" option did.
  *
  * The panel is portalled to <body> with fixed coordinates: the filter bar sits
  * inside the card's overflow-x-auto scroller, which would otherwise clip a
