@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { fetchAllRows } from '@/lib/supabase/fetchAll';
 import { lookupHlVaCountRange } from '@/lib/hlVa';
 import type { HlVaEntry } from '@/types';
 
@@ -41,15 +42,18 @@ export function useHlVa() {
   const fetchRange = useCallback(async (fromDate: string, toDate: string) => {
     setRangeLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('hl_va_entries')
-        .select('*, location:locations(name)')
-        .gte('work_date', fromDate)
-        .lte('work_date', toDate)
-        .order('work_date', { ascending: true });
+      const data = await fetchAllRows<HlVaEntry>((from, to) =>
+        supabase
+          .from('hl_va_entries')
+          .select('*, location:locations(name)')
+          .gte('work_date', fromDate)
+          .lte('work_date', toDate)
+          .order('work_date', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, to)
+      );
 
-      if (error) throw error;
-      setRangeEntries(data || []);
+      setRangeEntries(data);
     } catch (error) {
       console.error('Error fetching hl_va range:', error);
       setRangeEntries([]);
@@ -65,15 +69,18 @@ export function useHlVa() {
   const fetchByBatch = useCallback(async (batchId: string) => {
     setBatchLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('hl_va_entries')
-        .select('*, location:locations(name)')
-        .ilike('batch_id', batchId)
-        .order('work_date', { ascending: true })
-        .order('created_at', { ascending: true });
+      const data = await fetchAllRows<HlVaEntry>((from, to) =>
+        supabase
+          .from('hl_va_entries')
+          .select('*, location:locations(name)')
+          .ilike('batch_id', batchId)
+          .order('work_date', { ascending: true })
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, to)
+      );
 
-      if (error) throw error;
-      setBatchEntries(data || []);
+      setBatchEntries(data);
     } catch (error) {
       console.error('Error fetching hl_va entries by batch:', error);
       setBatchEntries([]);

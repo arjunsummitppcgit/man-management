@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { fetchAllRows } from '@/lib/supabase/fetchAll';
 import type { YieldEntry } from '@/types';
 
 export function useYield() {
@@ -40,16 +41,19 @@ export function useYield() {
   const fetchRange = useCallback(async (fromDate: string, toDate: string) => {
     setRangeLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('yield_entries')
-        .select('*, location:locations(id, name, code)')
-        .gte('work_date', fromDate)
-        .lte('work_date', toDate)
-        .order('work_date', { ascending: true })
-        .order('created_at', { ascending: true });
+      const data = await fetchAllRows<YieldEntry>((from, to) =>
+        supabase
+          .from('yield_entries')
+          .select('*, location:locations(id, name, code)')
+          .gte('work_date', fromDate)
+          .lte('work_date', toDate)
+          .order('work_date', { ascending: true })
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, to)
+      );
 
-      if (error) throw error;
-      setRangeEntries(data || []);
+      setRangeEntries(data);
     } catch (error) {
       console.error('Error fetching yield entries range:', error);
       setRangeEntries([]);
@@ -65,15 +69,18 @@ export function useYield() {
   const fetchByBatch = useCallback(async (batchId: string) => {
     setBatchLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('yield_entries')
-        .select('*, location:locations(id, name, code)')
-        .ilike('batch_id', batchId)
-        .order('work_date', { ascending: true })
-        .order('created_at', { ascending: true });
+      const data = await fetchAllRows<YieldEntry>((from, to) =>
+        supabase
+          .from('yield_entries')
+          .select('*, location:locations(id, name, code)')
+          .ilike('batch_id', batchId)
+          .order('work_date', { ascending: true })
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, to)
+      );
 
-      if (error) throw error;
-      setBatchEntries(data || []);
+      setBatchEntries(data);
     } catch (error) {
       console.error('Error fetching yield entries by batch:', error);
       setBatchEntries([]);

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
+import { fetchAllRows } from '@/lib/supabase/fetchAll';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
 import { usePermissionAlert } from '@/components/ui/PermissionAlert';
@@ -106,16 +107,18 @@ export default function MonthlyAttendanceView() {
         const numDays = getDaysInMonth(new Date(year, month - 1));
         const endOfMonthStr = `${year}-${String(month).padStart(2, '0')}-${String(numDays).padStart(2, '0')}`;
 
-        const { data: monthAssignments, error: assignError } = await supabase
-          .from('daily_supervisor_assignments')
-          .select('id, work_date, supervisor_id, location_id, is_present')
-          .gte('work_date', startOfMonthStr)
-          .lte('work_date', endOfMonthStr);
-
-        if (assignError) throw assignError;
+        const monthAssignments = await fetchAllRows<AssignmentRecord>((from, to) =>
+          supabase
+            .from('daily_supervisor_assignments')
+            .select('id, work_date, supervisor_id, location_id, is_present')
+            .gte('work_date', startOfMonthStr)
+            .lte('work_date', endOfMonthStr)
+            .order('id', { ascending: true })
+            .range(from, to)
+        );
 
         // 3. Compile unique supervisor list: include active supervisors, and any inactive ones who have assignments in this month
-        const assignmentsList = (monthAssignments || []).map(a => ({
+        const assignmentsList = monthAssignments.map(a => ({
           ...a,
           is_present: typeof a.is_present === 'boolean' ? (a.is_present ? 1.0 : 0.0) : (Number(a.is_present) || 0.0)
         }));

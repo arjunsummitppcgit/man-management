@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/Toast';
 import { usePermissionAlert } from '@/components/ui/PermissionAlert';
 import { useLocations } from '@/hooks/useLocations';
 import { supabase } from '@/lib/supabase/client';
+import { fetchAllRows } from '@/lib/supabase/fetchAll';
 import { exportToPDF, exportToExcel } from '@/lib/export';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useAuth } from '@/hooks/useAuth';
@@ -139,28 +140,38 @@ export default function SettingsPage() {
 
         if (reportType === 'Daily Summary') {
           // Fetch workforce + processing for each date in range
-          const { data: workforce } = await supabase
-            .from('daily_workforce')
-            .select('work_date, location_id, total_headcount')
-            .gte('work_date', dateFrom)
-            .lte('work_date', dateTo)
-            .order('work_date', { ascending: true });
+          const workforce = await fetchAllRows<{ work_date: string; total_headcount: number }>(
+            (from, to) =>
+              supabase
+                .from('daily_workforce')
+                .select('work_date, location_id, total_headcount')
+                .gte('work_date', dateFrom)
+                .lte('work_date', dateTo)
+                .order('work_date', { ascending: true })
+                .order('id', { ascending: true })
+                .range(from, to)
+          );
 
-          const { data: processing } = await supabase
-            .from('daily_processing')
-            .select('work_date, location_id, headless_to_va')
-            .gte('work_date', dateFrom)
-            .lte('work_date', dateTo)
-            .order('work_date', { ascending: true });
+          const processing = await fetchAllRows<{ work_date: string; headless_to_va: number }>(
+            (from, to) =>
+              supabase
+                .from('daily_processing')
+                .select('work_date, location_id, headless_to_va')
+                .gte('work_date', dateFrom)
+                .lte('work_date', dateTo)
+                .order('work_date', { ascending: true })
+                .order('id', { ascending: true })
+                .range(from, to)
+          );
 
           headers = ['Date', 'Total Workforce', 'Total Processed (kg)'];
           const dateMap = new Map<string, { workforce: number; processed: number }>();
-          workforce?.forEach((w) => {
+          workforce.forEach((w) => {
             const entry = dateMap.get(w.work_date) || { workforce: 0, processed: 0 };
             entry.workforce += w.total_headcount;
             dateMap.set(w.work_date, entry);
           });
-          processing?.forEach((p) => {
+          processing.forEach((p) => {
             const entry = dateMap.get(p.work_date) || { workforce: 0, processed: 0 };
             entry.processed += (p.headless_to_va || 0);
             dateMap.set(p.work_date, entry);
@@ -170,18 +181,22 @@ export default function SettingsPage() {
             .map(([date, val]) => [date, val.workforce, Number(val.processed.toFixed(3))]);
 
         } else if (reportType === 'Workforce Report') {
-          const { data } = await supabase
-            .from('daily_workforce')
-            .select('work_date, labour_count, boys_count, checking_waste, checking_pd, checking_count, cleaning_count, qc_count, security_count, total_headcount')
-            .gte('work_date', dateFrom)
-            .lte('work_date', dateTo)
-            .order('work_date', { ascending: true });
+          const data = await fetchAllRows<Record<string, string | number>>((from, to) =>
+            supabase
+              .from('daily_workforce')
+              .select('work_date, labour_count, boys_count, checking_waste, checking_pd, checking_count, cleaning_count, qc_count, security_count, total_headcount')
+              .gte('work_date', dateFrom)
+              .lte('work_date', dateTo)
+              .order('work_date', { ascending: true })
+              .order('id', { ascending: true })
+              .range(from, to)
+          );
 
           headers = [
             'Date', 'Labour', 'Boys', 'Waste Checking', 'PD Checking', 'Checking Total',
             'Cleaning', 'QC', 'Security', 'Total',
           ];
-          rows = (data || []).map((w) => [
+          rows = data.map((w) => [
             w.work_date, w.labour_count, w.boys_count,
             // Dates before migration 023 carry an unsplit figure in the total only.
             w.checking_waste, w.checking_pd, w.checking_count,
@@ -189,16 +204,20 @@ export default function SettingsPage() {
           ]);
 
         } else if (reportType === 'Supervisor Attendance') {
-          const { data } = await supabase
-            .from('daily_supervisor_assignments')
-            .select('work_date, is_present, supervisor:supervisors(name), location:locations(name)')
-            .gte('work_date', dateFrom)
-            .lte('work_date', dateTo)
-            .gt('is_present', 0)
-            .order('work_date', { ascending: true });
+          const data = await fetchAllRows<Record<string, unknown>>((from, to) =>
+            supabase
+              .from('daily_supervisor_assignments')
+              .select('work_date, is_present, supervisor:supervisors(name), location:locations(name)')
+              .gte('work_date', dateFrom)
+              .lte('work_date', dateTo)
+              .gt('is_present', 0)
+              .order('work_date', { ascending: true })
+              .order('id', { ascending: true })
+              .range(from, to)
+          );
 
           headers = ['Date', 'Supervisor', 'Location', 'Attendance Value'];
-          rows = (data || []).map((a: Record<string, unknown>) => [
+          rows = data.map((a: Record<string, unknown>) => [
             a.work_date as string,
             (a.supervisor as { name: string } | null)?.name || '',
             (a.location as { name: string } | null)?.name || '',
@@ -206,15 +225,19 @@ export default function SettingsPage() {
           ]);
 
         } else if (reportType === 'Processing Report') {
-          const { data } = await supabase
-            .from('daily_processing')
-            .select('work_date, headless_to_va, notes, location:locations(name)')
-            .gte('work_date', dateFrom)
-            .lte('work_date', dateTo)
-            .order('work_date', { ascending: true });
+          const data = await fetchAllRows<Record<string, unknown>>((from, to) =>
+            supabase
+              .from('daily_processing')
+              .select('work_date, headless_to_va, notes, location:locations(name)')
+              .gte('work_date', dateFrom)
+              .lte('work_date', dateTo)
+              .order('work_date', { ascending: true })
+              .order('id', { ascending: true })
+              .range(from, to)
+          );
 
           headers = ['Date', 'Location', 'Processed (kg)', 'Notes'];
-          rows = (data || []).map((p: Record<string, unknown>) => [
+          rows = data.map((p: Record<string, unknown>) => [
             p.work_date as string,
             (p.location as { name: string } | null)?.name || '',
             Number((p.headless_to_va as number || 0).toFixed(3)),
@@ -222,12 +245,16 @@ export default function SettingsPage() {
           ]);
 
         } else if (reportType === 'Sanitization Report') {
-          const { data } = await supabase
-            .from('daily_sanitization')
-            .select('work_date, outside_cleaning, local_crates_wash, company_crates_wash, cleaning_labour, nmr_labour, crates_cleaning, nets_cleaning, washroom_cleaning, grading_machine_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, gloves, head_cap, masks, location:locations(name)')
-            .gte('work_date', dateFrom)
-            .lte('work_date', dateTo)
-            .order('work_date', { ascending: true });
+          const data = await fetchAllRows<Record<string, unknown>>((from, to) =>
+            supabase
+              .from('daily_sanitization')
+              .select('work_date, outside_cleaning, local_crates_wash, company_crates_wash, cleaning_labour, nmr_labour, crates_cleaning, nets_cleaning, washroom_cleaning, grading_machine_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, gloves, head_cap, masks, location:locations(name)')
+              .gte('work_date', dateFrom)
+              .lte('work_date', dateTo)
+              .order('work_date', { ascending: true })
+              .order('id', { ascending: true })
+              .range(from, to)
+          );
 
           headers = [
             'Date', 'Location', 'Outside Cleaning', 'Local Crates Wash', 'Company Crates Wash',
@@ -236,7 +263,7 @@ export default function SettingsPage() {
             'Chlorine Washrooms (L)', 'Soap Oil PPC (L)', 'Soap Oil Crates (L)', 'Soap Oil Washrooms (L)',
             'Gloves (pairs)', 'Head Cap (pcs)', 'Masks (pcs)'
           ];
-          rows = (data || []).map((s: Record<string, unknown>) => [
+          rows = data.map((s: Record<string, unknown>) => [
             s.work_date as string,
             (s.location as { name: string } | null)?.name || '',
             s.outside_cleaning as number,

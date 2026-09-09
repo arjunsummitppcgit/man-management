@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/layout/PageHeader';
 import { supabase } from '@/lib/supabase/client';
+import { fetchAllRows } from '@/lib/supabase/fetchAll';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
 import { usePermissionAlert } from '@/components/ui/PermissionAlert';
@@ -213,15 +214,18 @@ export default function LadiesPerHeadAmountPage() {
         const numDays = getDaysInMonth(new Date(year, month - 1));
         const endOfMonthStr = `${year}-${String(month).padStart(2, '0')}-${String(numDays).padStart(2, '0')}`;
 
-        const { data: monthAmounts, error: amtError } = await supabase
-          .from('local_ladies_per_head_amount')
-          .select('id, work_date, batch_id, location_id, per_head_amount')
-          .eq('location_id', locationId)
-          .gte('work_date', startOfMonthStr)
-          .lte('work_date', endOfMonthStr);
+        const monthAmounts = await fetchAllRows<AmountRecord>((from, to) =>
+          supabase
+            .from('local_ladies_per_head_amount')
+            .select('id, work_date, batch_id, location_id, per_head_amount')
+            .eq('location_id', locationId)
+            .gte('work_date', startOfMonthStr)
+            .lte('work_date', endOfMonthStr)
+            .order('id', { ascending: true })
+            .range(from, to)
+        );
 
-        if (amtError) throw amtError;
-        setAmounts(monthAmounts || []);
+        setAmounts(monthAmounts);
       } catch (error) {
         console.error('Error fetching ladies per-head amounts:', error);
       } finally {

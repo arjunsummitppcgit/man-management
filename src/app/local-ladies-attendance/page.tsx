@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/layout/PageHeader';
 import { supabase } from '@/lib/supabase/client';
+import { fetchAllRows } from '@/lib/supabase/fetchAll';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useToast } from '@/components/ui/Toast';
 import { usePermissionAlert } from '@/components/ui/PermissionAlert';
@@ -226,26 +227,32 @@ export default function LocalLadiesAttendancePage() {
         const endOfMonthStr = `${year}-${String(month).padStart(2, '0')}-${String(numDays).padStart(2, '0')}`;
 
         // 2. Attendance
-        const { data: monthAtt, error: attError } = await supabase
-          .from('local_ladies_attendance')
-          .select('id, work_date, batch_id, location_id, ladies_count')
-          .eq('location_id', locationId)
-          .gte('work_date', startOfMonthStr)
-          .lte('work_date', endOfMonthStr);
+        const monthAtt = await fetchAllRows<AttendanceRecord>((from, to) =>
+          supabase
+            .from('local_ladies_attendance')
+            .select('id, work_date, batch_id, location_id, ladies_count')
+            .eq('location_id', locationId)
+            .gte('work_date', startOfMonthStr)
+            .lte('work_date', endOfMonthStr)
+            .order('id', { ascending: true })
+            .range(from, to)
+        );
 
-        if (attError) throw attError;
-        setAttendance(monthAtt || []);
+        setAttendance(monthAtt);
 
         // 3. Per Head Amounts
-        const { data: monthAmounts, error: amtError } = await supabase
-          .from('local_ladies_per_head_amount')
-          .select('id, work_date, batch_id, location_id, per_head_amount')
-          .eq('location_id', locationId)
-          .gte('work_date', startOfMonthStr)
-          .lte('work_date', endOfMonthStr);
+        const monthAmounts = await fetchAllRows<AmountRecord>((from, to) =>
+          supabase
+            .from('local_ladies_per_head_amount')
+            .select('id, work_date, batch_id, location_id, per_head_amount')
+            .eq('location_id', locationId)
+            .gte('work_date', startOfMonthStr)
+            .lte('work_date', endOfMonthStr)
+            .order('id', { ascending: true })
+            .range(from, to)
+        );
 
-        if (amtError) throw amtError;
-        setAmounts(monthAmounts || []);
+        setAmounts(monthAmounts);
       } catch (error) {
         console.error('Error fetching local ladies data:', error);
       } finally {

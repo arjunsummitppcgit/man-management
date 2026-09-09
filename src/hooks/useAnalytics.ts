@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { fetchAllRows } from '@/lib/supabase/fetchAll';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import type { Location, MonthlyTarget } from '@/types';
 
@@ -149,56 +150,80 @@ export function useAnalytics() {
       const month = anchor.getMonth() + 1;
 
       const [
-        processingRes,
-        yieldBatchesRes,
-        workforceRes,
-        hlVaRes,
-        nonLocalRes,
-        sanitizationRes,
+        processing,
+        yieldBatches,
+        workforce,
+        hlVa,
+        nonLocal,
+        sanitization,
         combinedTargetRes,
         locationTargetsRes,
-        monthHlVaRes,
+        monthHlVa,
       ] = await Promise.all([
-        supabase
-          .from('daily_processing')
-          .select('work_date, location_id, hon_to_headless, headless_to_va, processed_kg')
-          .gte('work_date', fromDate)
-          .lte('work_date', toDate)
-          .order('work_date', { ascending: true }),
-        supabase
-          .from('yield_entries')
-          .select('work_date, location_id, batch_id, count_text, hon_kgs, hl_kgs')
-          .gte('work_date', fromDate)
-          .lte('work_date', toDate)
-          .order('work_date', { ascending: true }),
-        supabase
-          .from('daily_workforce')
-          .select(
-            'work_date, location_id, labour_kg_basic, labour_daily_wage, labour_company, labour_non_locals, labour_count, boys_count, checking_waste, checking_pd, checking_count, cleaning_count, qc_count, security_count, total_headcount'
-          )
-          .gte('work_date', fromDate)
-          .lte('work_date', toDate)
-          .order('work_date', { ascending: true }),
-        supabase
-          .from('hl_va_entries')
-          .select('work_date, location_id, batch_id, count_text, variety, grade, hl_kgs, va_kgs')
-          .gte('work_date', fromDate)
-          .lte('work_date', toDate)
-          .order('work_date', { ascending: true }),
-        supabase
-          .from('non_local_ladies')
-          .select('work_date, batch_name, no_of_ladies, hl_qty, pd_qty, per_head_amount')
-          .gte('work_date', fromDate)
-          .lte('work_date', toDate)
-          .order('work_date', { ascending: true }),
-        supabase
-          .from('daily_sanitization')
-          .select(
-            'work_date, location_id, outside_cleaning, local_crates_wash, company_crates_wash, cleaning_labour, nmr_labour, crates_cleaning, nets_cleaning, washroom_cleaning, grading_machine_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, chlorine_grading_machine, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, soap_oil_grading_machine, gloves, head_cap, masks'
-          )
-          .gte('work_date', fromDate)
-          .lte('work_date', toDate)
-          .order('work_date', { ascending: true }),
+        fetchAllRows<ProcessingRow>((from, to) =>
+          supabase
+            .from('daily_processing')
+            .select('work_date, location_id, hon_to_headless, headless_to_va, processed_kg')
+            .gte('work_date', fromDate)
+            .lte('work_date', toDate)
+            .order('work_date', { ascending: true })
+            .order('id', { ascending: true })
+            .range(from, to)
+        ),
+        fetchAllRows<YieldBatchRow>((from, to) =>
+          supabase
+            .from('yield_entries')
+            .select('work_date, location_id, batch_id, count_text, hon_kgs, hl_kgs')
+            .gte('work_date', fromDate)
+            .lte('work_date', toDate)
+            .order('work_date', { ascending: true })
+            .order('id', { ascending: true })
+            .range(from, to)
+        ),
+        fetchAllRows<WorkforceRow>((from, to) =>
+          supabase
+            .from('daily_workforce')
+            .select(
+              'work_date, location_id, labour_kg_basic, labour_daily_wage, labour_company, labour_non_locals, labour_count, boys_count, checking_waste, checking_pd, checking_count, cleaning_count, qc_count, security_count, total_headcount'
+            )
+            .gte('work_date', fromDate)
+            .lte('work_date', toDate)
+            .order('work_date', { ascending: true })
+            .order('id', { ascending: true })
+            .range(from, to)
+        ),
+        fetchAllRows<HlVaRow>((from, to) =>
+          supabase
+            .from('hl_va_entries')
+            .select('work_date, location_id, batch_id, count_text, variety, grade, hl_kgs, va_kgs')
+            .gte('work_date', fromDate)
+            .lte('work_date', toDate)
+            .order('work_date', { ascending: true })
+            .order('id', { ascending: true })
+            .range(from, to)
+        ),
+        fetchAllRows<NonLocalRow>((from, to) =>
+          supabase
+            .from('non_local_ladies')
+            .select('work_date, batch_name, no_of_ladies, hl_qty, pd_qty, per_head_amount')
+            .gte('work_date', fromDate)
+            .lte('work_date', toDate)
+            .order('work_date', { ascending: true })
+            .order('id', { ascending: true })
+            .range(from, to)
+        ),
+        fetchAllRows<SanitizationRow>((from, to) =>
+          supabase
+            .from('daily_sanitization')
+            .select(
+              'work_date, location_id, outside_cleaning, local_crates_wash, company_crates_wash, cleaning_labour, nmr_labour, crates_cleaning, nets_cleaning, washroom_cleaning, grading_machine_cleaning, chlorine_ppc, chlorine_crates, chlorine_washrooms, chlorine_grading_machine, soap_oil_ppc, soap_oil_crates, soap_oil_washrooms, soap_oil_grading_machine, gloves, head_cap, masks'
+            )
+            .gte('work_date', fromDate)
+            .lte('work_date', toDate)
+            .order('work_date', { ascending: true })
+            .order('id', { ascending: true })
+            .range(from, to)
+        ),
         supabase
           .from('monthly_targets')
           .select('*')
@@ -212,38 +237,33 @@ export function useAnalytics() {
           .eq('year', year)
           .eq('month', month)
           .not('location_id', 'is', null),
-        supabase
-          .from('hl_va_entries')
-          .select('work_date, location_id, batch_id, count_text, variety, grade, hl_kgs, va_kgs')
-          .gte('work_date', monthStart)
-          .lte('work_date', monthEnd),
+        fetchAllRows<HlVaRow>((from, to) =>
+          supabase
+            .from('hl_va_entries')
+            .select('work_date, location_id, batch_id, count_text, variety, grade, hl_kgs, va_kgs')
+            .gte('work_date', monthStart)
+            .lte('work_date', monthEnd)
+            .order('id', { ascending: true })
+            .range(from, to)
+        ),
       ]);
 
-      const firstError =
-        processingRes.error ||
-        yieldBatchesRes.error ||
-        workforceRes.error ||
-        hlVaRes.error ||
-        nonLocalRes.error ||
-        sanitizationRes.error ||
-        combinedTargetRes.error ||
-        locationTargetsRes.error ||
-        monthHlVaRes.error;
+      const firstError = combinedTargetRes.error || locationTargetsRes.error;
       if (firstError) throw firstError;
 
       setData({
-        processing: processingRes.data || [],
-        yieldBatches: yieldBatchesRes.data || [],
-        workforce: workforceRes.data || [],
-        hlVa: hlVaRes.data || [],
-        nonLocal: nonLocalRes.data || [],
-        sanitization: sanitizationRes.data || [],
+        processing,
+        yieldBatches,
+        workforce,
+        hlVa,
+        nonLocal,
+        sanitization,
         monthLabel: format(anchor, 'MMMM yyyy'),
         monthYear: year,
         monthNumber: month,
         combinedTarget: combinedTargetRes.data as MonthlyTarget | null,
         locationTargets: (locationTargetsRes.data || []) as MonthlyTarget[],
-        monthHlVa: monthHlVaRes.data || [],
+        monthHlVa,
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);

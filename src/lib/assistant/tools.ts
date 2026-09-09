@@ -12,6 +12,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { betaTool } from '@anthropic-ai/sdk/helpers/beta/json-schema';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ToolResult } from './types';
+import { fetchAllRows } from '@/lib/supabase/fetchAll';
 import { dayCount, daysPhrase, eachDay, periodLabel, toDdMm, toMonthLabel } from './format';
 
 export interface ToolContext {
@@ -285,11 +286,15 @@ export function buildAssistantTools(ctx: ToolContext) {
       const to = ctx.isAdmin ? `${month}-31` : ctx.today;
 
       const [all, mine, sup] = await Promise.all([
-        ctx.supabase
-          .from('daily_supervisor_assignments')
-          .select('work_date')
-          .gte('work_date', from)
-          .lte('work_date', to),
+        fetchAllRows<{ work_date: string }>((lo, hi) =>
+          ctx.supabase
+            .from('daily_supervisor_assignments')
+            .select('work_date')
+            .gte('work_date', from)
+            .lte('work_date', to)
+            .order('id')
+            .range(lo, hi)
+        ),
         ctx.supabase
           .from('daily_supervisor_assignments')
           .select('work_date, is_present')
@@ -298,11 +303,10 @@ export function buildAssistantTools(ctx: ToolContext) {
           .lte('work_date', to),
         ctx.supabase.from('supervisors').select('name').eq('id', supervisor_id).single(),
       ]);
-      if (all.error) throw all.error;
       if (mine.error) throw mine.error;
       if (sup.error) throw sup.error;
 
-      const recordedDays = [...new Set((all.data || []).map((r) => r.work_date))].sort();
+      const recordedDays = [...new Set(all.map((r) => r.work_date))].sort();
       const presentDays = new Set(
         (mine.data || []).filter((r) => Number(r.is_present) > 0).map((r) => r.work_date)
       );
@@ -432,15 +436,19 @@ export function buildAssistantTools(ctx: ToolContext) {
       if (err) return err;
       ctx.resolved.date = from === end ? from : `${from} → ${end}`;
 
-      const { data, error } = await ctx.supabase
-        .from('hl_va_entries')
-        .select('grade, variety, hl_kgs, va_kgs')
-        .gte('work_date', from)
-        .lte('work_date', end);
-      if (error) throw error;
+      const data = await fetchAllRows<{ grade: string; variety: string; hl_kgs: number; va_kgs: number }>(
+        (lo, hi) =>
+          ctx.supabase
+            .from('hl_va_entries')
+            .select('grade, variety, hl_kgs, va_kgs')
+            .gte('work_date', from)
+            .lte('work_date', end)
+            .order('id')
+            .range(lo, hi)
+      );
 
       const byGrade = new Map<string, { hl: number; va: number; entries: number; varieties: Set<string> }>();
-      for (const r of data || []) {
+      for (const r of data) {
         const g = r.grade || 'Ungraded';
         const cur = byGrade.get(g) || { hl: 0, va: 0, entries: 0, varieties: new Set<string>() };
         cur.hl += Number(r.hl_kgs) || 0;
@@ -513,12 +521,15 @@ export function buildAssistantTools(ctx: ToolContext) {
       if (err) return err;
       ctx.resolved.date = from === end ? from : `${from} → ${end}`;
 
-      const { data, error } = await ctx.supabase
-        .from('daily_processing')
-        .select('hon_to_headless, headless_to_va, wip_hon_to_headless, wip_headless_to_va, processed_kg, location:locations(name)')
-        .gte('work_date', from)
-        .lte('work_date', end);
-      if (error) throw error;
+      const data = await fetchAllRows((lo, hi) =>
+        ctx.supabase
+          .from('daily_processing')
+          .select('hon_to_headless, headless_to_va, wip_hon_to_headless, wip_headless_to_va, processed_kg, location:locations(name)')
+          .gte('work_date', from)
+          .lte('work_date', end)
+          .order('id')
+          .range(lo, hi)
+      );
 
       type Row = {
         hon_to_headless: number; headless_to_va: number;
@@ -527,7 +538,7 @@ export function buildAssistantTools(ctx: ToolContext) {
       };
       const atLocation = locationMatcher(location);
       const byLoc = new Map<string, { honHl: number; hlVa: number; wipHonHl: number; wipHlVa: number }>();
-      for (const r of ((data as unknown as Row[]) || []).filter((r) => atLocation(r.location?.name))) {
+      for (const r of (data as unknown as Row[]).filter((r) => atLocation(r.location?.name))) {
         const loc = r.location?.name ?? '—';
         const cur = byLoc.get(loc) || { honHl: 0, hlVa: 0, wipHonHl: 0, wipHlVa: 0 };
         cur.honHl += Number(r.hon_to_headless) || 0;
@@ -598,18 +609,20 @@ export function buildAssistantTools(ctx: ToolContext) {
       if (!DATE_RE.test(from) || !DATE_RE.test(end)) return 'Invalid date — use yyyy-MM-dd.';
       ctx.resolved.date = from === end ? from : `${from} → ${end}`;
 
-      let q = ctx.supabase
-        .from('local_ladies_attendance')
-        .select('work_date, ladies_count, batch:local_ladies_batches(name), location:locations(name)')
-        .gte('work_date', from)
-        .lte('work_date', end)
-        .order('work_date');
-      if (batch_id) q = q.eq('batch_id', batch_id);
-      const { data, error } = await q;
-      if (error) throw error;
+      const data = await fetchAllRows((lo, hi) => {
+        let q = ctx.supabase
+          .from('local_ladies_attendance')
+          .select('work_date, ladies_count, batch:local_ladies_batches(name), location:locations(name)')
+          .gte('work_date', from)
+          .lte('work_date', end)
+          .order('work_date')
+          .order('id');
+        if (batch_id) q = q.eq('batch_id', batch_id);
+        return q.range(lo, hi);
+      });
 
       type Row = { work_date: string; ladies_count: number; batch: { name: string } | null; location: { name: string } | null };
-      const raw = (data as unknown as Row[]) || [];
+      const raw = data as unknown as Row[];
       const dates = [...new Set(raw.map((r) => r.work_date))].sort();
       const byBatch = new Map<string, Record<string, string | number | null>>();
       for (const r of raw) {
@@ -681,21 +694,27 @@ export function buildAssistantTools(ctx: ToolContext) {
       ctx.resolved.date = periodLabel(from, end);
 
       const [honHl, hlVa] = await Promise.all([
-        ctx.supabase
-          .from('yield_entries')
-          .select('work_date, batch_id, count_text, hon_kgs, hl_kgs, grader_name, location:locations(name)')
-          .gte('work_date', from)
-          .lte('work_date', end)
-          .order('work_date'),
-        ctx.supabase
-          .from('hl_va_entries')
-          .select('work_date, batch_id, count_text, grade, variety, hl_kgs, va_kgs, grader_name, location:locations(name)')
-          .gte('work_date', from)
-          .lte('work_date', end)
-          .order('work_date'),
+        fetchAllRows((lo, hi) =>
+          ctx.supabase
+            .from('yield_entries')
+            .select('work_date, batch_id, count_text, hon_kgs, hl_kgs, grader_name, location:locations(name)')
+            .gte('work_date', from)
+            .lte('work_date', end)
+            .order('work_date')
+            .order('id')
+            .range(lo, hi)
+        ),
+        fetchAllRows((lo, hi) =>
+          ctx.supabase
+            .from('hl_va_entries')
+            .select('work_date, batch_id, count_text, grade, variety, hl_kgs, va_kgs, grader_name, location:locations(name)')
+            .gte('work_date', from)
+            .lte('work_date', end)
+            .order('work_date')
+            .order('id')
+            .range(lo, hi)
+        ),
       ]);
-      if (honHl.error) throw honHl.error;
-      if (hlVa.error) throw hlVa.error;
 
       const atLocation = locationMatcher(location);
 
@@ -710,7 +729,7 @@ export function buildAssistantTools(ctx: ToolContext) {
 
       const rows: Record<string, string | number | null>[] = [];
 
-      for (const r of ((honHl.data as unknown as HonRow[]) || []).filter((r) => atLocation(r.location?.name))) {
+      for (const r of (honHl as unknown as HonRow[]).filter((r) => atLocation(r.location?.name))) {
         const inKg = kg(Number(r.hon_kgs) || 0);
         const outKg = kg(Number(r.hl_kgs) || 0);
         rows.push({
@@ -725,7 +744,7 @@ export function buildAssistantTools(ctx: ToolContext) {
           yield_pct: inKg > 0 ? Math.round((outKg / inKg) * 1000) / 10 : null,
         });
       }
-      for (const r of ((hlVa.data as unknown as VaRow[]) || []).filter((r) => atLocation(r.location?.name))) {
+      for (const r of (hlVa as unknown as VaRow[]).filter((r) => atLocation(r.location?.name))) {
         const inKg = kg(Number(r.hl_kgs) || 0);
         const outKg = kg(Number(r.va_kgs) || 0);
         rows.push({
@@ -932,15 +951,18 @@ export function buildAssistantTools(ctx: ToolContext) {
       if (err) return err;
       ctx.resolved.date = periodLabel(from, to);
 
-      const { data, error } = await ctx.supabase
-        .from('daily_workforce')
-        .select(
-          'work_date, labour_company, labour_non_locals, labour_kg_basic, labour_daily_wage, labour_count, location:locations(name)'
-        )
-        .gte('work_date', from)
-        .lte('work_date', to)
-        .order('work_date');
-      if (error) throw error;
+      const data = await fetchAllRows((lo, hi) =>
+        ctx.supabase
+          .from('daily_workforce')
+          .select(
+            'work_date, labour_company, labour_non_locals, labour_kg_basic, labour_daily_wage, labour_count, location:locations(name)'
+          )
+          .gte('work_date', from)
+          .lte('work_date', to)
+          .order('work_date')
+          .order('id')
+          .range(lo, hi)
+      );
 
       type Row = {
         work_date: string; labour_company: number; labour_non_locals: number;
@@ -1040,13 +1062,16 @@ export function buildAssistantTools(ctx: ToolContext) {
       if (err) return err;
       ctx.resolved.date = periodLabel(from, to);
 
-      const { data, error } = await ctx.supabase
-        .from('daily_processing')
-        .select('work_date, hon_to_headless, headless_to_va, location:locations(name)')
-        .gte('work_date', from)
-        .lte('work_date', to)
-        .order('work_date');
-      if (error) throw error;
+      const data = await fetchAllRows((lo, hi) =>
+        ctx.supabase
+          .from('daily_processing')
+          .select('work_date, hon_to_headless, headless_to_va, location:locations(name)')
+          .gte('work_date', from)
+          .lte('work_date', to)
+          .order('work_date')
+          .order('id')
+          .range(lo, hi)
+      );
 
       type Row = {
         work_date: string; hon_to_headless: number; headless_to_va: number;
@@ -1137,17 +1162,20 @@ export function buildAssistantTools(ctx: ToolContext) {
       if (err) return err;
       ctx.resolved.date = periodLabel(from, to);
 
-      const { data, error } = await ctx.supabase
-        .from('daily_supervisor_assignments')
-        .select('work_date, is_present')
-        .gte('work_date', from)
-        .lte('work_date', to)
-        .gt('is_present', 0)
-        .order('work_date');
-      if (error) throw error;
+      const data = await fetchAllRows((lo, hi) =>
+        ctx.supabase
+          .from('daily_supervisor_assignments')
+          .select('work_date, is_present')
+          .gte('work_date', from)
+          .lte('work_date', to)
+          .gt('is_present', 0)
+          .order('work_date')
+          .order('id')
+          .range(lo, hi)
+      );
 
       const byDate = new Map<string, number>();
-      for (const r of (data as { work_date: string; is_present: number }[]) || []) {
+      for (const r of data as { work_date: string; is_present: number }[]) {
         byDate.set(r.work_date, (byDate.get(r.work_date) || 0) + (Number(r.is_present) || 0));
       }
 
@@ -1218,18 +1246,20 @@ export function buildAssistantTools(ctx: ToolContext) {
       if (err) return err;
       ctx.resolved.date = periodLabel(from, to);
 
-      let q = ctx.supabase
-        .from('local_ladies_attendance')
-        .select('work_date, ladies_count')
-        .gte('work_date', from)
-        .lte('work_date', to)
-        .order('work_date');
-      if (batch_id) q = q.eq('batch_id', batch_id);
-      const { data, error } = await q;
-      if (error) throw error;
+      const data = await fetchAllRows((lo, hi) => {
+        let q = ctx.supabase
+          .from('local_ladies_attendance')
+          .select('work_date, ladies_count')
+          .gte('work_date', from)
+          .lte('work_date', to)
+          .order('work_date')
+          .order('id');
+        if (batch_id) q = q.eq('batch_id', batch_id);
+        return q.range(lo, hi);
+      });
 
       const byDate = new Map<string, number>();
-      for (const r of (data as { work_date: string; ladies_count: number }[]) || []) {
+      for (const r of data as { work_date: string; ladies_count: number }[]) {
         byDate.set(r.work_date, (byDate.get(r.work_date) || 0) + (Number(r.ladies_count) || 0));
       }
 
