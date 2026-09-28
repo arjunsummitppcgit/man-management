@@ -32,9 +32,10 @@ import {
   SERIES_COLORS,
 } from './shared';
 import type { BatchCompany } from './shared';
-import { normaliseVariety, VA_VARIETIES } from '@/lib/hlVa';
+import { normaliseVariety, VA_VARIETIES, RJ_SUFFIX } from '@/lib/hlVa';
 import GradeVaSection from './GradeVaSection';
 import MultiPicker from './MultiPicker';
+import Picker from './Picker';
 
 /** Batch ids and prawn counts read as numbers where they can: 46 before 100. */
 const byText = (a: string, b: string) =>
@@ -62,44 +63,6 @@ interface StageRow {
   variety: string;
   inKg: number;
   outKg: number;
-}
-
-/** One labelled dropdown of the detail table's filter bar. */
-function Picker({
-  id,
-  label,
-  value,
-  allLabel,
-  options,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  allLabel: string;
-  options: { value: string; label: string }[];
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-        {label}
-      </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="max-w-[11rem] px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs font-semibold text-gray-700 dark:text-gray-200"
-      >
-        <option value="all">{allLabel}</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
 }
 
 export default function ProcessingSection({
@@ -262,6 +225,20 @@ export default function ProcessingSection({
   const gradeVaEntries = useMemo(
     () => data.hlVa.filter((r) => !locationFilter || r.location_id === locationFilter),
     [data.hlVa, locationFilter]
+  );
+
+  /**
+   * Rejection (RJ) re-work over the same range and location. `data.hlVa` is
+   * fresh production only — the hook splits RJ off — so the chips, the detail
+   * table and the main Grade Vs VA sheet all agree with Completed VA, and RJ
+   * gets a sheet of its own under the main one.
+   */
+  const rejectionEntries = useMemo(
+    () =>
+      isHonHl
+        ? []
+        : data.hlVaRejections.filter((r) => !locationFilter || r.location_id === locationFilter),
+    [data.hlVaRejections, locationFilter, isHonHl]
   );
 
   /**
@@ -493,7 +470,11 @@ export default function ProcessingSection({
 
       <ChartCard
         title={`${title} Detail`}
-        subtitle={`one row per count${isHonHl ? '' : ' per variety'} per location · from the grader batch register`}
+        subtitle={`one row per count${isHonHl ? '' : ' per variety'} per location · from the grader batch register${
+          rejectionEntries.length > 0
+            ? ` · fresh batches only — ${rejectionEntries.length} ${RJ_SUFFIX} line${rejectionEntries.length === 1 ? ' is' : 's are'} under Rejections`
+            : ''
+        }`}
       >
         <div className="flex flex-wrap items-end gap-2 mb-3">
           <Picker
@@ -580,6 +561,16 @@ export default function ProcessingSection({
       {!isHonHl && (
         <GradeVaSection
           entries={gradeVaEntries}
+          rangeLabel={rangeLabel}
+          fromDate={fromDate}
+          toDate={toDate}
+          locationLabel={locationFilter ? locationName(locationFilter) || undefined : undefined}
+        />
+      )}
+      {rejectionEntries.length > 0 && (
+        <GradeVaSection
+          rejection
+          entries={rejectionEntries}
           rangeLabel={rangeLabel}
           fromDate={fromDate}
           toDate={toDate}

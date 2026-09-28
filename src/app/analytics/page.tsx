@@ -10,6 +10,7 @@ import { useAnalytics } from '@/hooks/useAnalytics';
 import { FilterBar, useIsDark, type PresetKey } from '@/components/analytics/shared';
 import VaTargetSection from '@/components/analytics/VaTargetSection';
 import ProcessingSection from '@/components/analytics/ProcessingSection';
+import RejectionSection from '@/components/analytics/RejectionSection';
 import LabourSection from '@/components/analytics/LabourSection';
 import PerHeadSection from '@/components/analytics/PerHeadSection';
 import WorkforceSection from '@/components/analytics/WorkforceSection';
@@ -22,6 +23,7 @@ type SectionKey =
   | 'va-target'
   | 'hon-hl'
   | 'hl-va'
+  | 'rejections'
   | 'labour'
   | 'per-head'
   | 'workforce'
@@ -41,6 +43,7 @@ const SECTIONS: {
   { key: 'va-target', label: 'VA Target', desc: 'target vs completed', icon: '🎯', gradient: 'from-teal-500 to-emerald-500', glow: 'rgba(13,148,136,0.45)' },
   { key: 'hon-hl', label: 'HON → HL', desc: 'de-heading production', icon: '🔪', gradient: 'from-indigo-500 to-violet-600', glow: 'rgba(99,102,241,0.45)' },
   { key: 'hl-va', label: 'HL → VA', desc: 'value-add production', icon: '🍤', gradient: 'from-sky-500 to-blue-600', glow: 'rgba(14,165,233,0.45)' },
+  { key: 'rejections', label: 'Rejections (RJ)', desc: 're-worked VA batches', icon: '♻️', gradient: 'from-rose-500 to-pink-600', glow: 'rgba(244,63,94,0.45)' },
   { key: 'labour', label: 'Labour Attendance', desc: 'by type & location', icon: '👷', gradient: 'from-amber-400 to-orange-500', glow: 'rgba(245,158,11,0.45)' },
   { key: 'per-head', label: 'Labour Per Head', desc: 'amounts & productivity', icon: '💰', gradient: 'from-emerald-500 to-teal-600', glow: 'rgba(16,185,129,0.45)' },
   { key: 'workforce', label: 'Workforce', desc: 'full attendance picture', icon: '👥', gradient: 'from-purple-500 to-fuchsia-600', glow: 'rgba(168,85,247,0.45)' },
@@ -274,6 +277,9 @@ export default function AnalyticsPage() {
               )}
               {active === 'hl-va' && (
                 <ProcessingSection mode="hl_va" {...sectionProps} fromDate={fromDate} toDate={toDate} />
+              )}
+              {active === 'rejections' && (
+                <RejectionSection {...sectionProps} fromDate={fromDate} toDate={toDate} />
               )}
               {active === 'labour' && <LabourSection {...sectionProps} />}
               {active === 'per-head' && <PerHeadSection {...sectionProps} />}
