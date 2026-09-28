@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase/client';
 import type { DashboardKPIs, LocationBreakdown } from '@/types';
 import { format, parseISO, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { getDaysRemainingInMonth, calculateDailyAverage } from '@/lib/utils';
+import { lookupHlVaCountRange } from '@/lib/hlVa';
 
 /** Row shape of the supervisor-assignment select, including its embedded relations. */
 interface AssignmentRow {
@@ -237,7 +238,7 @@ export function useDashboard() {
       // ──────────────────────────────────────────
       const { data: yesterdayHlVaData, error: yesterdayHlVaError } = await supabase
         .from('hl_va_entries')
-        .select('grade, va_kgs')
+        .select('grade, count_text, va_kgs')
         .eq('work_date', yesterdayDate);
 
       if (yesterdayHlVaError) throw yesterdayHlVaError;
@@ -246,7 +247,9 @@ export function useDashboard() {
       let yesterdayTopGradeQty = 0;
       const gradeTotals = new Map<string, number>();
       (yesterdayHlVaData || []).forEach((row) => {
-        const grade = row.grade || 'Unknown';
+        // Blank grade = the count matched no band when saved; read it against
+        // today's bands, as the reports do.
+        const grade = row.grade || lookupHlVaCountRange(row.count_text || '') || 'Unknown';
         gradeTotals.set(grade, (gradeTotals.get(grade) || 0) + (Number(row.va_kgs) || 0));
       });
       gradeTotals.forEach((total, grade) => {

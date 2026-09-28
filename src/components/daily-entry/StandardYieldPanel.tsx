@@ -22,7 +22,7 @@ const pct = (n: number) => n.toFixed(2);
  * scanning source text, so a class built by interpolation is never emitted at
  * all — the grid would silently collapse to one column.
  */
-const HLVA_LABEL_WIDTH = 64;
+const HLVA_LABEL_WIDTH = 76; // wide enough for "111/ABOVE" on one line
 const HLVA_COL_WIDTH = 62;
 const HLVA_GRID: React.CSSProperties = {
   gridTemplateColumns: `${HLVA_LABEL_WIDTH}px repeat(${HLVA_COLUMNS.length}, minmax(${HLVA_COL_WIDTH}px, 1fr))`,

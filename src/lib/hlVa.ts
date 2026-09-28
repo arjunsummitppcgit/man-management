@@ -88,18 +88,26 @@ const band = (
 // EZPL and BTFY carry the figures the client gave on 2026-08-25, which differ
 // from the pdf they sent the same day: EZPL 99.5 (pdf said 99.0) and BTFY 87.0
 // (pdf said 99.0). The client's later instruction wins over the pdf.
+//
+// 111/ABOVE is the client's addition (2026-09-28), beyond the pdf — the same
+// move as 221+ on the HON→HL chart. Until it existed, 115/120-count batches
+// matched no band, were saved with a blank grade and landed under MIX on the
+// Grade Vs VA sheet. The client gave no figures for it, so it opens on the
+// 91/110 figures for admins to correct in the panel. The label is the one the
+// Grade Vs VA sheet has always printed for this row, so the two can't drift.
 export const HLVA_YIELD_CHART: HlVaYieldEntry[] = [
-  //      label     min  max     PD  PDTO  PVPDTO  EZPL  BTFY
-  band('13/15',  13,  15,  83.0, 87.0, 87.0, 99.5, 87.0),
-  band('16/20',  16,  20,  83.0, 87.0, 87.0, 99.5, 87.0),
-  band('21/25',  21,  25,  82.0, 87.0, 87.0, 99.5, 87.0),
-  band('26/30',  26,  30,  82.0, 87.0, 87.0, 99.5, 87.0),
-  band('31/40',  31,  40,  81.5, 87.0, 87.0, 99.5, 87.0),
-  band('41/50',  41,  50,  81.0, 87.0, 87.0, 99.5, 87.0),
-  band('51/60',  51,  60,  81.0, 87.0, 87.0, 99.5, 87.0),
-  band('61/70',  61,  70,  80.0, 87.0, 87.0, 99.5, 87.0),
-  band('71/90',  71,  90,  80.0, 86.0, 87.0, 99.5, 87.0),
-  band('91/110', 91, 110,  79.0, 86.0, 87.0, 99.5, 87.0),
+  //      label        min     max     PD  PDTO  PVPDTO  EZPL  BTFY
+  band('13/15',      13,     15,  83.0, 87.0, 87.0, 99.5, 87.0),
+  band('16/20',      16,     20,  83.0, 87.0, 87.0, 99.5, 87.0),
+  band('21/25',      21,     25,  82.0, 87.0, 87.0, 99.5, 87.0),
+  band('26/30',      26,     30,  82.0, 87.0, 87.0, 99.5, 87.0),
+  band('31/40',      31,     40,  81.5, 87.0, 87.0, 99.5, 87.0),
+  band('41/50',      41,     50,  81.0, 87.0, 87.0, 99.5, 87.0),
+  band('51/60',      51,     60,  81.0, 87.0, 87.0, 99.5, 87.0),
+  band('61/70',      61,     70,  80.0, 87.0, 87.0, 99.5, 87.0),
+  band('71/90',      71,     90,  80.0, 86.0, 87.0, 99.5, 87.0),
+  band('91/110',     91,    110,  79.0, 86.0, 87.0, 99.5, 87.0),
+  band('111/ABOVE', 111, 999999,  79.0, 86.0, 87.0, 99.5, 87.0),
 ];
 
 // Which column a variety is measured against — now itself, for every variety

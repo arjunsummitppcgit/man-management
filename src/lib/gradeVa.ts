@@ -7,18 +7,17 @@
 // HL → VA section, which runs it across the whole selected date range and
 // exports it. Both have to agree, down to which grades get a row.
 
-import { HLVA_YIELD_CHART, normaliseVariety } from './hlVa';
+import { HLVA_YIELD_CHART, lookupHlVaCountRange, normaliseVariety } from './hlVa';
 
 /**
  * Fixed grade row labels matching the Pre-Processing register. Derived from the
  * HL→VA standard yield chart (single source of truth) so the rows always match
- * the grades entries are auto-tagged with, wrapped with the jumbo (8/12)
- * boundary and the 111/ABOVE + MIX catch-all rows.
+ * the grades entries are auto-tagged with — 111/ABOVE included, now that it is
+ * a chart band — wrapped with the jumbo (8/12) boundary and the MIX catch-all.
  */
 export const REPORT_GRADE_ORDER = [
   '8/12',
   ...HLVA_YIELD_CHART.map((e) => e.label),
-  '111/ABOVE',
   'MIX',
 ] as const;
 
@@ -31,6 +30,7 @@ export const REPORT_VARIETIES = ['PD', 'PDTO', 'PVPD', 'PVPDTO', 'EZPL', 'PUD', 
 /** The only fields the matrix reads — any HL→VA row shape will do. */
 export interface GradeVaEntry {
   grade?: string;
+  count_text?: string;
   variety?: string;
   va_kgs?: number | string | null;
 }
@@ -61,7 +61,13 @@ export function buildGradeVaMatrix(entries: GradeVaEntry[]): GradeVaMatrix {
   for (const g of REPORT_GRADE_ORDER) map.set(g, new Map());
 
   for (const entry of entries) {
-    const grade = (entry.grade || '').trim() || 'MIX';
+    // A blank stored grade means the count matched no chart band when the row
+    // was saved — not that the batch was mixed. Read it against today's bands
+    // (as the other register views already do), so a band added later picks
+    // up its older rows: the 115/120 counts saved before 111/ABOVE existed.
+    // Only a count that still matches nothing — "MIX G2", blank — is MIX.
+    const grade =
+      (entry.grade || '').trim() || lookupHlVaCountRange(entry.count_text || '') || 'MIX';
     // Normalised, so rows saved under the old 'BTFLY' spelling land in the BTFY
     // column instead of falling outside the fixed column list — which would
     // quietly stop the columns adding up to TOTAL.
