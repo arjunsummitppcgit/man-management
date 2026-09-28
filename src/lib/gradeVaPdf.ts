@@ -10,7 +10,7 @@
 
 import { escapeHtml } from './export';
 import { buildGradeVaMatrix, REPORT_VARIETIES, type GradeVaEntry } from './gradeVa';
-import { formatVaQty } from './hlVa';
+import { formatVaQty, RJ_SUFFIX } from './hlVa';
 
 const DASH = '<span class="gva-nil">-</span>';
 
@@ -70,6 +70,11 @@ export interface GradeVaSheetOptions {
   rangeLabel: string;
   /** Name of the chosen location, when the page is filtered to one. */
   locationLabel?: string;
+  /**
+   * The rejection (RJ) sheet — re-work, printed apart from fresh production.
+   * Same layout; its own title and caption so the two can't be confused.
+   */
+  rejection?: boolean;
 }
 
 /** The sheet as a standalone block of HTML, ready for exportStyledHtmlToPDF. */
@@ -77,7 +82,10 @@ export function gradeVaSheetHtml({
   entries,
   rangeLabel,
   locationLabel,
+  rejection = false,
 }: GradeVaSheetOptions): string {
+  const heading = rejection ? `Rejection (${RJ_SUFFIX}) Grades Vs VA` : 'Grade Vs VA Report';
+  const caption = rejection ? `REJECTION (${RJ_SUFFIX}) GRADES VS (V/A)` : 'GRADES VS (V/A)';
   const { rows, varietyTotals, grandTotal } = buildGradeVaMatrix(entries);
 
   const bodyHtml = rows
@@ -109,7 +117,7 @@ export function gradeVaSheetHtml({
 <div class="gva">
   <div class="gva-head">
     <div>
-      <h1>Grade Vs VA Report</h1>
+      <h1>${heading}</h1>
       <div class="gva-sub">${subtitle}</div>
     </div>
     <div class="gva-brand">
@@ -120,7 +128,7 @@ export function gradeVaSheetHtml({
 
   <div class="gva-tiles">
     <div class="gva-tile t-total">
-      <div class="gva-label">Total VA (Kgs)</div>
+      <div class="gva-label">${rejection ? `${RJ_SUFFIX} VA (Kgs)` : 'Total VA (Kgs)'}</div>
       <div class="gva-value">${kg(grandTotal)}</div>
       <div class="gva-note">across ${gradesWithVa} grade${gradesWithVa === 1 ? '' : 's'}</div>
     </div>
@@ -147,7 +155,7 @@ export function gradeVaSheetHtml({
 
   <div class="gva-frame">
     <table class="gva-table">
-      <caption>GRADES VS (V/A)</caption>
+      <caption>${caption}</caption>
       <colgroup>
         <col style="width:12%" />
         ${REPORT_VARIETIES.map(() => '<col style="width:10.714%" />').join('')}

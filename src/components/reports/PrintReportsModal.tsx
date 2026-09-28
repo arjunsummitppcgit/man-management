@@ -16,7 +16,8 @@ export const DAILY_REPORT_SECTIONS = [
   { key: 'hon-hl', label: 'HON to HL yields', hint: 'Batch-wise yield against the standard' },
   { key: 'company-ladies', label: 'Company Ladies', hint: 'Per-head amount, difference and P&L' },
   { key: 'hl-va', label: 'HL to VA', hint: 'Batch-wise VA yield against the standard' },
-  { key: 'grade-va', label: 'Grade Vs VA Report', hint: 'VA quantity by grade and variety' },
+  { key: 'grade-va', label: 'Grade Vs VA Report', hint: 'Fresh VA quantity by grade and variety' },
+  { key: 'grade-va-rj', label: 'Rejection (RJ) Grades Vs VA', hint: 'Re-work VA by grade and variety, on days with RJ' },
   { key: 'grading-data', label: "All PPC's Grading Data", hint: 'Machine running hours and output' },
   { key: 'labour', label: 'Labour Breakdown', hint: 'Headcount by sub-category per location' },
 ] as const;

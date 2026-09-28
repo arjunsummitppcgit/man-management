@@ -360,6 +360,12 @@ export interface HlVaEntry {
    * before the chart became editable; read those against lib/hlVa.
    */
   std_yield: number | null;
+  /**
+   * A rejection (RJ) batch — VA sent back and re-worked (migration 038). Left
+   * out of Completed VA, VA Target, Head Waste and Plan vs Actual, and shown
+   * apart everywhere else. Read it through isRejectionEntry() in lib/hlVa.
+   */
+  is_rejection: boolean;
   created_at: string;
   updated_at: string;
   // Joined
@@ -374,6 +380,8 @@ export interface HlVaFormRow {
   va_kgs: string;
   location_id: string;
   grader_name: string;
+  /** The RJ tick box. */
+  is_rejection: boolean;
   /** Standard this row was loaded with; undefined on a row being added now. */
   std_yield?: number | null;
   /** Count and variety that stamp belongs to — changing either invalidates it. */

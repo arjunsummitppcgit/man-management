@@ -105,6 +105,8 @@ export function useHlVa() {
       grader_name: string;
       /** The standard in force now, stamped so a later chart edit can't move it. */
       std_yield: number | null;
+      /** The RJ tick box. */
+      is_rejection: boolean;
     }[]
   ) => {
     try {
@@ -127,6 +129,7 @@ export function useHlVa() {
           location_id: row.location_id || null,
           grader_name: row.grader_name,
           std_yield: row.std_yield,
+          is_rejection: row.is_rejection,
         }));
 
         const { error: insertError } = await supabase

@@ -13,6 +13,7 @@ import { betaTool } from '@anthropic-ai/sdk/helpers/beta/json-schema';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ToolResult } from './types';
 import { fetchAllRows } from '@/lib/supabase/fetchAll';
+import { hlVaBatchLabel, stripRejectionMarker } from '@/lib/hlVa';
 import { dayCount, daysPhrase, eachDay, periodLabel, toDdMm, toMonthLabel } from './format';
 
 export interface ToolContext {
@@ -436,11 +437,13 @@ export function buildAssistantTools(ctx: ToolContext) {
       if (err) return err;
       ctx.resolved.date = from === end ? from : `${from} → ${end}`;
 
-      const data = await fetchAllRows<{ grade: string; variety: string; hl_kgs: number; va_kgs: number }>(
+      const data = await fetchAllRows<{
+        grade: string; variety: string; hl_kgs: number; va_kgs: number; is_rejection: boolean;
+      }>(
         (lo, hi) =>
           ctx.supabase
             .from('hl_va_entries')
-            .select('grade, variety, hl_kgs, va_kgs')
+            .select('grade, variety, hl_kgs, va_kgs, is_rejection')
             .gte('work_date', from)
             .lte('work_date', end)
             .order('id')
@@ -448,7 +451,14 @@ export function buildAssistantTools(ctx: ToolContext) {
       );
 
       const byGrade = new Map<string, { hl: number; va: number; entries: number; varieties: Set<string> }>();
+      // Rejection (RJ) re-work is VA counted once already — kept off the sheet,
+      // as the app's own Grade Vs VA does, and only reported as a total beside it.
+      let rjVa = 0;
       for (const r of data) {
+        if (r.is_rejection) {
+          rjVa += Number(r.va_kgs) || 0;
+          continue;
+        }
         const g = r.grade || 'Ungraded';
         const cur = byGrade.get(g) || { hl: 0, va: 0, entries: 0, varieties: new Set<string>() };
         cur.hl += Number(r.hl_kgs) || 0;
@@ -472,11 +482,12 @@ export function buildAssistantTools(ctx: ToolContext) {
       const result: ToolResult = {
         kind: 'table',
         title: 'Value addition by prawn grade',
-        subtitle: `HL input and VA output per grade from HL to VA entries over ${periodLabel(from, end)} (${daysPhrase(from, end)}). VA/HL % is the value-addition yield for that grade; the footer averages it across grades that reported.`,
+        subtitle: `HL input and VA output per grade from HL to VA entries over ${periodLabel(from, end)} (${daysPhrase(from, end)}). VA/HL % is the value-addition yield for that grade; the footer averages it across grades that reported. Fresh production only — rejection (RJ) re-work is excluded.`,
         kpis: [
           { label: 'Total HL', value: totalHl, unit: 'kg' },
           { label: 'Total VA', value: totalVa, unit: 'kg', tone: 'accent' },
           { label: 'Grades', value: rows.length },
+          ...(rjVa > 0 ? [{ label: 'RJ VA (excluded)', value: kg(rjVa), unit: 'kg' }] : []),
         ],
         columns: [
           { key: 'grade', label: 'Grade' },
@@ -707,7 +718,7 @@ export function buildAssistantTools(ctx: ToolContext) {
         fetchAllRows((lo, hi) =>
           ctx.supabase
             .from('hl_va_entries')
-            .select('work_date, batch_id, count_text, grade, variety, hl_kgs, va_kgs, grader_name, location:locations(name)')
+            .select('work_date, batch_id, count_text, grade, variety, hl_kgs, va_kgs, grader_name, is_rejection, location:locations(name)')
             .gte('work_date', from)
             .lte('work_date', end)
             .order('work_date')
@@ -724,7 +735,8 @@ export function buildAssistantTools(ctx: ToolContext) {
       };
       type VaRow = {
         work_date: string; batch_id: string; count_text: string; grade: string; variety: string;
-        hl_kgs: number; va_kgs: number; grader_name: string; location: { name: string } | null;
+        hl_kgs: number; va_kgs: number; grader_name: string; is_rejection: boolean;
+        location: { name: string } | null;
       };
 
       const rows: Record<string, string | number | null>[] = [];
@@ -748,8 +760,9 @@ export function buildAssistantTools(ctx: ToolContext) {
         const inKg = kg(Number(r.hl_kgs) || 0);
         const outKg = kg(Number(r.va_kgs) || 0);
         rows.push({
-          batch: r.batch_id,
-          stage: 'HL→VA',
+          // Rejection re-work is labelled as the app shows it, never as production
+          batch: hlVaBatchLabel(r.batch_id, r.is_rejection),
+          stage: r.is_rejection ? 'HL→VA (RJ re-work)' : 'HL→VA',
           date: r.work_date,
           count: r.count_text || '—',
           detail: [r.variety, r.grade].filter(Boolean).join(' ') || '—',
@@ -763,9 +776,11 @@ export function buildAssistantTools(ctx: ToolContext) {
         String(a.date).localeCompare(String(b.date)) || String(a.batch).localeCompare(String(b.batch))
       );
 
-      const distinct = [...new Set(rows.map((r) => String(r.batch)))];
+      // "26I25/6 RJ" is still batch 26I25/6
+      const distinct = [...new Set(rows.map((r) => stripRejectionMarker(String(r.batch))))];
       const deheaded = [...new Set(rows.filter((r) => r.stage === 'HON→HL').map((r) => String(r.batch)))];
       const valueAdded = [...new Set(rows.filter((r) => r.stage === 'HL→VA').map((r) => String(r.batch)))];
+      const reworked = [...new Set(rows.filter((r) => r.stage !== 'HL→VA' && r.stage !== 'HON→HL').map((r) => String(r.batch)))];
       const scope = location ? ` at ${location}` : '';
 
       const result: ToolResult = {
@@ -776,6 +791,7 @@ export function buildAssistantTools(ctx: ToolContext) {
           { label: 'Batches', value: distinct.length, tone: 'accent' },
           { label: 'De-headed', value: deheaded.length },
           { label: 'Value-added', value: valueAdded.length },
+          ...(reworked.length > 0 ? [{ label: 'RJ re-work', value: reworked.length }] : []),
         ],
         columns: [
           { key: 'batch', label: 'Batch' },
@@ -837,7 +853,7 @@ export function buildAssistantTools(ctx: ToolContext) {
           .order('work_date'),
         ctx.supabase
           .from('hl_va_entries')
-          .select('work_date, batch_id, count_text, grade, variety, hl_kgs, va_kgs, location:locations(name)')
+          .select('work_date, batch_id, count_text, grade, variety, hl_kgs, va_kgs, is_rejection, location:locations(name)')
           .ilike('batch_id', `%${needle}%`)
           .order('work_date'),
       ]);
@@ -850,7 +866,7 @@ export function buildAssistantTools(ctx: ToolContext) {
       };
       type VaRow = {
         work_date: string; batch_id: string; count_text: string; grade: string; variety: string;
-        hl_kgs: number; va_kgs: number; location: { name: string } | null;
+        hl_kgs: number; va_kgs: number; is_rejection: boolean; location: { name: string } | null;
       };
 
       const rows: Record<string, string | number | null>[] = [];
@@ -868,7 +884,9 @@ export function buildAssistantTools(ctx: ToolContext) {
         const inKg = kg(Number(r.hl_kgs) || 0);
         const outKg = kg(Number(r.va_kgs) || 0);
         rows.push({
-          batch: r.batch_id, stage: 'HL→VA', date: r.work_date, count: r.count_text || '—',
+          batch: hlVaBatchLabel(r.batch_id, r.is_rejection),
+          stage: r.is_rejection ? 'HL→VA (RJ re-work)' : 'HL→VA',
+          date: r.work_date, count: r.count_text || '—',
           location: r.location?.name ?? '—',
           detail: [r.variety, r.grade].filter(Boolean).join(' ') || '—',
           in_kgs: inKg, out_kgs: outKg,
@@ -879,8 +897,10 @@ export function buildAssistantTools(ctx: ToolContext) {
         String(a.date).localeCompare(String(b.date)) || String(a.stage).localeCompare(String(b.stage))
       );
 
-      const matched = [...new Set(rows.map((r) => String(r.batch)))];
+      // One batch, whether or not some of it came back as RJ
+      const matched = [...new Set(rows.map((r) => stripRejectionMarker(String(r.batch))))];
       const totalHon = kg(rows.filter((r) => r.stage === 'HON→HL').reduce((sum, r) => sum + Number(r.in_kgs || 0), 0));
+      // Fresh VA only — RJ re-work is this batch's VA coming round a second time
       const totalVa = kg(rows.filter((r) => r.stage === 'HL→VA').reduce((sum, r) => sum + Number(r.out_kgs || 0), 0));
       const dates = [...new Set(rows.map((r) => String(r.date)))].sort();
       const locations = [...new Set(rows.map((r) => String(r.location)))];

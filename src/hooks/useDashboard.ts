@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase/client';
 import type { DashboardKPIs, LocationBreakdown } from '@/types';
 import { format, parseISO, startOfMonth, endOfMonth, subDays } from 'date-fns';
 import { getDaysRemainingInMonth, calculateDailyAverage } from '@/lib/utils';
-import { lookupHlVaCountRange } from '@/lib/hlVa';
+import { lookupHlVaCountRange, isRejectionEntry } from '@/lib/hlVa';
 
 /** Row shape of the supervisor-assignment select, including its embedded relations. */
 interface AssignmentRow {
@@ -238,7 +238,7 @@ export function useDashboard() {
       // ──────────────────────────────────────────
       const { data: yesterdayHlVaData, error: yesterdayHlVaError } = await supabase
         .from('hl_va_entries')
-        .select('grade, count_text, va_kgs')
+        .select('grade, count_text, va_kgs, is_rejection')
         .eq('work_date', yesterdayDate);
 
       if (yesterdayHlVaError) throw yesterdayHlVaError;
@@ -247,6 +247,9 @@ export function useDashboard() {
       let yesterdayTopGradeQty = 0;
       const gradeTotals = new Map<string, number>();
       (yesterdayHlVaData || []).forEach((row) => {
+        // Fresh production only, like Completed VA beside it — RJ re-work isn't
+        // a grade the day produced.
+        if (isRejectionEntry(row)) return;
         // Blank grade = the count matched no band when saved; read it against
         // today's bands, as the reports do.
         const grade = row.grade || lookupHlVaCountRange(row.count_text || '') || 'Unknown';

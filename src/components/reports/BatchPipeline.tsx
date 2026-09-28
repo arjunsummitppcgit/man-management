@@ -5,7 +5,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useYield } from '@/hooks/useYield';
 import { useHlVa } from '@/hooks/useHlVa';
 import { calculateYield, standardForYieldEntry, calculateYieldDifference } from '@/lib/yieldChart';
-import { standardForHlVaEntry, lookupHlVaCountRange } from '@/lib/hlVa';
+import { standardForHlVaEntry, lookupHlVaCountRange, isRejectionEntry, RJ_SUFFIX } from '@/lib/hlVa';
 
 /**
  * Look one Batch ID up across every date and show both processing stages side
@@ -40,17 +40,23 @@ export default function BatchPipeline() {
   }, [honHlBatch]);
   const honHlBatchYield = calculateYield(honHlBatchTotals.hon, honHlBatchTotals.hl);
 
+  // Fresh production and rejection (RJ) re-work of the same batch apart: the
+  // re-work is VA this batch already produced once, so one total would count it
+  // twice.
   const hlVaBatchTotals = useMemo(() => {
     return hlVaBatch.reduce(
       (acc, e) => {
-        acc.hl += Number(e.hl_kgs) || 0;
-        acc.va += Number(e.va_kgs) || 0;
+        const t = isRejectionEntry(e) ? acc.rj : acc;
+        t.hl += Number(e.hl_kgs) || 0;
+        t.va += Number(e.va_kgs) || 0;
+        t.rows += 1;
         return acc;
       },
-      { hl: 0, va: 0 }
+      { hl: 0, va: 0, rows: 0, rj: { hl: 0, va: 0, rows: 0 } }
     );
   }, [hlVaBatch]);
   const hlVaBatchYield = calculateYield(hlVaBatchTotals.hl, hlVaBatchTotals.va);
+  const hlVaBatchRjYield = calculateYield(hlVaBatchTotals.rj.hl, hlVaBatchTotals.rj.va);
 
   return (
     <>
@@ -204,9 +210,15 @@ export default function BatchPipeline() {
                         const stdYield = standardForHlVaEntry(entry);
                         const diff = calculateYieldDifference(yieldPct, stdYield);
                         const grade = entry.grade || lookupHlVaCountRange(entry.count_text) || '-';
+                        const isRj = isRejectionEntry(entry);
                         return (
-                          <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group">
-                            <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800/80 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">{entry.batch_id}</td>
+                          <tr key={entry.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group ${isRj ? 'bg-rose-50' : ''}`}>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800/80 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">
+                              {entry.batch_id}
+                              {isRj && (
+                                <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-[10px] font-extrabold align-middle">{RJ_SUFFIX}</span>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{entry.work_date}</td>
                             <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{entry.count_text}</td>
                             <td className="px-4 py-3 text-sm whitespace-nowrap">
@@ -231,8 +243,8 @@ export default function BatchPipeline() {
                     </tbody>
                     <tfoot>
                       <tr className="bg-indigo-50 dark:bg-indigo-900/30 border-t-2 border-indigo-100 dark:border-indigo-800">
-                        <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap sticky left-0 sticky-col-indigo z-10 shadow-[1px_0_0_0_#e0e7ff] dark:shadow-[1px_0_0_0_#3730a3]">TOTALS</td>
-                        <td className="px-4 py-3 text-sm text-indigo-800 dark:text-indigo-300 whitespace-nowrap">{hlVaBatch.length} entries</td>
+                        <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap sticky left-0 sticky-col-indigo z-10 shadow-[1px_0_0_0_#e0e7ff] dark:shadow-[1px_0_0_0_#3730a3]">{hlVaBatchTotals.rj.rows > 0 ? 'FRESH' : 'TOTALS'}</td>
+                        <td className="px-4 py-3 text-sm text-indigo-800 dark:text-indigo-300 whitespace-nowrap">{hlVaBatchTotals.rows} entries</td>
                         <td className="px-4 py-3"></td>
                         <td className="px-4 py-3"></td>
                         <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap text-right">{hlVaBatchTotals.hl.toFixed(3)}</td>
@@ -243,6 +255,21 @@ export default function BatchPipeline() {
                         <td className="px-4 py-3"></td>
                         <td className="px-4 py-3"></td>
                       </tr>
+                      {hlVaBatchTotals.rj.rows > 0 && (
+                        <tr className="bg-rose-50 dark:bg-rose-900/30 border-t border-rose-100 dark:border-rose-800">
+                          <td className="px-4 py-3 text-sm font-bold text-rose-700 dark:text-rose-300 whitespace-nowrap sticky left-0 sticky-th-rose z-10">{RJ_SUFFIX}</td>
+                          <td className="px-4 py-3 text-sm text-rose-700 dark:text-rose-300 whitespace-nowrap">{hlVaBatchTotals.rj.rows} entries</td>
+                          <td className="px-4 py-3"></td>
+                          <td className="px-4 py-3"></td>
+                          <td className="px-4 py-3 text-sm font-bold text-rose-700 dark:text-rose-300 whitespace-nowrap text-right">{hlVaBatchTotals.rj.hl.toFixed(3)}</td>
+                          <td className="px-4 py-3 text-sm font-bold text-rose-700 dark:text-rose-300 whitespace-nowrap text-right">{hlVaBatchTotals.rj.va.toFixed(3)}</td>
+                          <td className="px-4 py-3"></td>
+                          <td className="px-4 py-3"></td>
+                          <td className="px-4 py-3 text-sm font-bold text-rose-700 dark:text-rose-300 whitespace-nowrap text-right">{hlVaBatchRjYield !== null ? `${hlVaBatchRjYield.toFixed(2)}%` : '-'}</td>
+                          <td className="px-4 py-3"></td>
+                          <td className="px-4 py-3"></td>
+                        </tr>
+                      )}
                     </tfoot>
                   </table>
                 </div>

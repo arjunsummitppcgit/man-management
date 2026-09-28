@@ -24,7 +24,16 @@ import { useYieldStandards } from '@/hooks/useYieldStandards';
 import { supabase } from '@/lib/supabase/client';
 import { GRADING_UNITS, runningHours, formatHours } from '@/lib/grading';
 import { lookupCountRange, calculateYield, calculateYieldDifference, standardForYieldFormRow } from '@/lib/yieldChart';
-import { VA_VARIETIES, lookupHlVaCountRange, standardForHlVaFormRow } from '@/lib/hlVa';
+import {
+  VA_VARIETIES,
+  lookupHlVaCountRange,
+  standardForHlVaFormRow,
+  hasRejectionMarker,
+  hlVaRowIsRejection,
+  stripRejectionMarker,
+  isRejectionEntry,
+  RJ_SUFFIX,
+} from '@/lib/hlVa';
 import DailyPlanSheet from '@/components/reports/DailyPlanSheet';
 import StandardYieldPanel from '@/components/daily-entry/StandardYieldPanel';
 import type {
@@ -409,6 +418,7 @@ export default function DailyEntryPage() {
     va_kgs: '',
     location_id: '',
     grader_name: '',
+    is_rejection: false,
   }), []);
   const [hlVaRows, setHlVaRows] = useState<HlVaFormRow[]>([]);
 
@@ -532,6 +542,7 @@ export default function DailyEntryPage() {
         std_yield: e.std_yield,
         stamped_count: e.count_text,
         stamped_variety: e.variety,
+        is_rejection: isRejectionEntry(e),
       })));
     } else if (activeTab === 'hl_va') {
       setHlVaRows([emptyHlVaRow()]);
@@ -770,6 +781,23 @@ export default function DailyEntryPage() {
     }
   }, [selectedDate]);
 
+  // HL to VA running totals, fresh production and rejections (RJ) apart — the
+  // same split every report makes, so the day reads here as it will there.
+  const hlVaFormTotals = React.useMemo(() => {
+    const fresh = { hl: 0, va: 0, batches: 0 };
+    const rj = { hl: 0, va: 0, batches: 0 };
+    hlVaRows.forEach((r) => {
+      const hl = parseFloat(r.hl_kgs) || 0;
+      const va = parseFloat(r.va_kgs) || 0;
+      if (hl <= 0 && va <= 0) return;
+      const t = hlVaRowIsRejection(r) ? rj : fresh;
+      t.hl += hl;
+      t.va += va;
+      t.batches += 1;
+    });
+    return { fresh, rj };
+  }, [hlVaRows]);
+
   const handleSave = () => {
     if (!selectedLocation) return;
     // A popup, not a toast: someone who cannot save has to be stopped and told
@@ -850,16 +878,23 @@ export default function DailyEntryPage() {
       } else if (activeTab === 'hl_va') {
         const validRows = hlVaRows
           .filter((r) => r.batch_id.trim() !== '')
-          .map((r) => ({
-            batch_id: r.batch_id,
-            count_text: r.count_text,
-            variety: r.variety,
-            hl_kgs: Math.max(0, parseFloat(r.hl_kgs) || 0),
-            va_kgs: Math.max(0, parseFloat(r.va_kgs) || 0),
-            location_id: r.location_id || locations[0]?.id || '',
-            grader_name: r.grader_name,
-            std_yield: standardForHlVaFormRow(r, hlVaChart),
-          }));
+          .map((r) => {
+            const rejection = hlVaRowIsRejection(r);
+            return {
+              // A rejection's "RJ" lives in the tick box, not the id: a batch
+              // saved as "26I25/6RJ" would drop out of Batch Pipeline's search
+              // for 26I25/6. The register adds the RJ back wherever it shows it.
+              batch_id: rejection ? stripRejectionMarker(r.batch_id) : r.batch_id,
+              count_text: r.count_text,
+              variety: r.variety,
+              hl_kgs: Math.max(0, parseFloat(r.hl_kgs) || 0),
+              va_kgs: Math.max(0, parseFloat(r.va_kgs) || 0),
+              location_id: r.location_id || locations[0]?.id || '',
+              grader_name: r.grader_name,
+              std_yield: standardForHlVaFormRow(r, hlVaChart),
+              is_rejection: rejection,
+            };
+          });
         await saveHlVaEntries(selectedDate, validRows);
       } else if (activeTab === 'grading') {
         const unitKind = new Map(GRADING_UNITS.map((u) => [u.key, u.kind]));
@@ -2245,6 +2280,9 @@ export default function DailyEntryPage() {
                     <h3 className="text-sm font-semibold text-indigo-800">HL to VA</h3>
                   </div>
                   <p className="text-xs text-indigo-700">Enter batch-wise HL to VA quantities. Grade is auto-picked from Count, and Std % from the standard chart based on Count and Variety. Yield = VA / HL x 100.</p>
+                  <p className="text-xs text-indigo-700 mt-1">
+                    Tick <span className="font-bold">{RJ_SUFFIX}</span> for a rejection batch (re-work): type the batch ID and count as usual, and the batch is shown as &ldquo;Batch ID {RJ_SUFFIX}&rdquo;. Rejections are kept out of Completed VA and reported separately. Typing RJ in the Count ticks it for you.
+                  </p>
                 </div>
 
                 <StandardYieldPanel
@@ -2258,10 +2296,16 @@ export default function DailyEntryPage() {
 
                 {/* HL to VA Grid */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
-                  <div className="min-w-[1080px] p-3">
+                  <div className="min-w-[1125px] p-3">
                     {/* Header row */}
-                    <div className="grid grid-cols-[110px_90px_95px_85px_85px_110px_80px_100px_60px_60px_70px_32px] gap-1.5 mb-2 px-1 border-b border-gray-100 pb-2">
+                    <div className="grid grid-cols-[110px_40px_90px_95px_85px_85px_110px_80px_100px_60px_60px_70px_32px] gap-1.5 mb-2 px-1 border-b border-gray-100 pb-2">
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Batch ID</span>
+                      <span
+                        className="text-[10px] font-semibold text-rose-600 uppercase tracking-wider text-center"
+                        title="Rejection batch — VA sent back and re-worked. Kept out of Completed VA and shown apart in every report."
+                      >
+                        {RJ_SUFFIX}
+                      </span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Count</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-left">Variety</span>
                       <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">HL (KGS)</span>
@@ -2284,6 +2328,10 @@ export default function DailyEntryPage() {
                         const stdYield = standardForHlVaFormRow(row, hlVaChart);
                         const grade = lookupHlVaCountRange(row.count_text);
                         const yieldDiff = calculateYieldDifference(yieldPct, stdYield);
+                        const isRj = hlVaRowIsRejection(row);
+                        // RJ typed into the Count or Batch ID holds the box on —
+                        // the database flags such a row on save whatever the box says.
+                        const rjForced = hasRejectionMarker(row.batch_id, row.count_text);
 
                         const handleKeyDown = (e: React.KeyboardEvent, colIdx: number) => {
                           let nextRow = idx;
@@ -2291,7 +2339,7 @@ export default function DailyEntryPage() {
                           if (e.key === 'ArrowUp') nextRow = Math.max(0, idx - 1);
                           else if (e.key === 'ArrowDown') nextRow = Math.min(hlVaRows.length - 1, idx + 1);
                           else if (e.key === 'ArrowLeft') nextCol = Math.max(0, colIdx - 1);
-                          else if (e.key === 'ArrowRight') nextCol = Math.min(6, colIdx + 1);
+                          else if (e.key === 'ArrowRight') nextCol = Math.min(7, colIdx + 1);
                           else return;
 
                           if (nextRow !== idx || nextCol !== colIdx) {
@@ -2302,33 +2350,59 @@ export default function DailyEntryPage() {
                         };
 
                         return (
-                          <div key={idx} className="grid grid-cols-[110px_90px_95px_85px_85px_110px_80px_100px_60px_60px_70px_32px] gap-1.5 items-center group">
-                            {/* Batch ID */}
-                            <input
-                              id={`hlva-${idx}-0`}
-                              type="text"
-                              value={row.batch_id}
-                              onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, batch_id: e.target.value } : r))}
-                              onKeyDown={(e) => handleKeyDown(e, 0)}
-                              placeholder="Batch ID"
-                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
-                            />
+                          <div key={idx} className={`grid grid-cols-[110px_40px_90px_95px_85px_85px_110px_80px_100px_60px_60px_70px_32px] gap-1.5 items-center group rounded-lg ${isRj ? 'bg-rose-50' : ''}`}>
+                            {/* Batch ID — shown with its RJ, saved without it */}
+                            <div className="relative">
+                              <input
+                                id={`hlva-${idx}-0`}
+                                type="text"
+                                value={row.batch_id}
+                                onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, batch_id: e.target.value } : r))}
+                                onKeyDown={(e) => handleKeyDown(e, 0)}
+                                placeholder="Batch ID"
+                                className={`w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 ${isRj && !hasRejectionMarker(row.batch_id, '') ? 'pr-8' : ''}`}
+                              />
+                              {isRj && !hasRejectionMarker(row.batch_id, '') && (
+                                <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 px-1 py-0.5 rounded bg-rose-100 text-rose-700 text-[9px] font-extrabold tracking-wide">
+                                  {RJ_SUFFIX}
+                                </span>
+                              )}
+                            </div>
+                            {/* RJ — rejection (re-work) batch */}
+                            <label
+                              className="flex items-center justify-center h-full cursor-pointer"
+                              title={
+                                rjForced
+                                  ? 'RJ is typed in the Count / Batch ID — remove it there to untick'
+                                  : 'Rejection batch (re-work): kept out of Completed VA and reported separately'
+                              }
+                            >
+                              <input
+                                id={`hlva-${idx}-1`}
+                                type="checkbox"
+                                checked={isRj}
+                                onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, is_rejection: e.target.checked } : r))}
+                                onKeyDown={(e) => handleKeyDown(e, 1)}
+                                aria-label={`Rejection batch, row ${idx + 1}`}
+                                className={`w-4 h-4 accent-rose-600 cursor-pointer ${rjForced ? 'opacity-60' : ''}`}
+                              />
+                            </label>
                             {/* Count */}
                             <input
-                              id={`hlva-${idx}-1`}
+                              id={`hlva-${idx}-2`}
                               type="text"
                               value={row.count_text}
                               onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, count_text: e.target.value } : r))}
-                              onKeyDown={(e) => handleKeyDown(e, 1)}
+                              onKeyDown={(e) => handleKeyDown(e, 2)}
                               placeholder="Count"
                               className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
                             />
                             {/* Variety */}
                             <select
-                              id={`hlva-${idx}-2`}
+                              id={`hlva-${idx}-3`}
                               value={row.variety}
                               onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, variety: e.target.value } : r))}
-                              onKeyDown={(e) => handleKeyDown(e, 2)}
+                              onKeyDown={(e) => handleKeyDown(e, 3)}
                               className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 focus:border-teal-500 appearance-none"
                             >
                               <option value="">Variety...</option>
@@ -2338,34 +2412,34 @@ export default function DailyEntryPage() {
                             </select>
                             {/* HL (KGS) */}
                             <input
-                              id={`hlva-${idx}-3`}
+                              id={`hlva-${idx}-4`}
                               type="number"
                               inputMode="decimal"
                               step="0.001"
                               value={row.hl_kgs}
                               onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, hl_kgs: e.target.value } : r))}
-                              onKeyDown={(e) => handleKeyDown(e, 3)}
+                              onKeyDown={(e) => handleKeyDown(e, 4)}
                               placeholder="0.000"
                               className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
                             />
                             {/* VA (KGS) */}
                             <input
-                              id={`hlva-${idx}-4`}
+                              id={`hlva-${idx}-5`}
                               type="number"
                               inputMode="decimal"
                               step="0.001"
                               value={row.va_kgs}
                               onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, va_kgs: e.target.value } : r))}
-                              onKeyDown={(e) => handleKeyDown(e, 4)}
+                              onKeyDown={(e) => handleKeyDown(e, 5)}
                               placeholder="0.000"
                               className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 text-right placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
                             />
                             {/* Location */}
                             <select
-                              id={`hlva-${idx}-5`}
+                              id={`hlva-${idx}-6`}
                               value={row.location_id}
                               onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, location_id: e.target.value } : r))}
-                              onKeyDown={(e) => handleKeyDown(e, 5)}
+                              onKeyDown={(e) => handleKeyDown(e, 6)}
                               className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 focus:border-teal-500 appearance-none"
                             >
                               <option value="">Location...</option>
@@ -2379,11 +2453,11 @@ export default function DailyEntryPage() {
                             </span>
                             {/* Grader Name */}
                             <input
-                              id={`hlva-${idx}-6`}
+                              id={`hlva-${idx}-7`}
                               type="text"
                               value={row.grader_name}
                               onChange={(e) => setHlVaRows((prev) => prev.map((r, i) => i === idx ? { ...r, grader_name: e.target.value } : r))}
-                              onKeyDown={(e) => handleKeyDown(e, 6)}
+                              onKeyDown={(e) => handleKeyDown(e, 7)}
                               placeholder="Name"
                               className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
                             />
@@ -2427,29 +2501,45 @@ export default function DailyEntryPage() {
                     {/* Running totals — kept in the grid so each sum sits under
                         the column it belongs to as more batches are added. */}
                     {(() => {
-                      const totalHl = hlVaRows.reduce((s, r) => s + (parseFloat(r.hl_kgs) || 0), 0);
-                      const totalVa = hlVaRows.reduce((s, r) => s + (parseFloat(r.va_kgs) || 0), 0);
-                      const overall = calculateYield(totalHl, totalVa);
-                      const filled = hlVaRows.filter((r) => parseFloat(r.hl_kgs) > 0 || parseFloat(r.va_kgs) > 0).length;
+                      // Fresh production and rejections never share a total —
+                      // RJ is re-work of VA already counted once.
+                      const { fresh, rj } = hlVaFormTotals;
+                      const hasRj = rj.batches > 0;
+                      const line = (
+                        t: typeof fresh,
+                        label: string,
+                        tone: 'indigo' | 'rose',
+                        first: boolean
+                      ) => {
+                        const overall = calculateYield(t.hl, t.va);
+                        const text = tone === 'rose' ? 'text-rose-700' : 'text-indigo-800';
+                        return (
+                          <div className={`grid grid-cols-[110px_40px_90px_95px_85px_85px_110px_80px_100px_60px_60px_70px_32px] gap-1.5 items-center ${first ? 'mt-2 pt-2 border-t-2 border-indigo-100' : 'mt-1'}`}>
+                            <span className={`text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${tone === 'rose' ? 'text-rose-700' : 'text-indigo-700'}`}>
+                              {label} · {t.batches} batch{t.batches === 1 ? '' : 'es'}
+                            </span>
+                            <span />
+                            <span />
+                            <span />
+                            <span className={`text-xs font-extrabold text-right px-1 ${text}`}>{t.hl.toFixed(3)}</span>
+                            <span className={`text-xs font-extrabold text-right px-1 ${text}`}>{t.va.toFixed(3)}</span>
+                            <span />
+                            <span />
+                            <span />
+                            <span className={`text-[11px] font-extrabold text-right px-1 ${tone === 'rose' ? 'text-rose-700' : 'text-teal-700'}`}>
+                              {overall !== null ? `${overall.toFixed(2)}%` : '-'}
+                            </span>
+                            <span />
+                            <span />
+                            <span />
+                          </div>
+                        );
+                      };
                       return (
-                        <div className="grid grid-cols-[110px_90px_95px_85px_85px_110px_80px_100px_60px_60px_70px_32px] gap-1.5 items-center mt-2 pt-2 border-t-2 border-indigo-100">
-                          <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
-                            Total · {filled} batch{filled === 1 ? '' : 'es'}
-                          </span>
-                          <span />
-                          <span />
-                          <span className="text-xs font-extrabold text-right px-1 text-indigo-800">{totalHl.toFixed(3)}</span>
-                          <span className="text-xs font-extrabold text-right px-1 text-indigo-800">{totalVa.toFixed(3)}</span>
-                          <span />
-                          <span />
-                          <span />
-                          <span className="text-[11px] font-extrabold text-right px-1 text-teal-700">
-                            {overall !== null ? `${overall.toFixed(2)}%` : '-'}
-                          </span>
-                          <span />
-                          <span />
-                          <span />
-                        </div>
+                        <>
+                          {line(fresh, hasRj ? 'Fresh' : 'Total', 'indigo', true)}
+                          {hasRj && line(rj, RJ_SUFFIX, 'rose', false)}
+                        </>
                       );
                     })()}
                   </div>
@@ -2475,31 +2565,46 @@ export default function DailyEntryPage() {
                       <span className="text-sm font-semibold text-indigo-700">Totals</span>
                       <span className="ml-auto px-2 py-0.5 bg-indigo-600 text-white rounded-full text-[10px] font-bold">
                         {hlVaRows.filter((r) => r.batch_id.trim() !== '').length} batches
+                        {hlVaFormTotals.rj.batches > 0 && ` · ${hlVaFormTotals.rj.batches} ${RJ_SUFFIX}`}
                       </span>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
+                    {/* Fresh production only — the RJ tile beside it is re-work,
+                        which Completed VA leaves out. */}
+                    <div className={`grid gap-3 ${hlVaFormTotals.rj.batches > 0 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-3'}`}>
                       <div className="bg-white/70 rounded-xl px-3 py-2.5 text-center">
-                        <p className="text-[10px] text-indigo-600 font-medium uppercase tracking-wide">Total HL</p>
+                        <p className="text-[10px] text-indigo-600 font-medium uppercase tracking-wide">
+                          {hlVaFormTotals.rj.batches > 0 ? 'Fresh HL' : 'Total HL'}
+                        </p>
                         <p className="text-lg font-bold text-indigo-800">
-                          {hlVaRows.reduce((sum, r) => sum + (parseFloat(r.hl_kgs) || 0), 0).toFixed(1)} kg
+                          {hlVaFormTotals.fresh.hl.toFixed(1)} kg
                         </p>
                       </div>
                       <div className="bg-white/70 rounded-xl px-3 py-2.5 text-center">
-                        <p className="text-[10px] text-indigo-600 font-medium uppercase tracking-wide">Total VA</p>
+                        <p className="text-[10px] text-indigo-600 font-medium uppercase tracking-wide">
+                          {hlVaFormTotals.rj.batches > 0 ? 'Fresh VA' : 'Total VA'}
+                        </p>
                         <p className="text-lg font-bold text-indigo-800">
-                          {hlVaRows.reduce((sum, r) => sum + (parseFloat(r.va_kgs) || 0), 0).toFixed(1)} kg
+                          {hlVaFormTotals.fresh.va.toFixed(1)} kg
                         </p>
                       </div>
                       <div className="bg-white/70 rounded-xl px-3 py-2.5 text-center">
                         <p className="text-[10px] text-indigo-600 font-medium uppercase tracking-wide">Overall Yield</p>
                         <p className="text-lg font-bold text-indigo-800">
-                          {(() => {
-                            const totalHl = hlVaRows.reduce((sum, r) => sum + (parseFloat(r.hl_kgs) || 0), 0);
-                            const totalVa = hlVaRows.reduce((sum, r) => sum + (parseFloat(r.va_kgs) || 0), 0);
-                            return totalHl > 0 ? `${((totalVa / totalHl) * 100).toFixed(2)}%` : '-';
-                          })()}
+                          {hlVaFormTotals.fresh.hl > 0
+                            ? `${((hlVaFormTotals.fresh.va / hlVaFormTotals.fresh.hl) * 100).toFixed(2)}%`
+                            : '-'}
                         </p>
                       </div>
+                      {hlVaFormTotals.rj.batches > 0 && (
+                        <div className="bg-rose-50 rounded-xl px-3 py-2.5 text-center">
+                          <p className="text-[10px] text-rose-600 font-medium uppercase tracking-wide">Rejection ({RJ_SUFFIX}) VA</p>
+                          <p className="text-lg font-bold text-rose-700">{hlVaFormTotals.rj.va.toFixed(1)} kg</p>
+                          <p className="text-[10px] text-rose-600 font-medium">
+                            from {hlVaFormTotals.rj.hl.toFixed(1)} kg HL
+                            {hlVaFormTotals.rj.hl > 0 && ` · ${((hlVaFormTotals.rj.va / hlVaFormTotals.rj.hl) * 100).toFixed(2)}%`}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

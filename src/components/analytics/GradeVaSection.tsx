@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import GradeVaReport from '@/components/reports/GradeVaReport';
 import { ExportButtons } from './shared';
 import { buildGradeVaMatrix, REPORT_VARIETIES, type GradeVaEntry } from '@/lib/gradeVa';
-import { formatVaQty } from '@/lib/hlVa';
+import { formatVaQty, RJ_SUFFIX } from '@/lib/hlVa';
 import { gradeVaSheetHtml } from '@/lib/gradeVaPdf';
 import { exportStyledHtmlToPDF, type ExportCell } from '@/lib/export';
 
@@ -27,6 +27,7 @@ export default function GradeVaSection({
   fromDate,
   toDate,
   locationLabel,
+  rejection = false,
 }: {
   /** HL→VA rows for the range, already narrowed to the chosen location. */
   entries: GradeVaEntry[];
@@ -35,6 +36,8 @@ export default function GradeVaSection({
   toDate: string;
   /** Name of the chosen location, when the page is filtered to one. */
   locationLabel?: string;
+  /** The rejection (RJ) sheet: `entries` are RJ rows, printed under their own title. */
+  rejection?: boolean;
 }) {
   const { rows, varietyTotals, grandTotal } = useMemo(() => buildGradeVaMatrix(entries), [entries]);
 
@@ -70,15 +73,17 @@ export default function GradeVaSection({
     return { exportRows: text, excelRows: nums };
   }, [rows, varietyTotals, grandTotal]);
 
-  const title = `Grade Vs VA Report — ${rangeLabel}${locationLabel ? ` · ${locationLabel}` : ''}`;
+  const title = `${rejection ? `Rejection (${RJ_SUFFIX}) Grades Vs VA` : 'Grade Vs VA Report'} — ${rangeLabel}${locationLabel ? ` · ${locationLabel}` : ''}`;
+  const stem = rejection ? 'rejection-grade-vs-va' : 'grade-vs-va';
   const filename =
-    fromDate === toDate ? `grade-vs-va-${fromDate}` : `grade-vs-va-${fromDate}-to-${toDate}`;
+    fromDate === toDate ? `${stem}-${fromDate}` : `${stem}-${fromDate}-to-${toDate}`;
 
   return (
     <GradeVaReport
       entries={entries}
       date={toDate}
       dateLabel={rangeLabel}
+      rejection={rejection}
       actions={
         <ExportButtons
           title={title}
@@ -92,7 +97,7 @@ export default function GradeVaSection({
           // of its own instead, in the house style of the printed summaries.
           onPdf={() =>
             exportStyledHtmlToPDF(
-              gradeVaSheetHtml({ entries, rangeLabel, locationLabel }),
+              gradeVaSheetHtml({ entries, rangeLabel, locationLabel, rejection }),
               filename
             )
           }

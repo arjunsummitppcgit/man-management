@@ -231,6 +231,74 @@ export function standardForHlVaFormRow(
   return lookupHlVaStandardYield(row.count_text, row.variety, chart);
 }
 
+// ─── Rejection (RJ) batches ──────────────────────────────────────────────────
+// A rejection batch is VA product sent back and re-worked. Since migration 038
+// it is a tick box on the register (hl_va_entries.is_rejection), and the batch
+// id stays the real batch id — so Batch Pipeline, the RZ / Summit split and the
+// plan still find it — with "RJ" added only where the batch is shown.
+//
+// Re-work is not counted as production twice: Completed VA, VA Target, Head
+// Waste and Plan vs Actual leave RJ rows out, and every report that lists them
+// shows them apart. It IS measured against the same standard yield chart.
+
+/** What the app appends to a rejection batch's id wherever it is shown. */
+export const RJ_SUFFIX = 'RJ';
+
+/**
+ * The floor's own way of writing RJ before the tick box existed: "40 RJ",
+ * "31/40RJ", "50R/J", "26/30RJFC" in the Count, or a Batch ID ending in RJ.
+ * The marker must not follow a letter, so it can't be read out of a word.
+ *
+ * Same rule as hl_va_flag_rejection_marker() in migration 038, which flags
+ * such a row whatever wrote it — change the two together.
+ */
+const COUNT_RJ_MARKER = /(^|[^A-Za-z])R\s*[/.-]?\s*J/i;
+const BATCH_RJ_MARKER = /(^|[^A-Za-z])R\s*[/.-]?\s*J\s*$/i;
+
+/** Does the typed Count or Batch ID already say this is a rejection? */
+export function hasRejectionMarker(batchId: string, countText: string): boolean {
+  return COUNT_RJ_MARKER.test(countText || '') || BATCH_RJ_MARKER.test(batchId || '');
+}
+
+/**
+ * The batch id without a trailing RJ someone typed into it — the tick box
+ * carries that now, and "26I25/6RJ" would never match "26I25/6" in a search.
+ * A batch id that is nothing but "RJ" is left alone rather than saved blank.
+ */
+export function stripRejectionMarker(batchId: string): string {
+  const stripped = (batchId || '')
+    .replace(BATCH_RJ_MARKER, '$1')
+    // "26I25/6-RJ" leaves its separator behind
+    .replace(/[\s\-_.]+$/, '')
+    .trim();
+  return stripped || (batchId || '').trim();
+}
+
+/**
+ * A row on the Daily Entry form is RJ when its box is ticked or its Count /
+ * Batch ID carries the marker. The marker can't be unticked — the database
+ * would flag the row on save regardless — so the form shows it forced on.
+ */
+export function hlVaRowIsRejection(row: {
+  is_rejection: boolean;
+  batch_id: string;
+  count_text: string;
+}): boolean {
+  return row.is_rejection || hasRejectionMarker(row.batch_id, row.count_text);
+}
+
+/** A saved HL→VA row is a rejection exactly when its flag says so. */
+export function isRejectionEntry(entry: { is_rejection?: boolean | null }): boolean {
+  return entry.is_rejection === true;
+}
+
+/** The batch as the register shows it: "26I25/6 RJ" for a rejection. */
+export function hlVaBatchLabel(batchId: string, isRejection: boolean | null | undefined): string {
+  const id = (batchId || '').trim();
+  if (!isRejection || BATCH_RJ_MARKER.test(id)) return id;
+  return id ? `${id} ${RJ_SUFFIX}` : RJ_SUFFIX;
+}
+
 // Indian-style grouping to match the register (e.g. 2,10,178.000)
 export function formatVaQty(value: number): string {
   if (!value) return '-';

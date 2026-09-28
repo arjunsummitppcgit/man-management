@@ -17,6 +17,7 @@
 // in the waste base.
 
 import type { YieldEntry, HlVaEntry } from '@/types';
+import { isRejectionEntry } from './hlVa';
 
 export const HEAD_WASTE_RATE = 0.32; // of HON processed
 export const VA_WASTE_RATE = 0.18;   // of HL consumed
@@ -138,6 +139,10 @@ export function buildHeadWasteStatement(
   });
 
   hlVaEntries.forEach((e) => {
+    // Rejection (RJ) re-work takes back VA that was already peeled: its HL was
+    // wasted down once, on the fresh run, and counting it again would charge
+    // the shell/vein waste twice.
+    if (isRejectionEntry(e)) return;
     const row = bucket(e.location?.name);
     if (!row) return;
     const hl = Number(e.hl_kgs) || 0;
@@ -207,6 +212,9 @@ export function buildHeadWasteByDate(
     if (isInHouseLocation(e.location?.name)) bucket(workDay(e.work_date)).yields.push(e);
   });
   hlVaEntries.forEach((e) => {
+    // RJ re-work holds no waste of its own (see buildHeadWasteStatement), so a
+    // day of nothing but re-work shouldn't open a date either.
+    if (isRejectionEntry(e)) return;
     if (isInHouseLocation(e.location?.name)) bucket(workDay(e.work_date)).hlVa.push(e);
   });
 

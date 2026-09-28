@@ -10,7 +10,14 @@ import { useYield } from '@/hooks/useYield';
 import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useHlVa } from '@/hooks/useHlVa';
 import { calculateYield, standardForYieldEntry, calculateYieldDifference } from '@/lib/yieldChart';
-import { formatVaQty, standardForHlVaEntry, lookupHlVaCountRange } from '@/lib/hlVa';
+import {
+  formatVaQty,
+  standardForHlVaEntry,
+  lookupHlVaCountRange,
+  isRejectionEntry,
+  hlVaBatchLabel,
+  RJ_SUFFIX,
+} from '@/lib/hlVa';
 import GradeVaReport from '@/components/reports/GradeVaReport';
 import LabourBreakdownReport from '@/components/reports/LabourBreakdownReport';
 import GradingDataReport from '@/components/reports/GradingDataReport';
@@ -187,12 +194,14 @@ export default function YieldReportPage() {
   // ── Combined location-wise summary for the selected date ──
   // HON to HL column = HL kgs produced (HON→HL output)
   // HL to VA  column = VA kgs produced (HL→VA output)
+  // HL to VA  column = fresh VA only, matching Completed VA; rejection (RJ)
+  // re-work gets its own column, shown only on a day that had any.
   const combinedLocationSummary = useMemo(() => {
-    const map = new Map<string, { honToHl: number; hlToVa: number }>();
+    const map = new Map<string, { honToHl: number; hlToVa: number; rjVa: number }>();
     const bucket = (loc: string) => {
       let agg = map.get(loc);
       if (!agg) {
-        agg = { honToHl: 0, hlToVa: 0 };
+        agg = { honToHl: 0, hlToVa: 0, rjVa: 0 };
         map.set(loc, agg);
       }
       return agg;
@@ -202,22 +211,35 @@ export default function YieldReportPage() {
       bucket(e.location?.name || 'Unknown').honToHl += Number(e.hl_kgs) || 0;
     });
     gradeVaEntries.forEach((e) => {
-      bucket(e.location?.name || 'Unknown').hlToVa += Number(e.va_kgs) || 0;
+      const agg = bucket(e.location?.name || 'Unknown');
+      if (isRejectionEntry(e)) agg.rjVa += Number(e.va_kgs) || 0;
+      else agg.hlToVa += Number(e.va_kgs) || 0;
     });
 
     const rows = Array.from(map.entries())
-      .map(([location, v]) => ({ location, honToHl: v.honToHl, hlToVa: v.hlToVa }))
+      .map(([location, v]) => ({ location, honToHl: v.honToHl, hlToVa: v.hlToVa, rjVa: v.rjVa }))
       .sort((a, b) => a.location.localeCompare(b.location));
     const totals = rows.reduce(
       (acc, r) => {
         acc.honToHl += r.honToHl;
         acc.hlToVa += r.hlToVa;
+        acc.rjVa += r.rjVa;
         return acc;
       },
-      { honToHl: 0, hlToVa: 0 }
+      { honToHl: 0, hlToVa: 0, rjVa: 0 }
     );
     return { rows, totals };
   }, [entries, gradeVaEntries]);
+
+  // The day's Grade Vs VA sheets: fresh production, and rejections on their own
+  const freshGradeVaEntries = useMemo(
+    () => gradeVaEntries.filter((e) => !isRejectionEntry(e)),
+    [gradeVaEntries]
+  );
+  const rejectionGradeVaEntries = useMemo(
+    () => gradeVaEntries.filter(isRejectionEntry),
+    [gradeVaEntries]
+  );
 
   // Distinct values for the HL→VA column-header filter dropdowns
   const hvColumnOptions = useMemo(() => {
@@ -226,7 +248,8 @@ export default function YieldReportPage() {
     const variety = new Set<string>();
     const grade = new Set<string>();
     hvEntries.forEach((e) => {
-      if (e.batch_id) batch.add(String(e.batch_id));
+      // Listed as the register shows them, so "26I25/6 RJ" is its own pick
+      if (e.batch_id) batch.add(hlVaBatchLabel(e.batch_id, isRejectionEntry(e)));
       if (e.count_text) count.add(String(e.count_text));
       if (e.variety) variety.add(String(e.variety));
       const g = e.grade || lookupHlVaCountRange(e.count_text);
@@ -248,7 +271,7 @@ export default function YieldReportPage() {
       return hvEntries;
     }
     return hvEntries.filter((e) => {
-      if (hvBatchFilter.length && !hvBatchFilter.includes(String(e.batch_id ?? ''))) return false;
+      if (hvBatchFilter.length && !hvBatchFilter.includes(hlVaBatchLabel(e.batch_id ?? '', isRejectionEntry(e)))) return false;
       if (hvCountFilter.length && !hvCountFilter.includes(String(e.count_text ?? ''))) return false;
       if (hvVarietyFilter.length && !hvVarietyFilter.includes(String(e.variety ?? ''))) return false;
       if (hvGradeFilter.length) {
@@ -259,24 +282,36 @@ export default function YieldReportPage() {
     });
   }, [hvEntries, hvBatchFilter, hvCountFilter, hvVarietyFilter, hvGradeFilter]);
 
-  // Totals over entries
+  // Totals over entries — fresh production and rejection (RJ) re-work apart,
+  // since RJ is VA that was already counted once.
   const hvTotals = useMemo(() => {
     return hvFiltered.reduce(
       (acc, entry) => {
-        acc.totalHl += Number(entry.hl_kgs) || 0;
-        acc.totalVa += Number(entry.va_kgs) || 0;
+        const hl = Number(entry.hl_kgs) || 0;
+        const va = Number(entry.va_kgs) || 0;
+        if (isRejectionEntry(entry)) {
+          acc.rjHl += hl;
+          acc.rjVa += va;
+          acc.rjRows += 1;
+        } else {
+          acc.totalHl += hl;
+          acc.totalVa += va;
+          acc.freshRows += 1;
+        }
         return acc;
       },
-      { totalHl: 0, totalVa: 0 }
+      { totalHl: 0, totalVa: 0, freshRows: 0, rjHl: 0, rjVa: 0, rjRows: 0 }
     );
   }, [hvFiltered]);
 
   const hvTotalYieldPct = calculateYield(hvTotals.totalHl, hvTotals.totalVa);
+  const hvRjYieldPct = calculateYield(hvTotals.rjHl, hvTotals.rjVa);
 
-  // Top grade by VA quantity (for summary card)
+  // Top grade by fresh VA quantity (for summary card)
   const hvTopGrade = useMemo(() => {
     const byGrade = new Map<string, number>();
     hvFiltered.forEach((e) => {
+      if (isRejectionEntry(e)) return;
       const g = e.grade || lookupHlVaCountRange(e.count_text) || 'Unknown';
       byGrade.set(g, (byGrade.get(g) || 0) + (Number(e.va_kgs) || 0));
     });
@@ -413,6 +448,9 @@ export default function YieldReportPage() {
                     <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Location</th>
                     <th className="px-4 py-3 text-[10px] font-semibold text-teal-500 uppercase tracking-wider whitespace-nowrap text-right">HON to HL (KGS)</th>
                     <th className="px-4 py-3 text-[10px] font-semibold text-indigo-500 uppercase tracking-wider whitespace-nowrap text-right">HL to VA (KGS)</th>
+                    {combinedLocationSummary.totals.rjVa > 0 && (
+                      <th className="px-4 py-3 text-[10px] font-semibold text-rose-600 uppercase tracking-wider whitespace-nowrap text-right">{RJ_SUFFIX} VA (KGS)</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -421,6 +459,9 @@ export default function YieldReportPage() {
                       <td className="px-4 py-3 text-sm font-bold text-gray-900 whitespace-nowrap">{row.location}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{formatVaQty(row.honToHl)}</td>
                       <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap text-right font-medium">{formatVaQty(row.hlToVa)}</td>
+                      {combinedLocationSummary.totals.rjVa > 0 && (
+                        <td className="px-4 py-3 text-sm text-rose-700 dark:text-rose-400 whitespace-nowrap text-right font-medium">{formatVaQty(row.rjVa)}</td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -429,6 +470,9 @@ export default function YieldReportPage() {
                     <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap">TOTAL</td>
                     <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">{formatVaQty(combinedLocationSummary.totals.honToHl)}</td>
                     <td className="px-4 py-3 text-sm font-bold text-teal-900 whitespace-nowrap text-right">{formatVaQty(combinedLocationSummary.totals.hlToVa)}</td>
+                    {combinedLocationSummary.totals.rjVa > 0 && (
+                      <td className="px-4 py-3 text-sm font-bold text-rose-700 dark:text-rose-400 whitespace-nowrap text-right">{formatVaQty(combinedLocationSummary.totals.rjVa)}</td>
+                    )}
                   </tr>
                 </tfoot>
               </table>
@@ -725,13 +769,13 @@ export default function YieldReportPage() {
 
           {/* Summary cards */}
           {!hvLoading && hvFiltered.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className={`grid grid-cols-2 gap-3 ${hvTotals.rjRows > 0 ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
               <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-2xl p-3 border border-indigo-200">
-                <p className="text-[10px] text-indigo-600 font-semibold uppercase tracking-wide">Total HL (KGS)</p>
+                <p className="text-[10px] text-indigo-600 font-semibold uppercase tracking-wide">{hvTotals.rjRows > 0 ? 'Fresh HL (KGS)' : 'Total HL (KGS)'}</p>
                 <p className="text-lg font-bold text-indigo-800 mt-0.5">{formatVaQty(hvTotals.totalHl)}</p>
               </div>
               <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-2xl p-3 border border-indigo-200">
-                <p className="text-[10px] text-indigo-600 font-semibold uppercase tracking-wide">Total VA (KGS)</p>
+                <p className="text-[10px] text-indigo-600 font-semibold uppercase tracking-wide">{hvTotals.rjRows > 0 ? 'Fresh VA (KGS)' : 'Total VA (KGS)'}</p>
                 <p className="text-lg font-bold text-indigo-800 mt-0.5">{formatVaQty(hvTotals.totalVa)}</p>
               </div>
               <div className="bg-gradient-to-br from-teal-50 to-teal-100/50 rounded-2xl p-3 border border-teal-200">
@@ -743,6 +787,16 @@ export default function YieldReportPage() {
                   <p className="text-[10px] text-emerald-600 font-semibold uppercase tracking-wide">🏆 Top Grade</p>
                   <p className="text-lg font-bold text-emerald-800 mt-0.5">{hvTopGrade.grade}</p>
                   <p className="text-[11px] text-emerald-600 font-medium">{formatVaQty(hvTopGrade.total)} kg VA</p>
+                </div>
+              )}
+              {hvTotals.rjRows > 0 && (
+                <div className="bg-gradient-to-br from-rose-50 to-rose-100/50 rounded-2xl p-3 border border-rose-200">
+                  <p className="text-[10px] text-rose-600 font-semibold uppercase tracking-wide">♻️ Rejection ({RJ_SUFFIX}) VA</p>
+                  <p className="text-lg font-bold text-rose-700 mt-0.5">{formatVaQty(hvTotals.rjVa)}</p>
+                  <p className="text-[11px] text-rose-600 font-medium">
+                    {hvTotals.rjRows} line{hvTotals.rjRows === 1 ? '' : 's'}
+                    {hvRjYieldPct !== null && ` · ${hvRjYieldPct.toFixed(2)}% yield`}
+                  </p>
                 </div>
               )}
             </div>
@@ -827,10 +881,16 @@ export default function YieldReportPage() {
                       const stdYield = standardForHlVaEntry(entry);
                       const diff = calculateYieldDifference(yieldPct, stdYield);
                       const grade = entry.grade || lookupHlVaCountRange(entry.count_text) || '-';
+                      const isRj = isRejectionEntry(entry);
                       return (
-                        <tr key={entry.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group">
+                        <tr key={entry.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors group ${isRj ? 'bg-rose-50' : ''}`}>
                           <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap sticky left-0 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800/80 z-10 shadow-[1px_0_0_0_#f3f4f6] dark:shadow-[1px_0_0_0_#374151]">{entry.work_date}</td>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">{entry.batch_id}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
+                            {entry.batch_id}
+                            {isRj && hlVaBatchLabel(entry.batch_id, true) !== entry.batch_id.trim() && (
+                              <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 text-[10px] font-extrabold align-middle">{RJ_SUFFIX}</span>
+                            )}
+                          </td>
                           <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{entry.count_text}</td>
                           <td className="px-4 py-3 text-sm whitespace-nowrap">
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700">{entry.variety || '-'}</span>
@@ -854,8 +914,8 @@ export default function YieldReportPage() {
                   </tbody>
                   <tfoot>
                     <tr className="bg-indigo-50 dark:bg-indigo-900/30 border-t-2 border-indigo-100 dark:border-indigo-800">
-                      <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap sticky left-0 sticky-col-indigo z-10 shadow-[1px_0_0_0_#e0e7ff] dark:shadow-[1px_0_0_0_#3730a3]">TOTALS</td>
-                      <td className="px-4 py-3 text-sm text-indigo-800 dark:text-indigo-300 whitespace-nowrap">{hvFiltered.length} batches</td>
+                      <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap sticky left-0 sticky-col-indigo z-10 shadow-[1px_0_0_0_#e0e7ff] dark:shadow-[1px_0_0_0_#3730a3]">{hvTotals.rjRows > 0 ? 'FRESH' : 'TOTALS'}</td>
+                      <td className="px-4 py-3 text-sm text-indigo-800 dark:text-indigo-300 whitespace-nowrap">{hvTotals.freshRows} batches</td>
                       <td className="px-4 py-3"></td>
                       <td className="px-4 py-3"></td>
                       <td className="px-4 py-3 text-sm font-bold text-indigo-900 dark:text-indigo-300 whitespace-nowrap text-right">{hvTotals.totalHl.toFixed(3)}</td>
@@ -866,6 +926,22 @@ export default function YieldReportPage() {
                       <td className="px-4 py-3"></td>
                       <td className="px-4 py-3"></td>
                     </tr>
+                    {/* Re-work never joins the fresh total — it is VA counted once already */}
+                    {hvTotals.rjRows > 0 && (
+                      <tr className="bg-rose-50 dark:bg-rose-900/30 border-t border-rose-100 dark:border-rose-800">
+                        <td className="px-4 py-3 text-sm font-bold text-rose-700 dark:text-rose-300 whitespace-nowrap sticky left-0 sticky-th-rose z-10">{RJ_SUFFIX}</td>
+                        <td className="px-4 py-3 text-sm text-rose-700 dark:text-rose-300 whitespace-nowrap">{hvTotals.rjRows} batches</td>
+                        <td className="px-4 py-3"></td>
+                        <td className="px-4 py-3"></td>
+                        <td className="px-4 py-3 text-sm font-bold text-rose-700 dark:text-rose-300 whitespace-nowrap text-right">{hvTotals.rjHl.toFixed(3)}</td>
+                        <td className="px-4 py-3 text-sm font-bold text-rose-700 dark:text-rose-300 whitespace-nowrap text-right">{hvTotals.rjVa.toFixed(3)}</td>
+                        <td className="px-4 py-3"></td>
+                        <td className="px-4 py-3"></td>
+                        <td className="px-4 py-3 text-sm font-bold text-rose-700 dark:text-rose-300 whitespace-nowrap text-right">{hvRjYieldPct !== null ? `${hvRjYieldPct.toFixed(2)}%` : '-'}</td>
+                        <td className="px-4 py-3"></td>
+                        <td className="px-4 py-3"></td>
+                      </tr>
+                    )}
                   </tfoot>
                 </table>
               </div>
@@ -876,10 +952,21 @@ export default function YieldReportPage() {
         {/* ─── Grade Vs VA Report ─────────────────────────────────────── */}
         <PrintSection id="grade-va" className="mb-8">
           <GradeVaReport
-            entries={gradeVaEntries}
+            entries={freshGradeVaEntries}
             date={selectedDate}
           />
         </PrintSection>
+
+        {/* ─── Rejection (RJ) Grades Vs VA — only on a day that had re-work ── */}
+        {rejectionGradeVaEntries.length > 0 && (
+          <PrintSection id="grade-va-rj" className="mb-8">
+            <GradeVaReport
+              rejection
+              entries={rejectionGradeVaEntries}
+              date={selectedDate}
+            />
+          </PrintSection>
+        )}
 
         {/* ─── All PPC's Grading Data ─────────────────────────────────── */}
         <PrintSection id="grading-data" className="mb-8">

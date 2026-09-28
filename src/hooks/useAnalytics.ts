@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { fetchAllRows } from '@/lib/supabase/fetchAll';
 import { format, parseISO, startOfMonth, endOfMonth } from 'date-fns';
+import { isRejectionEntry } from '@/lib/hlVa';
 import type { Location, MonthlyTarget } from '@/types';
 
 // ─── Row shapes (only the columns analytics needs) ───────────────────────────
@@ -45,6 +46,11 @@ export interface HlVaRow {
   grade: string;
   hl_kgs: number;
   va_kgs: number;
+  grader_name: string;
+  /** The standard the row was stamped with (migration 032); null before that. */
+  std_yield: number | null;
+  /** Rejection (RJ) re-work — migration 038. */
+  is_rejection: boolean;
 }
 
 /**
@@ -104,7 +110,14 @@ export interface AnalyticsData {
   processing: ProcessingRow[];
   yieldBatches: YieldBatchRow[];
   workforce: WorkforceRow[];
+  /**
+   * Fresh HL→VA production only. Rejection (RJ) re-work is VA that was already
+   * counted once, so it is split off into `hlVaRejections` here, at the one
+   * place every section reads from — a section can't count it by accident.
+   */
   hlVa: HlVaRow[];
+  /** RJ rows over the same range, for the Rejections section. */
+  hlVaRejections: HlVaRow[];
   nonLocal: NonLocalRow[];
   sanitization: SanitizationRow[];
   // VA target context (month of the range end)
@@ -113,7 +126,7 @@ export interface AnalyticsData {
   monthNumber: number; // 1-12
   combinedTarget: MonthlyTarget | null;
   locationTargets: MonthlyTarget[];
-  monthHlVa: HlVaRow[]; // hl_va entries across the whole target month
+  monthHlVa: HlVaRow[]; // fresh hl_va entries across the whole target month
 }
 
 const EMPTY: AnalyticsData = {
@@ -121,6 +134,7 @@ const EMPTY: AnalyticsData = {
   yieldBatches: [],
   workforce: [],
   hlVa: [],
+  hlVaRejections: [],
   nonLocal: [],
   sanitization: [],
   monthLabel: '',
@@ -195,7 +209,7 @@ export function useAnalytics() {
         fetchAllRows<HlVaRow>((from, to) =>
           supabase
             .from('hl_va_entries')
-            .select('work_date, location_id, batch_id, count_text, variety, grade, hl_kgs, va_kgs')
+            .select('work_date, location_id, batch_id, count_text, variety, grade, hl_kgs, va_kgs, grader_name, std_yield, is_rejection')
             .gte('work_date', fromDate)
             .lte('work_date', toDate)
             .order('work_date', { ascending: true })
@@ -240,7 +254,7 @@ export function useAnalytics() {
         fetchAllRows<HlVaRow>((from, to) =>
           supabase
             .from('hl_va_entries')
-            .select('work_date, location_id, batch_id, count_text, variety, grade, hl_kgs, va_kgs')
+            .select('work_date, location_id, batch_id, count_text, variety, grade, hl_kgs, va_kgs, grader_name, std_yield, is_rejection')
             .gte('work_date', monthStart)
             .lte('work_date', monthEnd)
             .order('id', { ascending: true })
@@ -255,7 +269,8 @@ export function useAnalytics() {
         processing,
         yieldBatches,
         workforce,
-        hlVa,
+        hlVa: hlVa.filter((r) => !isRejectionEntry(r)),
+        hlVaRejections: hlVa.filter(isRejectionEntry),
         nonLocal,
         sanitization,
         monthLabel: format(anchor, 'MMMM yyyy'),
@@ -263,7 +278,8 @@ export function useAnalytics() {
         monthNumber: month,
         combinedTarget: combinedTargetRes.data as MonthlyTarget | null,
         locationTargets: (locationTargetsRes.data || []) as MonthlyTarget[],
-        monthHlVa,
+        // The target is for fresh VA — re-work doesn't move the month closer to it
+        monthHlVa: monthHlVa.filter((r) => !isRejectionEntry(r)),
       });
     } catch (error) {
       console.error('Error fetching analytics:', error);

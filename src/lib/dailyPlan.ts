@@ -6,6 +6,7 @@ import type {
   HlVaEntry,
 } from '@/types';
 import { inHouseKey } from './headWaste';
+import { isRejectionEntry } from './hlVa';
 
 /** kgs, three decimals, the register's own precision. */
 export const kg = (n: number): string => n.toFixed(3);
@@ -159,6 +160,8 @@ export function buildPlanVsActual(
     bucket(nameOf(e)).actualHon += Number(e.hon_kgs) || 0;
   });
   hlVaEntries.forEach((e) => {
+    // The plan hands out fresh HL; rejection (RJ) re-work isn't drawn from it
+    if (isRejectionEntry(e)) return;
     bucket(nameOf(e)).actualHl += Number(e.hl_kgs) || 0;
   });
 

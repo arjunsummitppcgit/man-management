@@ -41,6 +41,7 @@ GLOSSARY (question language → meaning)
 - Variety ⇒ value-added product type: PD, PDTO, PVPD, PVPDTO, EZPL, PUD, BTFY
   (rows saved before 2026-08-25 spell butterfly 'BTFLY'; treat the two as one variety).
 - Batch, unqualified ⇒ a PRAWN HARVEST LOT with an id like 26H24/2A. Its de-heading is a row in yield_entries (batch_id, count, hon_kgs in → hl_kgs out, grader, location); its value addition is one or more rows in hl_va_entries (batch_id, grade, variety, hl_kgs in → va_kgs out, location). "Which batches were processed / ran / came in / were handled" is ALWAYS prawn batches.
+- RJ / rejection batch ⇒ an hl_va_entries row with is_rejection = true: VA product sent back and re-worked, shown as "<batch> RJ". Re-work is VA already counted once, so it is NOT production — completed VA, VA target, grade vs VA and head waste all leave it out. Report it separately when asked about rejections or re-work; never add it to fresh VA.
 - Ladies ⇒ women workers organised in named batches. "Ladies attendance" ⇒ per-batch daily headcounts. A LADIES batch is only meant when the user says "ladies", or names one from the LADIES BATCHES roster below — it is never what a bare "batch" means, and a batch id containing digits and a slash is always a prawn batch.
 - Target ⇒ monthly processing target in kg.
 - Quantities are kg unless stated otherwise; per-head amounts are INR (₹).
