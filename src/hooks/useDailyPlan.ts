@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { REGISTER_NOT_LOADED, type LoadedRegister } from '@/lib/registerSave';
 import type { DailyPlanHonHlEntry, DailyPlanHlVaEntry } from '@/types';
 
 const LOCATION_JOIN = '*, location:locations(id, name, code)';
@@ -15,6 +16,8 @@ export function useDailyPlan() {
   const [honHl, setHonHl] = useState<DailyPlanHonHlEntry[]>([]);
   const [hlVa, setHlVa] = useState<DailyPlanHlVaEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  // Both halves' rows the form was filled from — the save is checked against them (039)
+  const loaded = useRef<LoadedRegister | null>(null);
 
   const fetchPlan = useCallback(async (date: string) => {
     setLoading(true);
@@ -37,24 +40,27 @@ export function useDailyPlan() {
 
       setHonHl(honRes.data || []);
       setHlVa(vaRes.data || []);
+      loaded.current = {
+        date,
+        ids: [...(honRes.data || []), ...(vaRes.data || [])].map((e) => e.id),
+      };
     } catch (error) {
       console.error('Error fetching PPC plan:', error);
       setHonHl([]);
       setHlVa([]);
+      // An empty form after a failed load must not be saveable over the real plan
+      loaded.current = null;
     } finally {
       setLoading(false);
     }
   }, []);
 
   /**
-   * Replace the whole plan for a date — delete then re-insert, the same shape
-   * the batch registers use. A plan is re-cut as a whole when the allocation
-   * changes, so there is nothing to merge row by row.
-   *
-   * Deliberately not wrapped in a transaction (PostgREST has none): a failed
-   * insert leaves the date with no plan rather than a half-old one. Losing an
-   * intention is recoverable — it is re-entered from the same sheet it was read
-   * off — which is why this is safe here but not for the registers.
+   * Replace the whole plan for a date — both halves in one transaction
+   * (save_daily_plan, migration 039). A plan is re-cut as a whole when the
+   * allocation changes, so there is nothing to merge row by row. A refused row
+   * leaves the old plan exactly as it was, and a plan someone else saved since
+   * the form loaded is refused rather than overwritten.
    */
   const savePlan = useCallback(
     async (
@@ -69,39 +75,26 @@ export function useDailyPlan() {
       vaRows: { location_id: string; planned_qty: number }[]
     ) => {
       try {
-        const [honDel, vaDel] = await Promise.all([
-          supabase.from('daily_plan_hon_hl').delete().eq('work_date', date),
-          supabase.from('daily_plan_hl_va').delete().eq('work_date', date),
-        ]);
-        if (honDel.error) throw honDel.error;
-        if (vaDel.error) throw vaDel.error;
+        const base = loaded.current;
+        if (!base || base.date !== date) throw new Error(REGISTER_NOT_LOADED);
 
-        if (honRows.length > 0) {
-          const { error } = await supabase.from('daily_plan_hon_hl').insert(
-            honRows.map((row, idx) => ({
-              work_date: date,
-              batch_name: row.batch_name.trim(),
-              count_text: row.count_text.trim(),
-              planned_qty: row.planned_qty,
-              boxes: row.boxes,
-              location_id: row.location_id,
-              sort_order: idx,
-            }))
-          );
-          if (error) throw error;
-        }
-
-        if (vaRows.length > 0) {
-          const { error } = await supabase.from('daily_plan_hl_va').insert(
-            vaRows.map((row, idx) => ({
-              work_date: date,
-              location_id: row.location_id,
-              planned_qty: row.planned_qty,
-              sort_order: idx,
-            }))
-          );
-          if (error) throw error;
-        }
+        // Rows go in the order given; the function stamps sort_order from it
+        const { error } = await supabase.rpc('save_daily_plan', {
+          p_work_date: date,
+          p_hon_rows: honRows.map((row) => ({
+            batch_name: row.batch_name.trim(),
+            count_text: row.count_text.trim(),
+            planned_qty: row.planned_qty,
+            boxes: row.boxes,
+            location_id: row.location_id,
+          })),
+          p_va_rows: vaRows.map((row) => ({
+            location_id: row.location_id,
+            planned_qty: row.planned_qty,
+          })),
+          p_loaded_ids: base.ids,
+        });
+        if (error) throw error;
 
         await fetchPlan(date);
       } catch (error) {

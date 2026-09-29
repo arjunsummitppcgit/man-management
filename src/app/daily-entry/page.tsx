@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import PageHeader from '@/components/layout/PageHeader';
 import { useToast } from '@/components/ui/Toast';
 import { usePermissionAlert } from '@/components/ui/PermissionAlert';
+import { registerSaveProblem } from '@/lib/registerSave';
 import NumberStepper from '@/components/ui/NumberStepper';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Modal from '@/components/ui/Modal';
@@ -63,8 +64,12 @@ const TABS: { key: TabType; label: string }[] = [
 
 const TAB_LABELS = Object.fromEntries(TABS.map((t) => [t.key, t.label])) as Record<TabType, string>;
 
-/** A HONS TO HL Batch ID as the one-per-day rule compares it. */
-const yieldBatchKey = (batchId: string) => batchId.trim().toUpperCase();
+/**
+ * A HONS TO HL line as the once-per-location-per-day rule compares it — batch
+ * ignoring case and spaces, like uq_yield_entries_day_batch_location (039).
+ */
+const yieldLineKey = (batchId: string, locationId: string) =>
+  `${batchId.trim().toUpperCase()}|${locationId}`;
 
 // ─── Supervisor Dropdown Component ───────────────────────────────────────────
 interface SupervisorDropdownProps {
@@ -239,7 +244,7 @@ function SupervisorDropdown({ supervisors, selected, onToggle }: SupervisorDropd
 export default function DailyEntryPage() {
   const { showToast } = useToast();
   const { isAdmin, checkEditDate, user } = useAuth();
-  const { requireEditDate, reportError } = usePermissionAlert();
+  const { requireEditDate, reportError, showPermissionAlert } = usePermissionAlert();
   // IST, not UTC. toISOString() is UTC, which is still on the previous day until
   // 5:30 AM IST — a night-shift entry would have defaulted to yesterday. The
   // permission rules (can_edit_on, migration 027) have always used IST, so this
@@ -784,23 +789,33 @@ export default function DailyEntryPage() {
     }
   }, [selectedDate]);
 
-  // HONS TO HL may hold a Batch ID only once per date (UNIQUE(work_date,
-  // batch_id), migration 011), and its save clears the whole date before it
-  // re-inserts. A repeated id made the database refuse the re-insert AFTER the
-  // clear — which is how 28 Sep 2026's register was lost, when 26I27/4 went to
-  // both SME and PPC1. So a repeat is caught here, before anything is deleted.
-  // Matched ignoring case and spaces, as the save trims every id.
-  const yieldDuplicateBatches = React.useMemo(() => {
+  // HONS TO HL takes a batch once per LOCATION per day (migration 039): the
+  // plan can split a batch between two sheds — 26I27/4 went to SME and PPC1 on
+  // 28 Sep 2026 — and those are two real lines, while the same batch twice at
+  // one location is a double entry. The save is one transaction now, so a
+  // repeat can no longer wipe the day, but the database would still refuse it;
+  // it's caught here first and named. A row with no location is compared under
+  // the one the save will give it.
+  const yieldLineKeyOf = useCallback(
+    (r: YieldFormRow) => yieldLineKey(r.batch_id, r.location_id || locations[0]?.id || ''),
+    [locations]
+  );
+
+  const yieldDuplicates = React.useMemo(() => {
     const seen = new Set<string>();
-    const dupes = new Set<string>();
+    const dupes = new Map<string, string>(); // key -> "26I27/4 at SME"
     yieldRows.forEach((r) => {
-      const key = yieldBatchKey(r.batch_id);
-      if (!key) return;
-      if (seen.has(key)) dupes.add(key);
+      if (!r.batch_id.trim()) return;
+      const key = yieldLineKeyOf(r);
+      if (seen.has(key)) {
+        const locId = r.location_id || locations[0]?.id || '';
+        const locName = locations.find((l) => l.id === locId)?.name || 'no location';
+        dupes.set(key, `${r.batch_id.trim()} at ${locName}`);
+      }
       seen.add(key);
     });
     return dupes;
-  }, [yieldRows]);
+  }, [yieldRows, yieldLineKeyOf, locations]);
 
   // HL to VA running totals, fresh production and rejections (RJ) apart — the
   // same split every report makes, so the day reads here as it will there.
@@ -868,10 +883,10 @@ export default function DailyEntryPage() {
         // Only now is there a stored plan to hand out
         setPlanSheetOpen(true);
       } else if (activeTab === 'yield') {
-        // The Save button is already off; this is the backstop, because the
-        // save deletes the date first and a refused insert would leave it empty.
-        if (yieldDuplicateBatches.size > 0) {
-          showToast(`Batch ${Array.from(yieldDuplicateBatches).join(', ')} is entered more than once — nothing was saved.`, 'error');
+        // The Save button is already off; this is the backstop, so the
+        // database never has to refuse the day over a double entry.
+        if (yieldDuplicates.size > 0) {
+          showToast(`${Array.from(yieldDuplicates.values()).join(', ')} is entered more than once — nothing was saved.`, 'error');
           setIsConfirmSaveModalOpen(false);
           return;
         }
@@ -964,7 +979,12 @@ export default function DailyEntryPage() {
       // If the database was the one that refused, name the reason instead of
       // sending the user round the same loop again.
       console.error('Error saving daily entry:', error);
-      if (!reportError(error)) {
+      // Someone else saved the day, or the day never loaded: the register
+      // refused the save and nothing changed — a popup that says both.
+      const problem = registerSaveProblem(error);
+      if (problem) {
+        showPermissionAlert(problem);
+      } else if (!reportError(error)) {
         // Supabase errors are plain objects — say what the database said, since
         // "try again" hides a refusal that will happen again every time.
         const reason =
@@ -1890,9 +1910,9 @@ export default function DailyEntryPage() {
                               onChange={(e) => setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, batch_id: e.target.value } : r))}
                               onKeyDown={(e) => handleKeyDown(e, 0)}
                               placeholder="Batch ID"
-                              title={yieldDuplicateBatches.has(yieldBatchKey(row.batch_id)) ? 'This Batch ID is on another row too' : undefined}
+                              title={row.batch_id.trim() && yieldDuplicates.has(yieldLineKeyOf(row)) ? 'This batch is on another row at the same location' : undefined}
                               className={`w-full px-2 py-2 border rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 ${
-                                yieldDuplicateBatches.has(yieldBatchKey(row.batch_id))
+                                row.batch_id.trim() && yieldDuplicates.has(yieldLineKeyOf(row))
                                   ? 'bg-rose-50 border-rose-400'
                                   : 'bg-gray-50 border-gray-200'
                               }`}
@@ -2062,14 +2082,14 @@ export default function DailyEntryPage() {
                   </div>
                 )}
 
-                {yieldDuplicateBatches.size > 0 && (
+                {yieldDuplicates.size > 0 && (
                   <div className="rounded-2xl p-3 border border-rose-300 bg-rose-50">
                     <p className="text-xs font-bold text-rose-700">
-                      Batch {Array.from(yieldDuplicateBatches).join(', ')} is entered more than once.
+                      {Array.from(yieldDuplicates.values()).join(', ')} is entered more than once.
                     </p>
                     <p className="text-[11px] text-rose-700 mt-1">
-                      HONS TO HL can hold each Batch ID only once per day, so this day can&apos;t be saved yet — nothing has been changed.
-                      Remove the extra row, or give each row its own Batch ID, then save.
+                      A batch can be entered once per location per day, so this day can&apos;t be saved yet — nothing has been changed.
+                      If it was typed twice by mistake, remove the extra row. If the batch really went to two locations, pick the right location on each row.
                     </p>
                   </div>
                 )}
@@ -2077,7 +2097,7 @@ export default function DailyEntryPage() {
                 {/* Save Button */}
                 <button
                   onClick={handleSave}
-                  disabled={saving || yieldDuplicateBatches.size > 0}
+                  disabled={saving || yieldDuplicates.size > 0}
                   className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white font-semibold rounded-xl shadow-lg shadow-teal-600/25 transition-all disabled:opacity-50 min-h-[48px] flex items-center justify-center gap-2"
                 >
                   {saving ? (

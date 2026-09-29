@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { fetchAllRows } from '@/lib/supabase/fetchAll';
+import { REGISTER_NOT_LOADED, type LoadedRegister } from '@/lib/registerSave';
 import type { YieldEntry } from '@/types';
 
 export function useYield() {
   const [entries, setEntries] = useState<YieldEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  // The rows the form was filled from — the save is checked against them (039)
+  const loaded = useRef<LoadedRegister | null>(null);
   const [batchEntries, setBatchEntries] = useState<YieldEntry[]>([]);
   const [batchLoading, setBatchLoading] = useState(false);
   const [rangeEntries, setRangeEntries] = useState<YieldEntry[]>([]);
@@ -27,9 +30,12 @@ export function useYield() {
 
       if (error) throw error;
       setEntries(data || []);
+      loaded.current = { date, ids: (data || []).map((e) => e.id) };
     } catch (error) {
       console.error('Error fetching yield entries:', error);
       setEntries([]);
+      // An empty form after a failed load must not be saveable over the real day
+      loaded.current = null;
     } finally {
       setLoading(false);
     }
@@ -90,8 +96,11 @@ export function useYield() {
   }, []);
 
   /**
-   * Save (upsert) all yield entries for a given date.
-   * Rows with matching (work_date, batch_id) get updated; new rows get inserted.
+   * Replace the HONS TO HL register for a date, in one transaction
+   * (save_yield_entries, migration 039): if the database refuses any row —
+   * the same batch twice at one location, a permission — nothing changes and
+   * the day keeps its old rows. The ids the form loaded go with it, so a day
+   * someone else saved in the meantime is refused instead of overwritten.
    */
   const saveYieldEntries = useCallback(async (
     date: string,
@@ -108,18 +117,12 @@ export function useYield() {
     }[]
   ) => {
     try {
-      // First, delete all existing entries for this date so we can re-insert cleanly
-      const { error: deleteError } = await supabase
-        .from('yield_entries')
-        .delete()
-        .eq('work_date', date);
+      const base = loaded.current;
+      if (!base || base.date !== date) throw new Error(REGISTER_NOT_LOADED);
 
-      if (deleteError) throw deleteError;
-
-      // Insert all rows if there are any
-      if (rows.length > 0) {
-        const insertData = rows.map((row) => ({
-          work_date: date,
+      const { error } = await supabase.rpc('save_yield_entries', {
+        p_work_date: date,
+        p_rows: rows.map((row) => ({
           batch_id: row.batch_id.trim(),
           count_text: row.count_text.trim(),
           count_range: row.count_range,
@@ -128,16 +131,13 @@ export function useYield() {
           location_id: row.location_id,
           grader_name: row.grader_name.trim(),
           std_yield: row.std_yield,
-        }));
+        })),
+        p_loaded_ids: base.ids,
+      });
 
-        const { error: insertError } = await supabase
-          .from('yield_entries')
-          .insert(insertData);
+      if (error) throw error;
 
-        if (insertError) throw insertError;
-      }
-
-      // Refresh
+      // Refresh — also records the new ids for the next save
       await fetchYieldEntries(date);
     } catch (error) {
       console.error('Error saving yield entries:', error);

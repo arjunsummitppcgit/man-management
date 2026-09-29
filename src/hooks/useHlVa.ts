@@ -1,14 +1,17 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { fetchAllRows } from '@/lib/supabase/fetchAll';
 import { lookupHlVaCountRange } from '@/lib/hlVa';
+import { REGISTER_NOT_LOADED, type LoadedRegister } from '@/lib/registerSave';
 import type { HlVaEntry } from '@/types';
 
 export function useHlVa() {
   const [entries, setEntries] = useState<HlVaEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  // The rows the form was filled from — the save is checked against them (039)
+  const loaded = useRef<LoadedRegister | null>(null);
   const [rangeEntries, setRangeEntries] = useState<HlVaEntry[]>([]);
   const [rangeLoading, setRangeLoading] = useState(false);
   const [batchEntries, setBatchEntries] = useState<HlVaEntry[]>([]);
@@ -28,9 +31,12 @@ export function useHlVa() {
 
       if (error) throw error;
       setEntries(data || []);
+      loaded.current = { date, ids: (data || []).map((e) => e.id) };
     } catch (error) {
       console.error('Error fetching hl_va entries:', error);
       setEntries([]);
+      // An empty form after a failed load must not be saveable over the real day
+      loaded.current = null;
     } finally {
       setLoading(false);
     }
@@ -90,7 +96,9 @@ export function useHlVa() {
   }, []);
 
   /**
-   * Save (delete + re-insert) all HL -> VA rows for a given date.
+   * Replace the HL -> VA register for a date, in one transaction
+   * (save_hl_va_entries, migration 039) — a refused row changes nothing, and a
+   * day someone else saved since the form loaded is refused, not overwritten.
    * Grade is auto-derived from the count via the standard yield chart.
    */
   const saveEntries = useCallback(async (
@@ -110,16 +118,12 @@ export function useHlVa() {
     }[]
   ) => {
     try {
-      const { error: deleteError } = await supabase
-        .from('hl_va_entries')
-        .delete()
-        .eq('work_date', date);
+      const base = loaded.current;
+      if (!base || base.date !== date) throw new Error(REGISTER_NOT_LOADED);
 
-      if (deleteError) throw deleteError;
-
-      if (rows.length > 0) {
-        const insertData = rows.map((row) => ({
-          work_date: date,
+      const { error } = await supabase.rpc('save_hl_va_entries', {
+        p_work_date: date,
+        p_rows: rows.map((row) => ({
           batch_id: row.batch_id,
           count_text: row.count_text,
           grade: lookupHlVaCountRange(row.count_text) || '',
@@ -130,14 +134,11 @@ export function useHlVa() {
           grader_name: row.grader_name,
           std_yield: row.std_yield,
           is_rejection: row.is_rejection,
-        }));
+        })),
+        p_loaded_ids: base.ids,
+      });
 
-        const { error: insertError } = await supabase
-          .from('hl_va_entries')
-          .insert(insertData);
-
-        if (insertError) throw insertError;
-      }
+      if (error) throw error;
 
       await fetchEntries(date);
     } catch (error) {
