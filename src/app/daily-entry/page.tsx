@@ -63,6 +63,9 @@ const TABS: { key: TabType; label: string }[] = [
 
 const TAB_LABELS = Object.fromEntries(TABS.map((t) => [t.key, t.label])) as Record<TabType, string>;
 
+/** A HONS TO HL Batch ID as the one-per-day rule compares it. */
+const yieldBatchKey = (batchId: string) => batchId.trim().toUpperCase();
+
 // ─── Supervisor Dropdown Component ───────────────────────────────────────────
 interface SupervisorDropdownProps {
   supervisors: Supervisor[];
@@ -781,6 +784,24 @@ export default function DailyEntryPage() {
     }
   }, [selectedDate]);
 
+  // HONS TO HL may hold a Batch ID only once per date (UNIQUE(work_date,
+  // batch_id), migration 011), and its save clears the whole date before it
+  // re-inserts. A repeated id made the database refuse the re-insert AFTER the
+  // clear — which is how 28 Sep 2026's register was lost, when 26I27/4 went to
+  // both SME and PPC1. So a repeat is caught here, before anything is deleted.
+  // Matched ignoring case and spaces, as the save trims every id.
+  const yieldDuplicateBatches = React.useMemo(() => {
+    const seen = new Set<string>();
+    const dupes = new Set<string>();
+    yieldRows.forEach((r) => {
+      const key = yieldBatchKey(r.batch_id);
+      if (!key) return;
+      if (seen.has(key)) dupes.add(key);
+      seen.add(key);
+    });
+    return dupes;
+  }, [yieldRows]);
+
   // HL to VA running totals, fresh production and rejections (RJ) apart — the
   // same split every report makes, so the day reads here as it will there.
   const hlVaFormTotals = React.useMemo(() => {
@@ -847,6 +868,13 @@ export default function DailyEntryPage() {
         // Only now is there a stored plan to hand out
         setPlanSheetOpen(true);
       } else if (activeTab === 'yield') {
+        // The Save button is already off; this is the backstop, because the
+        // save deletes the date first and a refused insert would leave it empty.
+        if (yieldDuplicateBatches.size > 0) {
+          showToast(`Batch ${Array.from(yieldDuplicateBatches).join(', ')} is entered more than once — nothing was saved.`, 'error');
+          setIsConfirmSaveModalOpen(false);
+          return;
+        }
         const validRows = yieldRows
           .filter((r) => r.batch_id.trim() !== '')
           .map((r) => ({
@@ -936,7 +964,13 @@ export default function DailyEntryPage() {
       // If the database was the one that refused, name the reason instead of
       // sending the user round the same loop again.
       console.error('Error saving daily entry:', error);
-      if (!reportError(error)) showToast('Failed to save. Please try again.', 'error');
+      if (!reportError(error)) {
+        // Supabase errors are plain objects — say what the database said, since
+        // "try again" hides a refusal that will happen again every time.
+        const reason =
+          error && typeof error === 'object' && 'message' in error ? String((error as { message: unknown }).message) : '';
+        showToast(reason ? `Failed to save: ${reason}` : 'Failed to save. Please try again.', 'error');
+      }
     } finally {
       setSaving(false);
     }
@@ -1848,7 +1882,7 @@ export default function DailyEntryPage() {
 
                         return (
                           <div key={idx} className="grid grid-cols-[120px_100px_90px_90px_120px_120px_60px_60px_70px_32px] gap-1.5 items-center group">
-                            {/* Batch ID */}
+                            {/* Batch ID — red when the same id is on another row */}
                             <input
                               id={`yield-${idx}-0`}
                               type="text"
@@ -1856,7 +1890,12 @@ export default function DailyEntryPage() {
                               onChange={(e) => setYieldRows((prev) => prev.map((r, i) => i === idx ? { ...r, batch_id: e.target.value } : r))}
                               onKeyDown={(e) => handleKeyDown(e, 0)}
                               placeholder="Batch ID"
-                              className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10"
+                              title={yieldDuplicateBatches.has(yieldBatchKey(row.batch_id)) ? 'This Batch ID is on another row too' : undefined}
+                              className={`w-full px-2 py-2 border rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10 ${
+                                yieldDuplicateBatches.has(yieldBatchKey(row.batch_id))
+                                  ? 'bg-rose-50 border-rose-400'
+                                  : 'bg-gray-50 border-gray-200'
+                              }`}
                             />
                             {/* Count */}
                             <input
@@ -2023,10 +2062,22 @@ export default function DailyEntryPage() {
                   </div>
                 )}
 
+                {yieldDuplicateBatches.size > 0 && (
+                  <div className="rounded-2xl p-3 border border-rose-300 bg-rose-50">
+                    <p className="text-xs font-bold text-rose-700">
+                      Batch {Array.from(yieldDuplicateBatches).join(', ')} is entered more than once.
+                    </p>
+                    <p className="text-[11px] text-rose-700 mt-1">
+                      HONS TO HL can hold each Batch ID only once per day, so this day can&apos;t be saved yet — nothing has been changed.
+                      Remove the extra row, or give each row its own Batch ID, then save.
+                    </p>
+                  </div>
+                )}
+
                 {/* Save Button */}
                 <button
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={saving || yieldDuplicateBatches.size > 0}
                   className="w-full py-3.5 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white font-semibold rounded-xl shadow-lg shadow-teal-600/25 transition-all disabled:opacity-50 min-h-[48px] flex items-center justify-center gap-2"
                 >
                   {saving ? (
