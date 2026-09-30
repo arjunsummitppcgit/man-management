@@ -64,7 +64,7 @@ const TABS: { key: TabType; label: string }[] = [
   { key: 'grading_report', label: 'Grading Report' },
   { key: 'non_local_ladies', label: 'Company Ladies' },
   { key: 'hl_va', label: 'HL to VA' },
-  { key: 'grading', label: 'Grading' },
+  { key: 'grading', label: 'Grading Machines' },
 ];
 
 const TAB_LABELS = Object.fromEntries(TABS.map((t) => [t.key, t.label])) as Record<TabType, string>;
@@ -2869,7 +2869,7 @@ export default function DailyEntryPage() {
                       Saving...
                     </>
                   ) : (
-                    'Save Grading Data'
+                    'Save Grading Machines'
                   )}
                 </button>
               </div>

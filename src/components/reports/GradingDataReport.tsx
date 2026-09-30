@@ -91,7 +91,7 @@ export default function GradingDataReport({ entries, date }: GradingDataReportPr
             </div>
             <p className="text-sm font-semibold text-gray-900">No grading data on this date</p>
             <p className="text-sm text-gray-500 mt-1">
-              Nothing was entered for {dateLabel} on the Grading tab of the Daily Entry page.
+              Nothing was entered for {dateLabel} on the Grading Machines tab of the Daily Entry page.
             </p>
           </div>
         ) : (
