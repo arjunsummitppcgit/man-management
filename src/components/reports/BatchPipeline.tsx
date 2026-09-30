@@ -4,17 +4,21 @@ import React, { useMemo, useState } from 'react';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import { useYield } from '@/hooks/useYield';
 import { useHlVa } from '@/hooks/useHlVa';
+import { useGradingReports } from '@/hooks/useGradingReports';
+import BatchPipelineGrading from '@/components/reports/BatchPipelineGrading';
 import { calculateYield, standardForYieldEntry, calculateYieldDifference } from '@/lib/yieldChart';
 import { standardForHlVaEntry, lookupHlVaCountRange, isRejectionEntry, RJ_SUFFIX } from '@/lib/hlVa';
 
 /**
- * Look one Batch ID up across every date and show both processing stages side
- * by side. Self-contained: it owns the batch-search half of the yield hooks,
- * which only hit the network once a search is actually run.
+ * Look one Batch ID up across every date and show it stage by stage, in the
+ * order it moves: HON → HL, its grading report, then HL → VA. Self-contained:
+ * it owns the batch-search half of the hooks, which only hit the network once
+ * a search is actually run.
  */
 export default function BatchPipeline() {
   const { batchEntries: honHlBatch, batchLoading: honHlBatchLoading, fetchByBatch: fetchYieldByBatch } = useYield();
   const { batchEntries: hlVaBatch, batchLoading: hlVaBatchLoading, fetchByBatch: fetchHlVaByBatch } = useHlVa();
+  const { batchReports: gradingBatch, batchReportsLoading: gradingBatchLoading, fetchReportsByBatch } = useGradingReports();
 
   const [batchSearch, setBatchSearch] = useState('');
   const [batchQuery, setBatchQuery] = useState('');
@@ -24,6 +28,7 @@ export default function BatchPipeline() {
     setBatchQuery(q);
     if (q) {
       fetchYieldByBatch(q);
+      fetchReportsByBatch(q);
       fetchHlVaByBatch(q);
     }
   };
@@ -63,7 +68,7 @@ export default function BatchPipeline() {
       {/* The Analytics section strip already titles this, so only the hint is repeated */}
       <div className="space-y-4 mb-8">
         <p className="text-sm text-gray-500">
-          Search a Batch ID to see all its HON→HL and HL→VA entries across every date.
+          Search a Batch ID to see all its HON→HL entries, grading report and HL→VA entries across every date.
         </p>
 
         {/* Search box */}
@@ -170,6 +175,15 @@ export default function BatchPipeline() {
                 </div>
               )}
             </div>
+
+            {/* Grading report — between the two, where it happens */}
+            <BatchPipelineGrading
+              batchQuery={batchQuery}
+              reports={gradingBatch}
+              loading={gradingBatchLoading}
+              honHlEntries={honHlBatch}
+              honHlLoading={honHlBatchLoading}
+            />
 
             {/* HL → VA table */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

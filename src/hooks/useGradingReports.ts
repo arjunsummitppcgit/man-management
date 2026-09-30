@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase/client';
+import { fetchAllRows } from '@/lib/supabase/fetchAll';
 import { REGISTER_NOT_LOADED } from '@/lib/registerSave';
 import { gradingBatchKey, type GradingSavePayload } from '@/lib/gradingReport';
 import type { GradingReport, YieldEntry } from '@/types';
@@ -25,6 +26,9 @@ export function useGradingReports() {
   // Each sheet's updated_at as the tab loaded it, by batch — a save or delete
   // is checked against it, so two people can't overwrite each other (040)
   const loaded = useRef<LoadedSheets | null>(null);
+  // Batch Pipeline: one batch's sheets across every date
+  const [batchReports, setBatchReports] = useState<GradingReport[]>([]);
+  const [batchReportsLoading, setBatchReportsLoading] = useState(false);
 
   /**
    * `quiet` refreshes without the loading flag — after a save the page must not
@@ -66,6 +70,31 @@ export function useGradingReports() {
     }
   }, []);
 
+  /**
+   * Every sheet for one batch id, across all dates. Case-insensitive exact
+   * match on batch_id, the same way Batch Pipeline searches the registers.
+   */
+  const fetchReportsByBatch = useCallback(async (batchId: string) => {
+    setBatchReportsLoading(true);
+    try {
+      const data = await fetchAllRows<GradingReport>((lo, hi) =>
+        supabase
+          .from('grading_reports')
+          .select('*, lines:grading_report_lines(*), defects:grading_report_defects(*)')
+          .ilike('batch_id', batchId.trim())
+          .order('work_date', { ascending: true })
+          .order('id', { ascending: true })
+          .range(lo, hi)
+      );
+      setBatchReports(data);
+    } catch (error) {
+      console.error('Error fetching grading reports by batch:', error);
+      setBatchReports([]);
+    } finally {
+      setBatchReportsLoading(false);
+    }
+  }, []);
+
   /** Save one batch's sheet in one transaction (save_grading_report, 040). */
   const saveReport = useCallback(
     async (date: string, batchId: string, payload: GradingSavePayload) => {
@@ -103,5 +132,8 @@ export function useGradingReports() {
     fetchReports,
     saveReport,
     deleteReport,
+    batchReports,
+    batchReportsLoading,
+    fetchReportsByBatch,
   };
 }
