@@ -128,7 +128,7 @@ export default function BatchPipeline() {
                         <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Grader</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
                       {honHlBatch.map((entry) => {
                         const honNum = Number(entry.hon_kgs) || 0;
                         const hlNum = Number(entry.hl_kgs) || 0;
@@ -216,7 +216,7 @@ export default function BatchPipeline() {
                         <th className="px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap text-right">Diff</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
                       {hlVaBatch.map((entry) => {
                         const hlNum = Number(entry.hl_kgs) || 0;
                         const vaNum = Number(entry.va_kgs) || 0;
