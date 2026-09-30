@@ -2904,7 +2904,7 @@ export default function DailyEntryPage() {
       >
         <div className="space-y-4">
           <div className="p-3 bg-teal-50 text-teal-800 text-sm rounded-xl border border-teal-100 font-medium dark:bg-teal-950/20 dark:text-teal-300 dark:border-teal-900/30">
-            You are saving <strong>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</strong> data for the following date:
+            You are saving <strong>{TAB_LABELS[activeTab]}</strong> data for the following date:
             <div className="text-lg font-bold text-teal-650 dark:text-teal-400 mt-1">
               {new Date(selectedDate).toLocaleDateString(undefined, {
                 weekday: 'long',
