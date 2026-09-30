@@ -23,6 +23,9 @@ export const REGISTER_NOT_LOADED = 'REGISTER_NOT_LOADED';
 /** Raised by the save functions when the day changed since it was loaded. */
 const STALE_REGISTER = 'STALE_REGISTER';
 
+/** Raised by save_grading_report (040) for a batch HONS TO HL doesn't have. */
+const BATCH_NOT_ON_REGISTER = 'BATCH_NOT_ON_REGISTER';
+
 interface SaveProblem {
   title: string;
   message: string;
@@ -47,6 +50,14 @@ export function registerSaveProblem(error: unknown): SaveProblem | null {
       message:
         'Another person saved this page for the same date after you opened it. Your changes were NOT saved, and nothing was lost.',
       hint: 'Note down what you typed, then reload the page to see their version, and add your changes to it.',
+    };
+  }
+  if (message.includes(BATCH_NOT_ON_REGISTER)) {
+    return {
+      title: 'This batch is not on HONS TO HL',
+      message:
+        'The batch is no longer on the HONS TO HL register for this date — its Batch ID may have been changed there. The grading report was NOT saved.',
+      hint: 'Check the Batch ID on the HONS TO HL tab, then reload this tab and open the batch again.',
     };
   }
   if (message.includes(REGISTER_NOT_LOADED)) {

@@ -251,7 +251,7 @@ export interface SupervisorAttendanceRecord {
   is_present: number;
 }
 
-export type TabType = 'daily_plan' | 'workforce' | 'sanitization' | 'processing' | 'yield' | 'non_local_ladies' | 'hl_va' | 'grading';
+export type TabType = 'daily_plan' | 'workforce' | 'sanitization' | 'processing' | 'yield' | 'grading_report' | 'non_local_ladies' | 'hl_va' | 'grading';
 
 // ─── Grading Data ────────────────────────────────────────────────────────────
 
@@ -275,6 +275,84 @@ export interface GradingFormRow {
   stop_time: string;
   total_grading_qty: string;
   note: string;
+}
+
+// ─── Grading Report (migration 040) ──────────────────────────────────────────
+// One sheet per HONS TO HL batch. The batch's own figures (HON count and
+// weight, H/L weighment, R/M grader, standard yield) are read from
+// yield_entries, never stored here.
+
+export interface GradingReportLine {
+  id: string;
+  report_id: string;
+  work_date: string;
+  line_no: number;
+  grade: string;
+  count_text: string;
+  /** EZPL, PD, ... or BLOCK — printed as "HL-<particulars>". */
+  particulars: string;
+  total_kgs: number | null;
+  remarks: string;
+  /** B/S sample: weight of the big pieces. */
+  big_weight: number | null;
+  /** B/S sample: weight of the small pieces. */
+  small_weight: number | null;
+}
+
+export interface GradingReportDefect {
+  id: string;
+  report_id: string;
+  work_date: string;
+  line_no: number;
+  defect: string;
+  percent: number | null;
+}
+
+export interface GradingReport {
+  id: string;
+  /** The HONS TO HL date the batch is on — not necessarily the grading date. */
+  work_date: string;
+  batch_id: string;
+  rm_date: string | null;
+  grading_date: string | null;
+  grader_name: string;
+  checking_count: string;
+  start_time: string | null;
+  end_time: string | null;
+  remarks: string;
+  created_at: string;
+  updated_at: string;
+  lines: GradingReportLine[];
+  defects: GradingReportDefect[];
+}
+
+/** One grade line on the form; numbers stay strings for input binding. */
+export interface GradingReportLineForm {
+  grade: string;
+  count_text: string;
+  particulars: string;
+  total_kgs: string;
+  remarks: string;
+  big_weight: string;
+  small_weight: string;
+}
+
+export interface GradingReportDefectForm {
+  defect: string;
+  percent: string;
+}
+
+/** The sheet being edited; dates are 'YYYY-MM-DD', times 'HH:MM'. */
+export interface GradingReportForm {
+  rm_date: string;
+  grading_date: string;
+  grader_name: string;
+  checking_count: string;
+  start_time: string;
+  end_time: string;
+  remarks: string;
+  lines: GradingReportLineForm[];
+  defects: GradingReportDefectForm[];
 }
 
 // ─── Yield Report Types ──────────────────────────────────────────────────────

@@ -20,6 +20,7 @@ import { useNonLocalLadies } from '@/hooks/useNonLocalLadies';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { useHlVa } from '@/hooks/useHlVa';
 import { useGrading } from '@/hooks/useGrading';
+import { useGradingReports } from '@/hooks/useGradingReports';
 import { useDailyPlan } from '@/hooks/useDailyPlan';
 import { useYieldStandards } from '@/hooks/useYieldStandards';
 import { supabase } from '@/lib/supabase/client';
@@ -37,6 +38,8 @@ import {
 } from '@/lib/hlVa';
 import DailyPlanSheet from '@/components/reports/DailyPlanSheet';
 import StandardYieldPanel from '@/components/daily-entry/StandardYieldPanel';
+import GradingReportTab from '@/components/daily-entry/GradingReportTab';
+import type { GradingSavePayload } from '@/lib/gradingReport';
 import type {
   Supervisor,
   TabType,
@@ -57,6 +60,8 @@ const TABS: { key: TabType; label: string }[] = [
   { key: 'sanitization', label: 'Sanitization' },
   { key: 'processing', label: 'Processing' },
   { key: 'yield', label: 'HONS TO HL' },
+  // Straight after HONS TO HL: it grades the batches that register holds
+  { key: 'grading_report', label: 'Grading Report' },
   { key: 'non_local_ladies', label: 'Company Ladies' },
   { key: 'hl_va', label: 'HL to VA' },
   { key: 'grading', label: 'Grading' },
@@ -324,6 +329,20 @@ export default function DailyEntryPage() {
   } = useGrading();
 
   const {
+    batchEntries: gradingBatchEntries,
+    reports: gradingReports,
+    loading: gradingReportsLoading,
+    fetchReports: fetchGradingReports,
+    saveReport: saveGradingReport,
+    deleteReport: deleteGradingReport,
+  } = useGradingReports();
+  // The sheet waiting on the date confirmation — one batch, not the whole day
+  const [pendingGradingReport, setPendingGradingReport] = useState<{
+    batchId: string;
+    payload: GradingSavePayload;
+  } | null>(null);
+
+  const {
     honHl: planHonHl,
     hlVa: planHlVa,
     loading: planLoading,
@@ -483,6 +502,9 @@ export default function DailyEntryPage() {
     } else if (activeTab === 'grading') {
       // Covers all PPCs at once, so it keys off the date alone
       fetchGradingEntries(selectedDate);
+    } else if (activeTab === 'grading_report') {
+      // Every batch on the date's HONS TO HL, whatever its location
+      fetchGradingReports(selectedDate);
     } else if (selectedLocation) {
       if (activeTab === 'workforce') {
         fetchWorkforce(selectedDate, selectedLocation);
@@ -493,7 +515,7 @@ export default function DailyEntryPage() {
         fetchProcessing(selectedDate, selectedLocation);
       }
     }
-  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing, fetchYieldEntries, fetchNllEntries, fetchHlVaEntries, fetchGradingEntries, fetchPlan]);
+  }, [selectedDate, selectedLocation, activeTab, fetchWorkforce, fetchSupervisors, fetchSanitization, fetchProcessing, fetchYieldEntries, fetchNllEntries, fetchHlVaEntries, fetchGradingEntries, fetchGradingReports, fetchPlan]);
 
   // Pre-populate the plan from what's stored for the date. An empty plan opens
   // with one blank batch row and no VA rows — VA locations are added one at a
@@ -842,6 +864,44 @@ export default function DailyEntryPage() {
     setIsConfirmSaveModalOpen(true);
   };
 
+  // A grading sheet saves one batch, but through the same date check and
+  // confirmation as every other tab
+  const requestGradingReportSave = (batchId: string, payload: GradingSavePayload) => {
+    setPendingGradingReport({ batchId, payload });
+    handleSave();
+  };
+
+  const handleDeleteGradingReport = async (batchId: string): Promise<boolean> => {
+    if (!requireEditDate('daily-entry', selectedDate)) return false;
+    try {
+      await deleteGradingReport(selectedDate, batchId);
+      if (!isAdmin && user && selectedDate < yesterdayIST()) {
+        const { error: logError } = await supabase.from('data_edit_log').insert({
+          user_id: user.id,
+          user_email: user.email,
+          page_key: 'daily-entry',
+          work_date: selectedDate,
+          table_name: 'grading_report',
+          action: 'delete',
+        });
+        if (logError) console.error('Could not write data_edit_log:', logError);
+      }
+      showToast(`Grading report for ${batchId} deleted.`, 'success');
+      return true;
+    } catch (error) {
+      console.error('Error deleting grading report:', error);
+      const problem = registerSaveProblem(error);
+      if (problem) {
+        showPermissionAlert(problem);
+      } else if (!reportError(error)) {
+        const reason =
+          error && typeof error === 'object' && 'message' in error ? String((error as { message: unknown }).message) : '';
+        showToast(reason ? `Failed to delete: ${reason}` : 'Failed to delete. Please try again.', 'error');
+      }
+      return false;
+    }
+  };
+
   const executeSave = async () => {
     if (!selectedLocation) return;
     setSaving(true);
@@ -958,6 +1018,9 @@ export default function DailyEntryPage() {
             (r) => r.start_time || r.stop_time || r.total_grading_qty !== null || r.note
           );
         await saveGradingEntries(selectedDate, validRows);
+      } else if (activeTab === 'grading_report') {
+        if (!pendingGradingReport) return;
+        await saveGradingReport(selectedDate, pendingGradingReport.batchId, pendingGradingReport.payload);
       }
       // Audit trail: a non-admin reaching back past yesterday is doing so under
       // an admin-granted window — record it. Never let logging fail the save.
@@ -1005,7 +1068,8 @@ export default function DailyEntryPage() {
     (activeTab === 'yield' && yieldLoading) ||
     (activeTab === 'non_local_ladies' && nllLoading) ||
     (activeTab === 'hl_va' && hlVaLoading) ||
-    (activeTab === 'grading' && gradingLoading);
+    (activeTab === 'grading' && gradingLoading) ||
+    (activeTab === 'grading_report' && gradingReportsLoading);
 
   // Show loading spinner while locations are loading
   if (locationsLoading) {
@@ -2811,6 +2875,20 @@ export default function DailyEntryPage() {
               </div>
             )}
 
+            {/* ─── Grading Report Tab ────────────────────────────────────── */}
+            {activeTab === 'grading_report' && (
+              <GradingReportTab
+                // A new date closes whatever sheet was open
+                key={selectedDate}
+                date={selectedDate}
+                batchEntries={gradingBatchEntries}
+                reports={gradingReports}
+                saving={saving}
+                onSave={requestGradingReportSave}
+                onDelete={handleDeleteGradingReport}
+              />
+            )}
+
           </>
         )}
       </div>
@@ -2835,6 +2913,9 @@ export default function DailyEntryPage() {
                 day: 'numeric',
               })}
             </div>
+            {activeTab === 'grading_report' && pendingGradingReport && (
+              <div className="text-sm font-semibold mt-1">Batch {pendingGradingReport.batchId}</div>
+            )}
           </div>
           <p className="text-sm text-gray-600 dark:text-gray-400">
             Please confirm that this is the correct date for your entries before saving.
