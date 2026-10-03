@@ -34,8 +34,12 @@ interface Props {
   honHlLoading: boolean;
 }
 
-const th = 'px-4 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap';
-const td = 'px-4 py-3 text-sm whitespace-nowrap';
+// On a phone the cells sit close, so every column shows without scrolling sideways
+const pad = 'px-1 first:pl-3 last:pr-3 sm:px-4 sm:first:pl-4 sm:last:pr-4 py-3';
+const th = `${pad} text-[10px] font-semibold text-gray-500 uppercase tracking-wide sm:tracking-wider whitespace-nowrap`;
+const td = `${pad} text-[13px] sm:text-sm whitespace-nowrap`;
+// Remarks is free text — it wraps rather than pushing the table off the screen
+const tdWrap = `${pad} text-[13px] sm:text-sm break-words`;
 
 const kgOrDash = (v: number | null | undefined) =>
   v === null || v === undefined ? '-' : formatGradingKg(Number(v));
@@ -102,6 +106,8 @@ function Sheet({
   const [exporting, setExporting] = useState(false);
 
   const lines = [...report.lines].sort((a, b) => a.line_no - b.line_no);
+  // Only the counts a B/S sample was taken for — the same lines as the PDF's table
+  const bsLines = lines.filter((l) => l.big_weight !== null || l.small_weight !== null);
   const defects = [...report.defects].sort((a, b) => a.line_no - b.line_no);
   const totals = gradingTotals(
     lines.map((l) => (l.total_kgs === null ? null : Number(l.total_kgs))),
@@ -175,64 +181,95 @@ function Sheet({
               <th className={th}>Grade</th>
               <th className={th}>Count</th>
               <th className={th}>Particulars</th>
-              <th className={`${th} text-right`}>Total (KGS)</th>
+              <th className={`${th} text-right`}>
+                Total<span className="hidden sm:inline"> (KGS)</span>
+              </th>
               <th className={th}>Remarks</th>
-              <th className={`${th} text-right text-sky-600`}>Big</th>
-              <th className={`${th} text-right text-sky-600`}>Small</th>
-              <th className={`${th} text-right text-sky-600`}>B/S</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
             {lines.length === 0 ? (
               <tr>
-                <td colSpan={8} className={`${td} text-gray-500`}>
+                <td colSpan={5} className={`${td} text-gray-500`}>
                   No grade lines on this sheet.
                 </td>
               </tr>
             ) : (
-              lines.map((l) => {
-                const big = l.big_weight === null ? null : Number(l.big_weight);
-                const small = l.small_weight === null ? null : Number(l.small_weight);
-                return (
-                  <tr key={l.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
-                    <td className={`${td} font-bold text-gray-900`}>{l.grade || '-'}</td>
-                    <td className={`${td} text-gray-600`}>{l.count_text || '-'}</td>
-                    <td className={td}>
-                      {l.particulars ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-700 dark:text-sky-300">
-                          {particularsLabel(l.particulars)}
-                        </span>
-                      ) : (
-                        '-'
-                      )}
-                    </td>
-                    <td className={`${td} text-right font-medium text-gray-900`}>{kgOrDash(l.total_kgs)}</td>
-                    <td className={`${td} text-gray-600`}>{l.remarks || '-'}</td>
-                    <td className={`${td} text-right text-gray-600`}>{kgOrDash(big)}</td>
-                    <td className={`${td} text-right text-gray-600`}>{kgOrDash(small)}</td>
-                    <td className={`${td} text-right font-bold text-gray-900`}>
-                      {formatBsRatio(bsRatio(big, small)) || '-'}
-                    </td>
-                  </tr>
-                );
-              })
+              lines.map((l) => (
+                <tr key={l.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
+                  <td className={`${td} font-bold text-gray-900`}>{l.grade || '-'}</td>
+                  <td className={`${td} text-gray-600`}>{l.count_text || '-'}</td>
+                  <td className={td}>
+                    {l.particulars ? (
+                      <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-700 dark:text-sky-300">
+                        {particularsLabel(l.particulars)}
+                      </span>
+                    ) : (
+                      '-'
+                    )}
+                  </td>
+                  <td className={`${td} text-right font-medium text-gray-900`}>{kgOrDash(l.total_kgs)}</td>
+                  <td className={`${tdWrap} text-gray-600`}>{l.remarks || '-'}</td>
+                </tr>
+              ))
             )}
           </tbody>
           <tfoot>
             <tr className="bg-sky-50 dark:bg-sky-900/30 border-t-2 border-sky-100 dark:border-sky-800">
-              <td className={`${td} font-bold text-sky-900 dark:text-sky-200`}>TOTAL</td>
-              <td className={`${td} text-sky-800 dark:text-sky-300`}>
-                {lines.length} line{lines.length === 1 ? '' : 's'}
+              {/* One cell across three columns, so "10 lines" can't widen Count */}
+              <td colSpan={3} className={`${td} font-bold text-sky-900 dark:text-sky-200`}>
+                TOTAL
+                <span className="ml-3 font-normal text-sky-800 dark:text-sky-300">
+                  {lines.length} line{lines.length === 1 ? '' : 's'}
+                </span>
               </td>
-              <td className="px-4 py-3"></td>
               <td className={`${td} text-right font-bold text-sky-900 dark:text-sky-200`}>
                 {formatGradingKg(totals.graded) || '0'}
               </td>
-              <td colSpan={4} className="px-4 py-3"></td>
+              <td className={td}></td>
             </tr>
           </tfoot>
         </table>
       </div>
+
+      {/* B/S ratio — a section of its own under the total, as on the paper sheet */}
+      {bsLines.length > 0 && (
+        <div className="border-t border-gray-100 dark:border-gray-800">
+          <p className="px-3 sm:px-4 pt-3 pb-2 text-[10px] font-bold text-sky-600 uppercase tracking-wider">
+            B/S Ratio
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-y border-gray-100 dark:border-gray-800">
+                  <th className={th}>Grade</th>
+                  <th className={th}>Count</th>
+                  <th className={`${th} text-right`}>Big</th>
+                  <th className={`${th} text-right`}>Small</th>
+                  <th className={`${th} text-right text-sky-600`}>B/S</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
+                {bsLines.map((l) => {
+                  const big = l.big_weight === null ? null : Number(l.big_weight);
+                  const small = l.small_weight === null ? null : Number(l.small_weight);
+                  return (
+                    <tr key={l.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
+                      <td className={`${td} font-bold text-gray-900`}>{l.grade || '-'}</td>
+                      <td className={`${td} text-gray-600`}>{l.count_text || '-'}</td>
+                      <td className={`${td} text-right text-gray-600`}>{kgOrDash(big)}</td>
+                      <td className={`${td} text-right text-gray-600`}>{kgOrDash(small)}</td>
+                      <td className={`${td} text-right font-bold text-gray-900`}>
+                        {formatBsRatio(bsRatio(big, small)) || '-'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* What the sheet is read for */}
       <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-gray-100 dark:border-gray-800">
