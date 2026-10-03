@@ -44,6 +44,39 @@ const tdWrap = `${pad} text-[13px] sm:text-sm break-words`;
 const kgOrDash = (v: number | null | undefined) =>
   v === null || v === undefined ? '-' : formatGradingKg(Number(v));
 
+// The grade lines and the B/S samples share these widths, so Grade and Count
+// sit in the same place in both tables. Grade is the one left-aligned column,
+// so it is the narrow one — that keeps the gaps between the five even. On a
+// phone the pill needs the most room; a column still grows if its content does.
+const Cols = () => (
+  <colgroup>
+    <col className="w-[21%] sm:w-[16%]" />
+    <col className="w-[15%] sm:w-[21%]" />
+    <col className="w-[26%] sm:w-[21%]" />
+    <col className="w-[17%] sm:w-[21%]" />
+    <col className="w-[21%]" />
+  </colgroup>
+);
+
+const longest = (values: string[]) => values.reduce((a, v) => (v.length > a.length ? v : a), '');
+
+/**
+ * A figure in a centred column. Each cell also holds the column's longest
+ * figure, unseen, so every cell's block is one width: the block sits centred
+ * under the heading and the figures right-align inside it, units under units.
+ */
+function Num({ value, sizer }: { value: string; sizer: string }) {
+  return (
+    <span className="inline-grid text-right">
+      {/* Bold, so a bold total and the plain lines above it come out the same width */}
+      <span aria-hidden="true" className="invisible col-start-1 row-start-1 font-bold">
+        {sizer}
+      </span>
+      <span className={`col-start-1 row-start-1 ${value === '-' ? 'text-center' : ''}`}>{value}</span>
+    </span>
+  );
+}
+
 export default function BatchPipelineGrading({ batchQuery, reports, loading, honHlEntries, honHlLoading }: Props) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -149,6 +182,17 @@ function Sheet({
 
   const vs = totals.vsTheoretical;
 
+  const gradedTotal = formatGradingKg(totals.graded) || '0';
+  const totalSizer = longest([gradedTotal, ...lines.map((l) => kgOrDash(l.total_kgs))]);
+  const bsRows = bsLines.map((l) => {
+    const big = l.big_weight === null ? null : Number(l.big_weight);
+    const small = l.small_weight === null ? null : Number(l.small_weight);
+    return { line: l, big: kgOrDash(big), small: kgOrDash(small), ratio: formatBsRatio(bsRatio(big, small)) || '-' };
+  });
+  const bigSizer = longest(bsRows.map((r) => r.big));
+  const smallSizer = longest(bsRows.map((r) => r.small));
+  const ratioSizer = longest(bsRows.map((r) => r.ratio));
+
   return (
     <div>
       {/* Who graded it, when */}
@@ -176,15 +220,16 @@ function Sheet({
       {/* Grade lines */}
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
+          <Cols />
           <thead>
             <tr className="bg-gray-50 border-y border-gray-100 dark:border-gray-800">
               <th className={th}>Grade</th>
-              <th className={th}>Count</th>
-              <th className={th}>Particulars</th>
-              <th className={`${th} text-right`}>
+              <th className={`${th} text-center`}>Count</th>
+              <th className={`${th} text-center`}>Particulars</th>
+              <th className={`${th} text-center`}>
                 Total<span className="hidden sm:inline"> (KGS)</span>
               </th>
-              <th className={th}>Remarks</th>
+              <th className={`${th} text-center`}>Remarks</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
@@ -198,8 +243,8 @@ function Sheet({
               lines.map((l) => (
                 <tr key={l.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
                   <td className={`${td} font-bold text-gray-900`}>{l.grade || '-'}</td>
-                  <td className={`${td} text-gray-600`}>{l.count_text || '-'}</td>
-                  <td className={td}>
+                  <td className={`${td} text-center text-gray-600`}>{l.count_text || '-'}</td>
+                  <td className={`${td} text-center`}>
                     {l.particulars ? (
                       <span className="inline-flex items-center px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-bold bg-sky-50 text-sky-700 dark:text-sky-300">
                         {particularsLabel(l.particulars)}
@@ -208,8 +253,10 @@ function Sheet({
                       '-'
                     )}
                   </td>
-                  <td className={`${td} text-right font-medium text-gray-900`}>{kgOrDash(l.total_kgs)}</td>
-                  <td className={`${tdWrap} text-gray-600`}>{l.remarks || '-'}</td>
+                  <td className={`${td} text-center font-medium text-gray-900`}>
+                    <Num value={kgOrDash(l.total_kgs)} sizer={totalSizer} />
+                  </td>
+                  <td className={`${tdWrap} text-center text-gray-600`}>{l.remarks || '-'}</td>
                 </tr>
               ))
             )}
@@ -223,8 +270,8 @@ function Sheet({
                   {lines.length} line{lines.length === 1 ? '' : 's'}
                 </span>
               </td>
-              <td className={`${td} text-right font-bold text-sky-900 dark:text-sky-200`}>
-                {formatGradingKg(totals.graded) || '0'}
+              <td className={`${td} text-center font-bold text-sky-900 dark:text-sky-200`}>
+                <Num value={gradedTotal} sizer={totalSizer} />
               </td>
               <td className={td}></td>
             </tr>
@@ -240,31 +287,32 @@ function Sheet({
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
+              <Cols />
               <thead>
                 <tr className="bg-gray-50 border-y border-gray-100 dark:border-gray-800">
                   <th className={th}>Grade</th>
-                  <th className={th}>Count</th>
-                  <th className={`${th} text-right`}>Big</th>
-                  <th className={`${th} text-right`}>Small</th>
-                  <th className={`${th} text-right text-sky-600`}>B/S</th>
+                  <th className={`${th} text-center`}>Count</th>
+                  <th className={`${th} text-center`}>Big</th>
+                  <th className={`${th} text-center`}>Small</th>
+                  <th className={`${th} text-center text-sky-600`}>B/S</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50 dark:divide-gray-800/50">
-                {bsLines.map((l) => {
-                  const big = l.big_weight === null ? null : Number(l.big_weight);
-                  const small = l.small_weight === null ? null : Number(l.small_weight);
-                  return (
-                    <tr key={l.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
-                      <td className={`${td} font-bold text-gray-900`}>{l.grade || '-'}</td>
-                      <td className={`${td} text-gray-600`}>{l.count_text || '-'}</td>
-                      <td className={`${td} text-right text-gray-600`}>{kgOrDash(big)}</td>
-                      <td className={`${td} text-right text-gray-600`}>{kgOrDash(small)}</td>
-                      <td className={`${td} text-right font-bold text-gray-900`}>
-                        {formatBsRatio(bsRatio(big, small)) || '-'}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {bsRows.map(({ line: l, big, small, ratio }) => (
+                  <tr key={l.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/60 transition-colors">
+                    <td className={`${td} font-bold text-gray-900`}>{l.grade || '-'}</td>
+                    <td className={`${td} text-center text-gray-600`}>{l.count_text || '-'}</td>
+                    <td className={`${td} text-center text-gray-600`}>
+                      <Num value={big} sizer={bigSizer} />
+                    </td>
+                    <td className={`${td} text-center text-gray-600`}>
+                      <Num value={small} sizer={smallSizer} />
+                    </td>
+                    <td className={`${td} text-center font-bold text-gray-900`}>
+                      <Num value={ratio} sizer={ratioSizer} />
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
