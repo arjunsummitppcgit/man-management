@@ -252,7 +252,7 @@ export function gradingFormFrom(
   };
 }
 
-const lineIsBlank = (l: GradingReportLineForm) =>
+export const lineIsBlank = (l: GradingReportLineForm) =>
   Object.values(l).every((v) => v.trim() === '');
 
 const nonNegative = (value: string): number | null => {
@@ -290,6 +290,35 @@ export function gradingSavePayload(form: GradingReportForm) {
 }
 
 export type GradingSavePayload = ReturnType<typeof gradingSavePayload>;
+
+// ─── The form's B/S section ─────────────────────────────────────────────────
+// A sample's weights are stored on its grade line (big_weight / small_weight).
+// The form shows them as rows of their own under the grade lines, each row
+// pointing at its line by position in form.lines.
+
+export const hasBsSample = (l: GradingReportLineForm) =>
+  l.big_weight.trim() !== '' || l.small_weight.trim() !== '';
+
+/** The rows a sheet opens with: one per grade line that carries a sample. */
+export const bsRowsFrom = (lines: GradingReportLineForm[]) =>
+  lines.flatMap((l, i) => (hasBsSample(l) ? [i] : []));
+
+/** The rows once grade line `idx` is removed: its own goes, those below move up one. */
+export const bsRowsWithoutLine = (rows: number[], idx: number) =>
+  rows.filter((r) => r !== idx).map((r) => (r > idx ? r - 1 : r));
+
+/** A sample re-pointed at another grade line — its weights move with it. */
+export function moveBsWeights(lines: GradingReportLineForm[], from: number, to: number) {
+  if (from === to) return lines;
+  const { big_weight, small_weight } = lines[from];
+  return lines.map((l, i) => {
+    if (i === to) return { ...l, big_weight, small_weight };
+    return i === from ? { ...l, big_weight: '', small_weight: '' } : l;
+  });
+}
+
+export const clearBsWeights = (lines: GradingReportLineForm[], idx: number) =>
+  lines.map((l, i) => (i === idx ? { ...l, big_weight: '', small_weight: '' } : l));
 
 // ─── The sums at the foot of the sheet ──────────────────────────────────────
 

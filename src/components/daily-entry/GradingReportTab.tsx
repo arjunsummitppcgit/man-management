@@ -10,6 +10,9 @@ import {
   GRADE_SUGGESTIONS,
   GRADING_PARTICULARS,
   bsRatio,
+  bsRowsFrom,
+  bsRowsWithoutLine,
+  clearBsWeights,
   formatBsRatio,
   emptyDefect,
   emptyGradingLine,
@@ -20,6 +23,8 @@ import {
   gradingSavePayload,
   gradingTotals,
   groupGradingBatches,
+  lineIsBlank,
+  moveBsWeights,
   normaliseParticulars,
   parseGradingNumber,
   sheetDate,
@@ -57,6 +62,8 @@ const inputClass =
   'w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-400';
 const cellClass =
   'w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-900 placeholder-gray-400 focus:bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/10';
+const selectClass =
+  'w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 focus:border-teal-500 appearance-none';
 const labelClass = 'block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1';
 
 const pct = (v: number | null) => (v === null ? '-' : `${v.toFixed(2)}%`);
@@ -233,12 +240,27 @@ interface GradingSheetProps {
   onDelete: (batchId: string) => Promise<boolean>;
 }
 
-const LINE_COLS = 7; // grade, count, particulars, total, remarks, big, small
+const LINE_COLS = 5; // grade, count, particulars, total, remarks
+
+// Picker, big, small, ratio, remove. Narrow on a phone so the picker keeps its text.
+const bsGrid =
+  'grid grid-cols-[minmax(0,1fr)_52px_52px_36px_28px] sm:grid-cols-[minmax(0,1fr)_96px_96px_56px_28px] gap-1.5';
+
+/** How a grade line is named in the B/S picker — count first, as on the paper. */
+const bsLineLabel = (l: GradingReportLineForm, idx: number) => {
+  const count = l.count_text.trim();
+  const grade = l.grade.trim();
+  return count && grade ? `${count} · ${grade}` : count || grade || `Line ${idx + 1}`;
+};
 
 function GradingSheet({ date, batch, report, saving, onBack, onSave, onDelete }: GradingSheetProps) {
   const { showToast } = useToast();
   const [initial] = useState<GradingReportForm>(() => gradingFormFrom(report, batch, date));
   const [form, setForm] = useState<GradingReportForm>(initial);
+  // The B/S section's rows: which grade line each sample belongs to, by position
+  // in form.lines. The weights themselves stay on the line — a row added here
+  // and left blank saves nothing.
+  const [bsRows, setBsRows] = useState<number[]>(() => bsRowsFrom(initial.lines));
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -265,6 +287,30 @@ function GradingSheet({ date, batch, report, saving, onBack, onSave, onDelete }:
         return next;
       }),
     }));
+
+  const removeLine = (idx: number) => {
+    setForm((prev) => ({
+      ...prev,
+      lines: prev.lines.length > 1 ? prev.lines.filter((_, i) => i !== idx) : [emptyGradingLine()],
+    }));
+    // Its sample goes with it
+    setBsRows((rows) => bsRowsWithoutLine(rows, idx));
+  };
+
+  // The first grade line with something typed that has no sample yet
+  const nextBsLine = form.lines.findIndex((l, i) => !bsRows.includes(i) && !lineIsBlank(l));
+
+  const moveBs = (pos: number, to: number) => {
+    const from = bsRows[pos];
+    setForm((prev) => ({ ...prev, lines: moveBsWeights(prev.lines, from, to) }));
+    setBsRows((rows) => rows.map((r, p) => (p === pos ? to : r)));
+  };
+
+  const removeBs = (pos: number) => {
+    const idx = bsRows[pos];
+    setForm((prev) => ({ ...prev, lines: clearBsWeights(prev.lines, idx) }));
+    setBsRows((rows) => rows.filter((_, p) => p !== pos));
+  };
 
   const handleLineKey = (e: React.KeyboardEvent, row: number, col: number) => {
     let r = row;
@@ -418,140 +464,99 @@ function GradingSheet({ date, batch, report, saving, onBack, onSave, onDelete }:
 
       {/* Grade lines */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
-        <div className="min-w-[720px] p-3">
-          <div className="grid grid-cols-[76px_60px_96px_84px_1fr_70px_70px_48px_28px] gap-1.5 mb-2 px-1 border-b border-gray-100 pb-2">
+        <div className="min-w-[520px] p-3">
+          <div className="grid grid-cols-[76px_60px_96px_84px_1fr_28px] gap-1.5 mb-2 px-1 border-b border-gray-100 pb-2">
             <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Grade</span>
             <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Count</span>
             <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Particulars</span>
             <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider text-right">Total (kg)</span>
             <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Remarks</span>
-            <span className="text-[10px] font-semibold text-sky-600 uppercase tracking-wider text-right">Big</span>
-            <span className="text-[10px] font-semibold text-sky-600 uppercase tracking-wider text-right">Small</span>
-            <span className="text-[10px] font-semibold text-sky-600 uppercase tracking-wider text-right">B/S</span>
             <span></span>
           </div>
 
           <div className="space-y-1.5">
-            {form.lines.map((line, idx) => {
-              const ratio = bsRatio(parseGradingNumber(line.big_weight), parseGradingNumber(line.small_weight));
-              return (
-                <div
-                  key={idx}
-                  className="group grid grid-cols-[76px_60px_96px_84px_1fr_70px_70px_48px_28px] gap-1.5 items-center px-1"
+            {form.lines.map((line, idx) => (
+              <div
+                key={idx}
+                className="group grid grid-cols-[76px_60px_96px_84px_1fr_28px] gap-1.5 items-center px-1"
+              >
+                <input
+                  id={`grl-${idx}-0`}
+                  type="text"
+                  list="grading-grades"
+                  value={line.grade}
+                  onChange={(e) => setLine(idx, 'grade', e.target.value)}
+                  onKeyDown={(e) => handleLineKey(e, idx, 0)}
+                  placeholder="21/25"
+                  className={cellClass}
+                />
+                <input
+                  id={`grl-${idx}-1`}
+                  type="text"
+                  value={line.count_text}
+                  onChange={(e) => setLine(idx, 'count_text', e.target.value)}
+                  onKeyDown={(e) => handleLineKey(e, idx, 1)}
+                  placeholder="22"
+                  className={cellClass}
+                />
+                <select
+                  id={`grl-${idx}-2`}
+                  value={normaliseParticulars(line.particulars)}
+                  onChange={(e) => setLine(idx, 'particulars', e.target.value)}
+                  onKeyDown={(e) => handleLineKey(e, idx, 2)}
+                  className={selectClass}
                 >
-                  <input
-                    id={`grl-${idx}-0`}
-                    type="text"
-                    list="grading-grades"
-                    value={line.grade}
-                    onChange={(e) => setLine(idx, 'grade', e.target.value)}
-                    onKeyDown={(e) => handleLineKey(e, idx, 0)}
-                    placeholder="21/25"
-                    className={cellClass}
-                  />
-                  <input
-                    id={`grl-${idx}-1`}
-                    type="text"
-                    value={line.count_text}
-                    onChange={(e) => setLine(idx, 'count_text', e.target.value)}
-                    onKeyDown={(e) => handleLineKey(e, idx, 1)}
-                    placeholder="22"
-                    className={cellClass}
-                  />
-                  <select
-                    id={`grl-${idx}-2`}
-                    value={normaliseParticulars(line.particulars)}
-                    onChange={(e) => setLine(idx, 'particulars', e.target.value)}
-                    onKeyDown={(e) => handleLineKey(e, idx, 2)}
-                    className="w-full px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 focus:border-teal-500 appearance-none"
+                  <option value="">HL-...</option>
+                  {particularOptions(line.particulars).map((p) => (
+                    <option key={p} value={p}>
+                      HL-{p}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  id={`grl-${idx}-3`}
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.001"
+                  value={line.total_kgs}
+                  onChange={(e) => setLine(idx, 'total_kgs', e.target.value)}
+                  onKeyDown={(e) => handleLineKey(e, idx, 3)}
+                  placeholder="0"
+                  className={`${cellClass} text-right`}
+                />
+                <input
+                  id={`grl-${idx}-4`}
+                  type="text"
+                  value={line.remarks}
+                  onChange={(e) => setLine(idx, 'remarks', e.target.value)}
+                  onKeyDown={(e) => handleLineKey(e, idx, 4)}
+                  placeholder="Remarks"
+                  className={cellClass}
+                />
+                <div className="flex justify-end pr-1">
+                  <button
+                    type="button"
+                    aria-label={`Remove line ${idx + 1}`}
+                    onClick={() => removeLine(idx)}
+                    className="w-6 h-6 flex items-center justify-center rounded bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
                   >
-                    <option value="">HL-...</option>
-                    {particularOptions(line.particulars).map((p) => (
-                      <option key={p} value={p}>
-                        HL-{p}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    id={`grl-${idx}-3`}
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    step="0.001"
-                    value={line.total_kgs}
-                    onChange={(e) => setLine(idx, 'total_kgs', e.target.value)}
-                    onKeyDown={(e) => handleLineKey(e, idx, 3)}
-                    placeholder="0"
-                    className={`${cellClass} text-right`}
-                  />
-                  <input
-                    id={`grl-${idx}-4`}
-                    type="text"
-                    value={line.remarks}
-                    onChange={(e) => setLine(idx, 'remarks', e.target.value)}
-                    onKeyDown={(e) => handleLineKey(e, idx, 4)}
-                    placeholder="Remarks"
-                    className={cellClass}
-                  />
-                  <input
-                    id={`grl-${idx}-5`}
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    step="0.001"
-                    value={line.big_weight}
-                    onChange={(e) => setLine(idx, 'big_weight', e.target.value)}
-                    onKeyDown={(e) => handleLineKey(e, idx, 5)}
-                    placeholder="Big"
-                    className={`${cellClass} text-right`}
-                  />
-                  <input
-                    id={`grl-${idx}-6`}
-                    type="number"
-                    inputMode="decimal"
-                    min="0"
-                    step="0.001"
-                    value={line.small_weight}
-                    onChange={(e) => setLine(idx, 'small_weight', e.target.value)}
-                    onKeyDown={(e) => handleLineKey(e, idx, 6)}
-                    placeholder="Small"
-                    className={`${cellClass} text-right`}
-                  />
-                  <span className="text-[11px] font-bold text-right px-1 text-sky-700">
-                    {formatBsRatio(ratio) || '-'}
-                  </span>
-                  <div className="flex justify-end pr-1">
-                    <button
-                      type="button"
-                      aria-label={`Remove line ${idx + 1}`}
-                      onClick={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          lines:
-                            prev.lines.length > 1
-                              ? prev.lines.filter((_, i) => i !== idx)
-                              : [emptyGradingLine()],
-                        }))
-                      }
-                      className="w-6 h-6 flex items-center justify-center rounded bg-rose-50 text-rose-500 hover:bg-rose-100 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
 
-          <div className="grid grid-cols-[76px_60px_96px_84px_1fr_70px_70px_48px_28px] gap-1.5 items-center px-1 mt-2 pt-2 border-t border-gray-100">
+          <div className="grid grid-cols-[76px_60px_96px_84px_1fr_28px] gap-1.5 items-center px-1 mt-2 pt-2 border-t border-gray-100">
             <span className="col-span-3 text-[11px] font-bold text-gray-700 uppercase tracking-wider">Total</span>
             <span className="text-xs font-bold text-right text-gray-900 pr-2">{formatGradingKg(totals.graded) || '0'}</span>
-            <span className="col-span-5"></span>
+            <span className="col-span-2"></span>
           </div>
         </div>
-        {/* Outside the scrolling grid, so a phone sees them without scrolling */}
+        {/* Outside the scrolling grid, so a phone sees it without scrolling */}
         <div className="px-3 pb-3 sticky left-0">
           <button
             type="button"
@@ -560,11 +565,94 @@ function GradingSheet({ date, batch, report, saving, onBack, onSave, onDelete }:
           >
             + Add grade line
           </button>
-          <p className="text-[10px] text-gray-400 mt-2">
-            Big / Small: the B/S sample for that count (e.g. 105 / 95) — scroll right on a phone. B/S =
-            Big ÷ Small. Leave blank where no sample was taken.
-          </p>
         </div>
+      </div>
+
+      {/* B/S ratio — its own section under the grade lines, as on the paper sheet */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-2">
+        <h3 className="text-sm font-semibold text-gray-700">B/S Ratio</h3>
+        {bsRows.length === 0 ? (
+          <p className="text-[11px] text-gray-400">No sample recorded.</p>
+        ) : (
+          <div className={`${bsGrid} border-b border-gray-100 pb-2`}>
+            <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Count · Grade</span>
+            <span className="text-[10px] font-semibold text-sky-600 uppercase tracking-wider text-right">Big</span>
+            <span className="text-[10px] font-semibold text-sky-600 uppercase tracking-wider text-right">Small</span>
+            <span className="text-[10px] font-semibold text-sky-600 uppercase tracking-wider text-right">B/S</span>
+            <span></span>
+          </div>
+        )}
+        {bsRows.map((lineIdx, pos) => {
+          const line = form.lines[lineIdx];
+          const ratio = bsRatio(parseGradingNumber(line.big_weight), parseGradingNumber(line.small_weight));
+          return (
+            <div key={pos} className={`${bsGrid} items-center`}>
+              <select
+                aria-label={`B/S sample ${pos + 1}: grade line`}
+                value={lineIdx}
+                onChange={(e) => moveBs(pos, Number(e.target.value))}
+                className={selectClass}
+              >
+                {form.lines.map((l, i) =>
+                  // Its own line, and every typed line no other sample has taken
+                  i === lineIdx || (!bsRows.includes(i) && !lineIsBlank(l)) ? (
+                    <option key={i} value={i}>
+                      {bsLineLabel(l, i)}
+                    </option>
+                  ) : null
+                )}
+              </select>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.001"
+                aria-label={`B/S sample ${pos + 1}: big`}
+                value={line.big_weight}
+                onChange={(e) => setLine(lineIdx, 'big_weight', e.target.value)}
+                placeholder="Big"
+                className={`${cellClass} text-right`}
+              />
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.001"
+                aria-label={`B/S sample ${pos + 1}: small`}
+                value={line.small_weight}
+                onChange={(e) => setLine(lineIdx, 'small_weight', e.target.value)}
+                placeholder="Small"
+                className={`${cellClass} text-right`}
+              />
+              <span className="text-[11px] font-bold text-right text-sky-700">{formatBsRatio(ratio) || '-'}</span>
+              <button
+                type="button"
+                aria-label={`Remove B/S sample ${pos + 1}`}
+                onClick={() => removeBs(pos)}
+                className="w-7 h-7 flex items-center justify-center rounded bg-rose-50 text-rose-500 hover:bg-rose-100"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setBsRows((rows) => [...rows, nextBsLine])}
+          disabled={nextBsLine === -1}
+          className="w-full py-2.5 border border-dashed border-gray-200 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+        >
+          + Add B/S sample
+        </button>
+        <p className="text-[10px] text-gray-400">
+          {nextBsLine === -1
+            ? bsRows.length > 0
+              ? 'Every grade line above has its sample. Add a grade line to record another.'
+              : 'Enter the grade lines above first — a sample is recorded against one of them.'
+            : 'Pick the count the sample was taken from, then its Big and Small (e.g. 105 / 95). B/S = Big ÷ Small.'}
+        </p>
       </div>
 
       {/* The sums the sheet is read for */}
